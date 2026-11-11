@@ -1,35 +1,33 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
+import { api, toLocation } from '../api/client';
 
-// Temporary frontend pricing rates in USD (will be replaced by POST /api/estimate)
-const MOCK_RATES = {
-    courier: { base: 29, perMile: 1.75, perMin: 0.45, minTotal: 35 },
-    lite: { base: 45, perMile: 2.25, perMin: 0.6, minTotal: 55 },
-    pickup: { base: 69, perMile: 2.85, perMin: 0.85, minTotal: 79 },
-    van: { base: 95, perMile: 3.5, perMin: 1.1, minTotal: 109 }
-};
+/**
+ * Prețurile vin de la server (POST /api/estimate), exact cum vor fi facturate.
+ * Returnează { estimates, routeInfo, loading, error }.
+ */
+export function usePriceEstimate(pickup, dropoff) {
+    const [state, setState] = useState({ estimates: {}, routeInfo: null, loading: false, error: '' });
 
-export function usePriceEstimate(routeInfo) {
-    return useMemo(() => {
-        const distanceMiles = routeInfo?.distanceMiles || 0;
-        const durationMins = routeInfo?.durationMins || 0;
+    const key = pickup && dropoff ? `${pickup.lat},${pickup.lng};${dropoff.lat},${dropoff.lng}` : '';
 
-        const estimates = {};
+    useEffect(() => {
+        if (!key) return;
+        let cancelled = false;
+        setState((s) => ({ ...s, loading: true, error: '' }));
 
-        Object.entries(MOCK_RATES).forEach(([vehicleId, rate]) => {
-            const distanceCost = distanceMiles * rate.perMile;
-            const timeCost = durationMins * rate.perMin;
-            const rawTotal = rate.base + distanceCost + timeCost;
-            const total = Math.max(rate.minTotal, Math.round(rawTotal));
+        api.estimate(toLocation(pickup), toLocation(dropoff))
+            .then(({ estimates, routeInfo }) => {
+                if (!cancelled) setState({ estimates, routeInfo, loading: false, error: '' });
+            })
+            .catch((err) => {
+                if (!cancelled) setState({ estimates: {}, routeInfo: null, loading: false, error: err.message });
+            });
 
-            estimates[vehicleId] = {
-                vehicleId,
-                baseFare: rate.base,
-                distanceCost: Math.round(distanceCost),
-                timeCost: Math.round(timeCost),
-                total
-            };
-        });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key]);
 
-        return estimates;
-    }, [routeInfo?.distanceMiles, routeInfo?.durationMins]);
+    return state;
 }

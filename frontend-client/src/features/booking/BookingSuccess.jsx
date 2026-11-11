@@ -48,7 +48,11 @@ const BookingSuccess = () => {
                     <strong>{completedOrder.itemsDescription}</strong>
                 </div>
                 <div className="detail-line total">
-                    <span>Achitat (card •••• {completedOrder.cardLast4})</span>
+                    <span>
+                        {completedOrder.status === 'paid'
+                            ? `Achitat${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
+                            : 'De plată la finalizare'}
+                    </span>
                     <strong className="paid-sum">{formatPrice(completedOrder.totalAmount)}</strong>
                 </div>
             </div>

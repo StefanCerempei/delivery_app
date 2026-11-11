@@ -1,23 +1,96 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useBooking } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
-import {
-    isValidEmail,
-    isValidPhone,
-    formatCardNumber,
-    formatCardExpiry
-} from '../../utils/validators';
+import { isValidEmail, isValidPhone } from '../../utils/validators';
+import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
+
+// Formularul Stripe preia aspectul aplicației.
+const stripeAppearance = {
+    theme: 'night',
+    variables: {
+        colorPrimary: '#ff6a1a',
+        colorBackground: '#17181c',
+        colorText: '#f4f1ea',
+        colorTextSecondary: '#9a958c',
+        colorDanger: '#ff7a7a',
+        borderRadius: '12px',
+        fontFamily: 'Geist, system-ui, sans-serif',
+        spacingUnit: '4px'
+    },
+    rules: {
+        '.Input': { border: '1px solid rgba(255,255,255,0.13)', boxShadow: 'none' },
+        '.Input:focus': { border: '1px solid #ff6a1a', boxShadow: '0 0 0 4px rgba(255,106,26,0.12)' }
+    }
+};
+
+function schedulePayload(scheduledTime) {
+    if (!scheduledTime || scheduledTime === 'asap') return { type: 'asap' };
+    return {
+        type: 'scheduled',
+        date: scheduledTime.dateStr,
+        slot: scheduledTime.slotId,
+        label: `${scheduledTime.dateLabel} • ${scheduledTime.slotLabel}`
+    };
+}
+
+/** Formularul de card Stripe (afișat după ce comanda a fost creată pe server). */
+const StripePaymentForm = ({ order, onPaid }) => {
+    const stripe = useStripe();
+    const elements = useElements();
+    const [error, setError] = useState('');
+    const [isPaying, setIsPaying] = useState(false);
+
+    const handlePay = async (e) => {
+        e.preventDefault();
+        if (!stripe || !elements) return;
+        setError('');
+        setIsPaying(true);
+
+        const { error: stripeError } = await stripe.confirmPayment({
+            elements,
+            redirect: 'if_required',
+            confirmParams: { return_url: window.location.origin }
+        });
+
+        if (stripeError) {
+            setError(stripeError.message || 'Plata nu a putut fi procesată.');
+            setIsPaying(false);
+            return;
+        }
+
+        try {
+            // Serverul verifică la Stripe că plata chiar a intrat, abia apoi marchează comanda ca plătită.
+            const { order: updated } = await api.confirmPayment(order.id);
+            onPaid(updated);
+        } catch (err) {
+            setError(err.message);
+            setIsPaying(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handlePay}>
+            <PaymentElement options={{ layout: 'tabs' }} />
+            {error && <p className="form-inline-error">{error}</p>}
+            <div className="step-footer">
+                <Button type="submit" disabled={!stripe || isPaying}>
+                    {isPaying ? 'Processing payment…' : `Pay ${formatPrice(order.totalAmount)}`}
+                </Button>
+                <p className="trust-note">Card details are handled securely by Stripe and never touch Reloq servers.</p>
+            </div>
+        </form>
+    );
+};
+
 const Step5Pay = () => {
-    const {
-        bookingData,
-        user,
-        saveUserAccount,
-        logoutUser,
-        setCompletedOrder
-    } = useBooking();
+    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder } = useBooking();
 
     const [authMode, setAuthMode] = useState('register');
     const [fullName, setFullName] = useState('');
@@ -25,123 +98,103 @@ const Step5Pay = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
+    const [authBusy, setAuthBusy] = useState(false);
 
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
-    const [cardCvc, setCardCvc] = useState('');
-    const [payError, setPayError] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+    const [order, setOrder] = useState(null);
+    const [clientSecret, setClientSecret] = useState(null);
+    const [orderError, setOrderError] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+
+    useEffect(() => {
+        api.config()
+            .then((cfg) => setPaymentsEnabled(Boolean(cfg.paymentsEnabled)))
+            .catch(() => setPaymentsEnabled(false));
+    }, []);
 
     const selectedVehicle = VEHICLES.find((v) => v.id === bookingData.vehicle);
-    const totalAmount = bookingData.priceEstimate?.total || 0;
+    const totalAmount = order?.totalAmount ?? bookingData.priceEstimate?.total ?? null;
 
     const scheduleText =
-        bookingData.scheduledTime === 'asap'
+        !bookingData.scheduledTime || bookingData.scheduledTime === 'asap'
             ? 'Now (in ~30 min)'
-            : `${bookingData.scheduledTime?.dateLabel} • ${bookingData.scheduledTime?.slotLabel}`;
+            : `${bookingData.scheduledTime.dateLabel} • ${bookingData.scheduledTime.slotLabel}`;
 
-    const handleAccountSubmit = (e) => {
+    const elementsOptions = useMemo(
+        () => (clientSecret ? { clientSecret, appearance: stripeAppearance } : null),
+        [clientSecret]
+    );
+
+    const handleAccountSubmit = async (e) => {
         e.preventDefault();
         setAuthError('');
 
-        if (authMode === 'register' && fullName.trim().length < 2) {
-            setAuthError('Please enter your full name.');
-            return;
-        }
-        if (authMode === 'register' && !isValidPhone(phone)) {
-            setAuthError('Please enter a valid mobile number (e.g., (415) 555-0192).');
-            return;
-        }
-        if (!isValidEmail(email)) {
-            setAuthError('Please enter a valid email address.');
-            return;
-        }
-        if (password.length < 6) {
-            setAuthError('Password must be at least 6 characters.');
-            return;
-        }
+        if (authMode === 'register' && fullName.trim().length < 2) return setAuthError('Please enter your full name.');
+        if (authMode === 'register' && !isValidPhone(phone))
+            return setAuthError('Please enter a valid mobile number (e.g., (415) 555-0192).');
+        if (!isValidEmail(email)) return setAuthError('Please enter a valid email address.');
+        if (authMode === 'register' && password.length < 8)
+            return setAuthError('Password must be at least 8 characters.');
+        if (!password) return setAuthError('Please enter your password.');
 
-        const cleanEmail = email.trim().toLowerCase();
-        const accountObj = {
-            id: `usr_${Date.now()}`,
-            fullName:
-                authMode === 'register'
-                    ? fullName.trim()
-                    : cleanEmail.split('@')[0],
-            phone: authMode === 'register' ? phone.trim() : '(415) 555-0199',
-            email: cleanEmail,
-            createdAt: new Date().toISOString()
-        };
-
-        saveUserAccount(accountObj);
+        setAuthBusy(true);
+        try {
+            if (authMode === 'register') {
+                await registerUser({ fullName: fullName.trim(), phone: phone.trim(), email: email.trim(), password });
+            } else {
+                await loginUser(email.trim(), password);
+            }
+            setPassword('');
+        } catch (err) {
+            setAuthError(err.message);
+        } finally {
+            setAuthBusy(false);
+        }
     };
 
-    const handlePayAndConfirm = (e) => {
-        e.preventDefault();
-        setPayError('');
+    const handleCreateOrder = async () => {
+        setOrderError('');
+        if (!user) return setOrderError('Please create your Reloq account first to continue.');
+        if (paymentsEnabled && !stripePromise)
+            return setOrderError('Plățile nu sunt configurate complet (lipsește VITE_STRIPE_PUBLISHABLE_KEY).');
 
-        if (!user) {
-            setPayError('Please create your Reloq account first to continue.');
-            return;
-        }
-
-        const rawDigits = cardNumber.replace(/\s/g, '');
-        if (rawDigits.length < 16) {
-            setPayError('Please enter all 16 digits of your card.');
-            return;
-        }
-        if (cardExpiry.length < 5) {
-            setPayError('Please enter the expiration date in MM/YY format.');
-            return;
-        }
-        if (cardCvc.length < 3) {
-            setPayError('Please enter the 3- or 4-digit CVC code.');
-            return;
-        }
-
-        setIsProcessing(true);
-
-        setTimeout(() => {
-            const orderCode = `RLQ-${Math.floor(10000 + Math.random() * 90000)}`;
-            const newOrder = {
-                id: orderCode,
-                status: 'confirmed',
-                customer: user,
-                pickup: bookingData.pickup,
-                dropoff: bookingData.dropoff,
-                routeInfo: bookingData.routeInfo,
-                vehicle: selectedVehicle,
-                scheduledTime: bookingData.scheduledTime,
-                scheduleText,
+        setIsCreating(true);
+        try {
+            const res = await api.createOrder({
+                pickup: toLocation(bookingData.pickup),
+                dropoff: toLocation(bookingData.dropoff),
+                vehicle: bookingData.vehicle,
+                schedule: schedulePayload(bookingData.scheduledTime),
                 itemsDescription: bookingData.itemsDescription,
-                photosCount: bookingData.photos?.length || 0,
-                totalAmount,
-                cardLast4: rawDigits.slice(-4),
-                createdAt: new Date().toISOString()
-            };
-
-            try {
-                const existing = JSON.parse(localStorage.getItem('reloq_orders') || '[]');
-                localStorage.setItem('reloq_orders', JSON.stringify([newOrder, ...existing]));
-            } catch (err) {
-                console.warn('Could not save order locally:', err);
+                photosCount: bookingData.photos?.length || 0
+            });
+            setOrder(res.order);
+            if (res.clientSecret) {
+                setClientSecret(res.clientSecret);
+            } else {
+                setCompletedOrder(res.order); // fără plată online: comanda rămâne „pending_payment”
             }
+        } catch (err) {
+            setOrderError(err.message);
+        } finally {
+            setIsCreating(false);
+        }
+    };
 
-            setIsProcessing(false);
-            setCompletedOrder(newOrder);
-        }, 1100);
+    const handleSwitchAccount = async () => {
+        setOrder(null);
+        setClientSecret(null);
+        await logoutUser();
     };
 
     return (
         <div className="step-container">
             <div className="step-heading">
                 <h1>Account & Payment</h1>
-                <p className="subtitle">
-                    Create your Reloq account for live crew tracking and complete your booking.
-                </p>
+                <p className="subtitle">Create your Reloq account for live crew tracking and complete your booking.</p>
             </div>
 
-            {/* 1. Compact order recap */}
+            {/* 1. Rezumat comandă */}
             <div className="checkout-recap-card">
                 <div className="recap-top-row">
                     <div>
@@ -150,7 +203,6 @@ const Step5Pay = () => {
                     </div>
                     <span className="recap-price">{formatPrice(totalAmount)}</span>
                 </div>
-
                 <div className="recap-addresses">
                     <div className="recap-addr-line">
                         <span className="mini-dot blue" />
@@ -163,38 +215,33 @@ const Step5Pay = () => {
                 </div>
             </div>
 
-            {/* 2. Reloq Account Gate */}
-            {!user ? (
+            {/* 2. Cont */}
+            {!authChecked ? (
+                <div className="account-gate-card is-loading">Checking your session…</div>
+            ) : !user ? (
                 <form className="account-gate-card" onSubmit={handleAccountSubmit}>
                     <div className="account-gate-header">
                         <span className="step-badge-num">1</span>
                         <div>
-                            <strong>Create your Reloq account</strong>
+                            <strong>{authMode === 'register' ? 'Create your Reloq account' : 'Welcome back'}</strong>
                             <small>Required for SMS updates and live map tracking</small>
                         </div>
                     </div>
 
                     <div className="auth-tabs">
-                        <button
-                            type="button"
-                            className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
-                            onClick={() => {
-                                setAuthMode('register');
-                                setAuthError('');
-                            }}
-                        >
-                            Sign up
-                        </button>
-                        <button
-                            type="button"
-                            className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
-                            onClick={() => {
-                                setAuthMode('login');
-                                setAuthError('');
-                            }}
-                        >
-                            Log in
-                        </button>
+                        {['register', 'login'].map((mode) => (
+                            <button
+                                key={mode}
+                                type="button"
+                                className={`auth-tab ${authMode === mode ? 'active' : ''}`}
+                                onClick={() => {
+                                    setAuthMode(mode);
+                                    setAuthError('');
+                                }}
+                            >
+                                {mode === 'register' ? 'Sign up' : 'Log in'}
+                            </button>
+                        ))}
                     </div>
 
                     <div className="auth-fields-grid">
@@ -204,6 +251,7 @@ const Step5Pay = () => {
                                     type="text"
                                     className="reloq-input"
                                     placeholder="Full name (e.g., Alex Morgan)"
+                                    autoComplete="name"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                 />
@@ -211,24 +259,25 @@ const Step5Pay = () => {
                                     type="tel"
                                     className="reloq-input"
                                     placeholder="Mobile phone (e.g., (415) 555-0192)"
+                                    autoComplete="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                 />
                             </>
                         )}
-
                         <input
                             type="email"
                             className="reloq-input"
                             placeholder="Email address"
+                            autoComplete="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
-
                         <input
                             type="password"
                             className="reloq-input"
-                            placeholder="Password (min. 6 characters)"
+                            placeholder={authMode === 'register' ? 'Password (min. 8 characters)' : 'Password'}
+                            autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
@@ -236,10 +285,12 @@ const Step5Pay = () => {
 
                     {authError && <p className="form-inline-error">{authError}</p>}
 
-                    <button type="submit" className="create-account-btn">
-                        {authMode === 'register'
-                            ? 'Create Reloq account & continue →'
-                            : 'Log in & continue →'}
+                    <button type="submit" className="create-account-btn" disabled={authBusy}>
+                        {authBusy
+                            ? 'Please wait…'
+                            : authMode === 'register'
+                              ? 'Create Reloq account & continue →'
+                              : 'Log in & continue →'}
                     </button>
                 </form>
             ) : (
@@ -249,80 +300,55 @@ const Step5Pay = () => {
                         <div>
                             <strong>{user.fullName}</strong>
                             <small>
-                                {user.email} • {user.phone}
+                                {user.email}
+                                {user.phone ? ` • ${user.phone}` : ''}
                             </small>
                         </div>
                     </div>
-                    <button type="button" className="change-account-btn" onClick={logoutUser}>
+                    <button type="button" className="change-account-btn" onClick={handleSwitchAccount}>
                         Switch
                     </button>
                 </div>
             )}
 
-            {/* 3. Card Payment Section */}
-            <form
-                className={`payment-card-box ${!user ? 'locked' : ''}`}
-                onSubmit={handlePayAndConfirm}
-            >
+            {/* 3. Plată */}
+            <div className={`payment-card-box ${!user ? 'locked' : ''}`}>
                 <div className="account-gate-header">
                     <span className="step-badge-num">2</span>
                     <div>
-                        <strong>Payment details</strong>
+                        <strong>{paymentsEnabled ? 'Payment details' : 'Confirm booking'}</strong>
                         <small>
-                            {user
-                                ? 'Encrypted checkout • You are only charged once delivery is complete'
-                                : 'Complete step 1 (Reloq account) to unlock payment'}
+                            {!user
+                                ? 'Complete step 1 (Reloq account) to unlock payment'
+                                : paymentsEnabled
+                                  ? 'Secure checkout powered by Stripe'
+                                  : 'Pay the crew after the job is done'}
                         </small>
                     </div>
                 </div>
 
-                <div className="card-inputs-stack">
-                    <input
-                        type="text"
-                        inputMode="numeric"
-                        className="reloq-input"
-                        placeholder="Card number (e.g., 4242 4242 4242 4242)"
-                        disabled={!user || isProcessing}
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                    />
-
-                    <div className="card-split-row">
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            className="reloq-input"
-                            placeholder="MM/YY"
-                            disabled={!user || isProcessing}
-                            value={cardExpiry}
-                            onChange={(e) => setCardExpiry(formatCardExpiry(e.target.value))}
-                        />
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            className="reloq-input"
-                            placeholder="CVC"
-                            maxLength={4}
-                            disabled={!user || isProcessing}
-                            value={cardCvc}
-                            onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        />
-                    </div>
-                </div>
-
-                {payError && <p className="form-inline-error">{payError}</p>}
-
-                <div className="step-footer" style={{ paddingTop: '16px' }}>
-                    <Button type="submit" disabled={!user || isProcessing}>
-                        {isProcessing
-                            ? 'Processing payment...'
-                            : `Pay ${formatPrice(totalAmount)} & book Reloq`}
-                    </Button>
-                    <p className="trust-note">
-                        Receipt and live tracking link will be sent to {user?.email || 'your email'}
-                    </p>
-                </div>
-            </form>
+                {clientSecret && elementsOptions && stripePromise ? (
+                    <Elements stripe={stripePromise} options={elementsOptions}>
+                        <StripePaymentForm order={order} onPaid={setCompletedOrder} />
+                    </Elements>
+                ) : (
+                    <>
+                        {orderError && <p className="form-inline-error">{orderError}</p>}
+                        <div className="step-footer">
+                            <Button onClick={handleCreateOrder} disabled={!user || isCreating || totalAmount == null}>
+                                {isCreating
+                                    ? 'Creating your booking…'
+                                    : paymentsEnabled
+                                      ? `Continue to payment • ${formatPrice(totalAmount)}`
+                                      : `Book Reloq • ${formatPrice(totalAmount)}`}
+                            </Button>
+                            <p className="trust-note">
+                                Receipt and live tracking link will be sent to {user?.email || 'your email'}
+                            </p>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 };

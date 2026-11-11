@@ -1,63 +1,69 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { api } from '../api/client';
 
 const BookingContext = createContext();
 
 export const useBooking = () => useContext(BookingContext);
 
+const EMPTY_BOOKING = {
+    pickup: null, // { address, lat, lng }
+    dropoff: null, // { address, lat, lng }
+    routeInfo: null, // { distanceMiles, durationMins }
+    vehicle: null, // 'courier' | 'lite' | 'pickup' | 'van'
+    priceEstimate: null, // estimarea de la server pentru vehiculul ales
+    scheduledTime: 'asap', // 'asap' sau { dateStr, slotId, dateLabel, slotLabel }
+    itemsDescription: '',
+    photos: []
+};
+
 export const BookingProvider = ({ children }) => {
     const [currentStep, setCurrentStep] = useState(1);
-    const [completedOrder, setCompletedOrder] = useState(null); // Variabila a fost adăugată aici
+    const [completedOrder, setCompletedOrder] = useState(null);
+    const [bookingData, setBookingData] = useState(EMPTY_BOOKING);
 
-    const [bookingData, setBookingData] = useState({
-        pickup: null,      // { address, lat, lng }
-        dropoff: null,     // { address, lat, lng }
-        routeInfo: null,   // { distanceMiles, durationMins }
-        vehicle: null,     // 'courier', 'lite', 'pickup', 'van'
-        priceEstimate: null,
-        schedule: 'asap',  // sau obiect cu { date, timeSlot }
-        items: [],
-        itemsDescription: '',
-        photos: []
-    });
+    // Contul clientului vine din sesiunea de pe server (cookie httpOnly), nu din localStorage.
+    const [user, setUser] = useState(null);
+    const [authChecked, setAuthChecked] = useState(false);
 
-    // Funcție pentru actualizarea parțială a datelor
-    const updateBookingData = (newData) => {
+    useEffect(() => {
+        api.me()
+            .then(({ user }) => setUser(user))
+            .catch(() => setUser(null))
+            .finally(() => setAuthChecked(true));
+    }, []);
+
+    const updateBookingData = useCallback((newData) => {
         setBookingData((prev) => ({ ...prev, ...newData }));
-    };
+    }, []);
 
     const nextStep = () => setCurrentStep((p) => Math.min(p + 1, 5));
     const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 1));
 
-    // Funcția esențială lipsă: Finalizează comanda și o pune în localStorage
-    const completeOrder = (orderData) => {
-        const newOrder = {
-            ...orderData,
-            id: Math.random().toString(36).substr(2, 9).toUpperCase(),
-            createdAt: new Date().toISOString(),
-            status: 'pending_payment' // Dispecerul poate vedea comanda în admin
-        };
+    const registerUser = async (payload) => {
+        const { user } = await api.register(payload);
+        setUser(user);
+        return user;
+    };
 
-        setCompletedOrder(newOrder); // O salvează în state pentru ecranul de succes
+    const loginUser = async (email, password) => {
+        const { user } = await api.login(email, password);
+        setUser(user);
+        return user;
+    };
 
-        // Salvare în localStorage pentru panoul de Admin
-        const existingOrders = JSON.parse(localStorage.getItem('reloq_orders') || '[]');
-        localStorage.setItem('reloq_orders', JSON.stringify([newOrder, ...existingOrders]));
+    const logoutUser = async () => {
+        try {
+            await api.logout();
+        } finally {
+            setUser(null);
+        }
     };
 
     const resetBooking = () => {
+        bookingData.photos?.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
         setCurrentStep(1);
         setCompletedOrder(null);
-        setBookingData({
-            pickup: null,
-            dropoff: null,
-            routeInfo: null,
-            vehicle: null,
-            priceEstimate: null,
-            schedule: 'asap',
-            items: [],
-            itemsDescription: '',
-            photos: []
-        });
+        setBookingData(EMPTY_BOOKING);
     };
 
     return (
@@ -69,8 +75,13 @@ export const BookingProvider = ({ children }) => {
                 prevStep,
                 bookingData,
                 updateBookingData,
-                completedOrder,     // Returnată pentru a fi folosită de BookingSuccess.jsx
-                completeOrder,      // Funcția care generează comanda
+                user,
+                authChecked,
+                registerUser,
+                loginUser,
+                logoutUser,
+                completedOrder,
+                setCompletedOrder,
                 resetBooking
             }}
         >

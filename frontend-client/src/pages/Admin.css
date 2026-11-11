@@ -306,3 +306,11 @@
         grid-template-columns: 1fr;
     }
 }
+
+.status-badge.cancelled { background-color: var(--danger-soft); color: var(--danger); }
+
+.admin-header .admin-brand h2 {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}

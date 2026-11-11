@@ -1,79 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatPrice } from '../utils/formatters';
 import Button from '../components/Button';
+import { api } from '../api/client';
+import { STATUS_LABELS } from './AdminDashboard';
 import './Admin.css';
+
+const STATUS_ACTIONS = ['paid', 'en_route', 'completed', 'cancelled'];
 
 const AdminOrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(null);
 
     useEffect(() => {
-        const isAuth = localStorage.getItem('reloq_admin_auth');
-        if (!isAuth) {
-            navigate('/admin/login');
-            return;
-        }
-
-        const savedOrders = JSON.parse(localStorage.getItem('reloq_orders') || '[]');
-        const foundOrder = savedOrders.find(o => o.id === id);
-        if (foundOrder) {
-            setOrder(foundOrder);
-        }
+        api.adminOrder(id)
+            .then(({ order }) => setOrder(order))
+            .catch((err) => {
+                if (err.status === 401 || err.status === 403) return navigate('/admin/login', { replace: true });
+                setError(err.message);
+            });
     }, [id, navigate]);
 
-    const handleStatusChange = (newStatus) => {
-        const savedOrders = JSON.parse(localStorage.getItem('reloq_orders') || '[]');
-        const updatedOrders = savedOrders.map(o =>
-            o.id === id ? { ...o, status: newStatus } : o
-        );
-
-        localStorage.setItem('reloq_orders', JSON.stringify(updatedOrders));
-        setOrder({ ...order, status: newStatus });
+    const handleStatusChange = async (newStatus) => {
+        setError('');
+        setSaving(newStatus);
+        try {
+            const { order: updated } = await api.adminSetStatus(order.id, newStatus);
+            setOrder(updated);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(null);
+        }
     };
 
-    if (!order) return <div className="admin-layout">Se încarcă...</div>;
+    if (error && !order) {
+        return (
+            <div className="admin-layout">
+                <main className="admin-content">
+                    <Link to="/admin/dashboard" className="back-btn">← Înapoi la dashboard</Link>
+                    <p className="form-inline-error">{error}</p>
+                </main>
+            </div>
+        );
+    }
+
+    if (!order) return <div className="admin-layout"><main className="admin-content">Se încarcă…</main></div>;
 
     return (
         <div className="admin-layout">
             <header className="admin-header">
-                <Link to="/admin/dashboard" className="back-btn">← Înapoi la Dashboard</Link>
+                <Link to="/admin/dashboard" className="back-btn">← Înapoi la dashboard</Link>
                 <div className="admin-brand">
                     <h2>Comanda #{order.id}</h2>
+                    <span className={`status-badge ${order.status}`}>{STATUS_LABELS[order.status] || order.status}</span>
                 </div>
             </header>
 
             <main className="admin-content detail-grid">
                 <div className="detail-column">
                     <div className="admin-card">
-                        <h3>Actualizare Status</h3>
+                        <h3>Actualizare status</h3>
                         <div className="status-actions">
-                            <Button
-                                variant={order.status === 'paid' ? 'primary' : 'secondary'}
-                                onClick={() => handleStatusChange('paid')}
-                            >
-                                Plătită
-                            </Button>
-                            <Button
-                                variant={order.status === 'en_route' ? 'primary' : 'secondary'}
-                                onClick={() => handleStatusChange('en_route')}
-                            >
-                                Echipaj pe drum
-                            </Button>
-                            <Button
-                                variant={order.status === 'completed' ? 'primary' : 'secondary'}
-                                onClick={() => handleStatusChange('completed')}
-                            >
-                                Finalizată
-                            </Button>
+                            {STATUS_ACTIONS.map((status) => (
+                                <Button
+                                    key={status}
+                                    variant={order.status === status ? 'primary' : 'secondary'}
+                                    disabled={saving !== null}
+                                    onClick={() => handleStatusChange(status)}
+                                >
+                                    {saving === status ? 'Se salvează…' : STATUS_LABELS[status]}
+                                </Button>
+                            ))}
                         </div>
+                        {error && <p className="form-inline-error">{error}</p>}
                     </div>
 
                     <div className="admin-card">
-                        <h3>Detalii Client</h3>
+                        <h3>Client</h3>
+                        <p><strong>Nume:</strong> {order.customer?.fullName}</p>
                         <p><strong>Email:</strong> {order.customer?.email}</p>
-                        <p><strong>Telefon:</strong> {order.customer?.phone}</p>
+                        <p><strong>Telefon:</strong> {order.customer?.phone || '—'}</p>
                     </div>
                 </div>
 
@@ -84,14 +94,28 @@ const AdminOrderDetail = () => {
                             <p><strong>De la:</strong> {order.pickup?.address}</p>
                             <p><strong>La:</strong> {order.dropoff?.address}</p>
                         </div>
-                        <p><strong>Distanță:</strong> {order.routeInfo?.distanceMiles} mi</p>
+                        <p>
+                            <strong>Distanță:</strong> {order.routeInfo?.distanceMiles} mi • ~{order.routeInfo?.durationMins} min
+                        </p>
+                        <p><strong>Programare:</strong> {order.scheduleText}</p>
                     </div>
 
                     <div className="admin-card">
-                        <h3>Detalii Vehicul & Obiecte</h3>
-                        <p><strong>Vehicul:</strong> {order.vehicle?.name}</p>
+                        <h3>Vehicul & obiecte</h3>
+                        <p><strong>Vehicul:</strong> {order.vehicle?.name} ({order.vehicle?.crewLabel})</p>
                         <p><strong>Obiecte:</strong> {order.itemsDescription}</p>
-                        <p className="total-amount"><strong>Total:</strong> {formatPrice(order.totalAmount)}</p>
+                        <p><strong>Poze încărcate:</strong> {order.photosCount}</p>
+                        <p>
+                            <strong>Plată:</strong>{' '}
+                            {order.cardLast4
+                                ? `achitată online (card •••• ${order.cardLast4})`
+                                : order.status === 'pending_payment'
+                                  ? 'neachitată'
+                                  : 'la livrare / încasată manual'}
+                        </p>
+                        <p className="total-amount">
+                            <strong>Total:</strong> {formatPrice(order.totalAmount)}
+                        </p>
                     </div>
                 </div>
             </main>
