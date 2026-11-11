@@ -117,7 +117,7 @@ const AddressInput = ({ placeholder, value, onSelect }) => {
                         const subTitle = parts.slice(1, 4).join(',');
                         return (
                             <li key={item.place_id} onClick={() => handleSelectSuggestion(item)}>
-                                <span className="dropdown-pin">📍</span>
+                                <span className="dropdown-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg></span>
                                 <div className="dropdown-text">
                                     <strong>{mainTitle}</strong>
                                     {subTitle && <span>{subTitle}</span>}

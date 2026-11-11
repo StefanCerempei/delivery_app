@@ -1,0 +1,308 @@
+/* =========================================================
+   RELOQ — Dispecerat (admin)
+   ========================================================= */
+
+.admin-layout {
+    min-height: 100vh;
+    background:
+        radial-gradient(900px 400px at 85% -10%, rgba(255, 106, 26, 0.07), transparent 70%),
+        var(--bg);
+    color: var(--text);
+}
+
+.admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    padding: 0 32px;
+    background-color: rgba(17, 18, 21, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+}
+
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-brand h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+.admin-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 36px 32px 64px;
+}
+
+.admin-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.admin-content-header h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.order-count {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background-color: var(--surface-2);
+    border: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* ================= Tabel ================= */
+.admin-table-container {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow-x: auto;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 14px 18px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+}
+
+.admin-table th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    background-color: rgba(255, 255, 255, 0.015);
+}
+
+.admin-table tbody tr {
+    transition: background-color 0.12s;
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--surface-2);
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table td strong {
+    font-family: var(--font-mono);
+    font-weight: 500;
+}
+
+.client-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.client-info small {
+    color: var(--muted);
+    font-size: 12.5px;
+}
+
+.empty-state {
+    padding: 56px 18px !important;
+    text-align: center !important;
+    color: var(--muted);
+}
+
+/* ================= Status badges ================= */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background-color: var(--surface-3);
+    color: var(--text-2);
+}
+
+.status-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+.status-badge.pending_payment { background-color: rgba(250, 204, 21, 0.12); color: #facc15; }
+.status-badge.confirmed,
+.status-badge.paid { background-color: var(--accent-soft); color: var(--accent); }
+.status-badge.en_route { background-color: rgba(167, 139, 250, 0.14); color: #b4a3ff; }
+.status-badge.completed { background-color: var(--go-soft); color: var(--go); }
+
+/* ================= Detalii comandă ================= */
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.detail-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.admin-card {
+    padding: 22px 24px;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+}
+
+.admin-card h3 {
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.admin-card p {
+    margin: 0 0 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-2);
+}
+
+.admin-card p:last-child {
+    margin-bottom: 0;
+}
+
+.admin-card p strong {
+    color: var(--muted);
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+/* Traseu în admin: listă simplă, nu timeline-ul din Pasul 1 */
+.route-timeline.admin-timeline {
+    display: block;
+    padding: 0 0 0 16px;
+    margin-bottom: 12px;
+    border-left: 2px dashed var(--line-strong);
+}
+
+.admin-card .total-amount {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    font-size: 24px;
+    color: var(--text);
+}
+
+.status-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.status-actions .lugg-btn {
+    min-height: 46px;
+}
+
+/* ================= Login ================= */
+.admin-login-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    background:
+        radial-gradient(600px 300px at 50% 0%, rgba(255, 106, 26, 0.1), transparent 70%),
+        var(--bg);
+}
+
+.admin-login-card {
+    width: 100%;
+    max-width: 400px;
+    padding: 32px;
+    background-color: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    animation: fadeUp 0.4s var(--ease) both;
+}
+
+.admin-login-card .admin-brand {
+    margin-bottom: 28px;
+}
+
+.admin-login-form .form-group {
+    margin-bottom: 18px;
+}
+
+.admin-login-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+}
+
+.admin-login-form .lugg-btn {
+    margin-top: 10px;
+}
+
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* ================= Responsive ================= */
+@media (max-width: 760px) {
+    .admin-header {
+        padding: 0 18px;
+    }
+
+    .admin-content {
+        padding: 24px 18px 48px;
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}

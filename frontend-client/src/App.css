@@ -1,3 +1,56 @@
+/* =========================================================
+   RELOQ — Design tokens & primitive globale
+   Paletă: grafit cald + portocaliu „hi-vis” (pickup / CTA)
+   + verde-teal (dropoff / confirmări)
+   ========================================================= */
+
+:root {
+    /* Suprafețe */
+    --bg: #0b0c0e;
+    --panel: #111215;
+    --surface: #17181c;
+    --surface-2: #1d1e23;
+    --surface-3: #25262c;
+
+    /* Linii */
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.13);
+
+    /* Text */
+    --text: #f4f1ea;
+    --text-2: #c9c4ba;
+    --muted: #9a958c;
+    --faint: #6b6760;
+
+    /* Accente */
+    --accent: #ff6a1a;
+    --accent-hover: #ff7d36;
+    --accent-ink: #1a0b03;
+    --accent-soft: rgba(255, 106, 26, 0.12);
+    --accent-ring: rgba(255, 106, 26, 0.35);
+
+    --go: #2dd4a7;
+    --go-soft: rgba(45, 212, 167, 0.12);
+
+    --danger: #ff7a7a;
+    --danger-soft: rgba(255, 122, 122, 0.1);
+
+    /* Tipografie */
+    --font-display: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif;
+    --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+    /* Rază & umbre */
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 22px;
+    --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 10px 30px -8px rgba(255, 106, 26, 0.55);
+
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 *,
 *::before,
 *::after {
@@ -11,51 +64,242 @@ body,
     padding: 0;
     width: 100%;
     height: 100%;
-    background-color: #14171f;
-    color: #f8fafc;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+}
+
+button,
+input,
+textarea {
+    font-family: inherit;
 }
 
 ::selection {
-    background-color: rgba(59, 130, 246, 0.35);
+    background-color: var(--accent-ring);
     color: #ffffff;
 }
 
-/* Scrollbar subțire grafit */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Scrollbar discret */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
-
 ::-webkit-scrollbar-track {
     background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.14);
     border-radius: 999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.26);
 }
 
-/* Atribuire Leaflet discretă */
+/* ================= Brand ================= */
+.brand-dot {
+    width: 9px;
+    height: 9px;
+    flex-shrink: 0;
+    border-radius: 3px;
+    background-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 0 14px rgba(255, 106, 26, 0.7);
+}
+
+/* ================= Butoane ================= */
+.lugg-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 54px;
+    padding: 0 22px;
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.18s var(--ease), border-color 0.18s var(--ease),
+        transform 0.18s var(--ease), box-shadow 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+.lugg-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.995);
+}
+
+.lugg-btn-primary {
+    background-color: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: var(--shadow-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.lugg-btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.lugg-btn-secondary {
+    background-color: var(--surface-2);
+    border-color: var(--line-strong);
+    color: var(--text);
+}
+
+.lugg-btn-secondary:hover:not(:disabled) {
+    background-color: var(--surface-3);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.lugg-btn:disabled {
+    background-color: var(--surface-2);
+    border-color: var(--line);
+    color: var(--faint);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.change-account-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.change-account-btn:hover {
+    background-color: var(--surface-3);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: var(--text);
+}
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 0;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.back-btn:hover {
+    color: var(--text);
+}
+
+/* ================= Input-uri ================= */
+.reloq-input {
+    width: 100%;
+    height: 50px;
+    padding: 0 16px;
+    background-color: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 500;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.reloq-input::placeholder {
+    color: var(--faint);
+    font-weight: 400;
+}
+
+.reloq-input:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.reloq-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    background-color: var(--surface-2);
+}
+
+.reloq-input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.form-inline-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background-color: var(--danger-soft);
+    border: 1px solid rgba(255, 122, 122, 0.22);
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ================= Leaflet ================= */
+.leaflet-container {
+    font-family: var(--font-body);
+    background: #101114 !important;
+}
+
 .leaflet-control-attribution {
-    background: rgba(20, 23, 31, 0.55) !important;
-    color: #94a3b8 !important;
+    background: rgba(11, 12, 14, 0.6) !important;
+    color: var(--faint) !important;
     font-size: 10px !important;
     backdrop-filter: blur(8px);
     border-top-left-radius: 8px;
 }
 
 .leaflet-control-attribution a {
-    color: #cbd5e1 !important;
+    color: var(--muted) !important;
 }
 
-/* Hartă dark-slate mai luminoasă și ușor de citit */
+/* Hartă grafit caldă, cu contrast bun pentru traseu */
 .leaflet-tile-pane {
-    filter: invert(100%) hue-rotate(180deg) brightness(112%) contrast(86%) saturate(35%);
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) saturate(20%) sepia(8%);
+}
+
+.custom-map-pin {
+    background: transparent;
+    border: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

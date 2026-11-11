@@ -92,7 +92,7 @@ const Step3Time = () => {
                     tabIndex={0}
                     onKeyDown={(e) => e.key === 'Enter' && setMode('asap')}
                 >
-                    <div className="time-mode-icon">⚡</div>
+                    <div className="time-mode-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" /></svg></div>
                     <div className="time-mode-info">
                         <div className="time-mode-title">
                             <strong>Now (in ~30 min)</strong>
@@ -110,7 +110,7 @@ const Step3Time = () => {
                     tabIndex={0}
                     onKeyDown={(e) => e.key === 'Enter' && setMode('scheduled')}
                 >
-                    <div className="time-mode-icon">📅</div>
+                    <div className="time-mode-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M16 3v4M8 3v4M3 10h18" /></svg></div>
                     <div className="time-mode-info">
                         <div className="time-mode-title">
                             <strong>Schedule for later</strong>

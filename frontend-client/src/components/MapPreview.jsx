@@ -8,14 +8,14 @@ const DEFAULT_CENTER = [37.7749, -122.4194]; // San Francisco
 
 const pickupIcon = L.divIcon({
     className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#2563eb;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 5px rgba(37,99,235,0.22),0 6px 14px rgba(15,23,42,0.28);"></div>`,
+    html: `<div style="width:18px;height:18px;background:#ff6a1a;border:3px solid #0b0c0e;border-radius:50%;box-shadow:0 0 0 6px rgba(255,106,26,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
 });
 
 const dropoffIcon = L.divIcon({
     className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#10b981;border:3px solid #ffffff;border-radius:5px;box-shadow:0 0 0 5px rgba(16,185,129,0.22),0 6px 14px rgba(15,23,42,0.28);"></div>`,
+    html: `<div style="width:18px;height:18px;background:#2dd4a7;border:3px solid #0b0c0e;border-radius:5px;box-shadow:0 0 0 6px rgba(45,212,167,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
 });
@@ -109,7 +109,7 @@ const MapPreview = () => {
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={13}
-                style={{ width: '100%', height: '100%', backgroundColor: '#e2e8f0' }}
+                style={{ width: '100%', height: '100%', backgroundColor: '#101114' }}
                 zoomControl={false}
             >
                 <TileLayer
@@ -126,11 +126,11 @@ const MapPreview = () => {
                     <>
                         <Polyline
                             positions={routeCoords}
-                            pathOptions={{ color: '#2563eb', weight: 11, opacity: 0.2 }}
+                            pathOptions={{ color: '#ff6a1a', weight: 12, opacity: 0.18 }}
                         />
                         <Polyline
                             positions={routeCoords}
-                            pathOptions={{ color: '#2563eb', weight: 4.5, opacity: 0.95 }}
+                            pathOptions={{ color: '#ff6a1a', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
                         />
                     </>
                 )}
