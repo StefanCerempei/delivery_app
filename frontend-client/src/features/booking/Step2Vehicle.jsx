@@ -12,12 +12,12 @@ const Step2Vehicle = () => {
 
     const selectedVehicleId = bookingData.vehicle;
     const selectedVehicle = VEHICLES.find((v) => v.id === selectedVehicleId);
-    const selectedEstimate = selectedVehicleId ? estimates[selectedVehicleId] : null;
+    const selectedEstimate = selectedVehicleId ? estimates?.[selectedVehicleId] : null;
 
     // Când sosesc prețurile de la server, actualizăm și estimarea vehiculului deja ales.
     useEffect(() => {
         if (routeInfo) updateBookingData({ routeInfo });
-        if (selectedVehicleId && estimates[selectedVehicleId]) {
+        if (selectedVehicleId && estimates?.[selectedVehicleId]) {
             updateBookingData({ priceEstimate: estimates[selectedVehicleId] });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -26,7 +26,7 @@ const Step2Vehicle = () => {
     const handleSelectVehicle = (vehicleId) => {
         updateBookingData({
             vehicle: vehicleId,
-            priceEstimate: estimates[vehicleId] || null
+            priceEstimate: estimates?.[vehicleId] || null
         });
     };
 
@@ -49,7 +49,7 @@ const Step2Vehicle = () => {
             <div className={`vehicles-list ${loading ? 'is-loading' : ''}`}>
                 {VEHICLES.map((vehicle) => {
                     const isSelected = selectedVehicleId === vehicle.id;
-                    const estimate = estimates[vehicle.id];
+                    const estimate = estimates?.[vehicle.id];
 
                     return (
                         <div

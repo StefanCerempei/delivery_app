@@ -5,11 +5,11 @@ import { api } from '../api/client';
 import './Admin.css';
 
 export const STATUS_LABELS = {
-    pending_payment: 'De plată',
-    paid: 'Plătită',
-    en_route: 'Pe drum',
-    completed: 'Finalizată',
-    cancelled: 'Anulată'
+    pending_payment: 'Awaiting payment',
+    paid: 'Paid',
+    en_route: 'En route',
+    completed: 'Completed',
+    cancelled: 'Cancelled'
 };
 
 const AdminDashboard = () => {
@@ -24,7 +24,7 @@ const AdminDashboard = () => {
             const { orders } = await api.adminOrders();
             setOrders(orders);
         } catch (err) {
-            // 401/403: sesiune lipsă sau cont fără drepturi → la login
+            // 401/403: no session or no dispatcher rights → back to login
             if (err.status === 401 || err.status === 403) return navigate('/admin/login', { replace: true });
             setError(err.message);
         } finally {
@@ -34,7 +34,7 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         load();
-        const timer = setInterval(load, 30000); // reîmprospătare automată la 30s
+        const timer = setInterval(load, 30000); // auto-refresh every 30s
         return () => clearInterval(timer);
     }, [load]);
 
@@ -48,17 +48,17 @@ const AdminDashboard = () => {
             <header className="admin-header">
                 <div className="admin-brand">
                     <span className="brand-dot" />
-                    <h2>RELOQ DISPECERAT</h2>
+                    <h2>RELOQ DISPATCH</h2>
                 </div>
                 <button onClick={handleLogout} className="change-account-btn">
-                    Deconectare
+                    Log out
                 </button>
             </header>
 
             <main className="admin-content">
                 <div className="admin-content-header">
-                    <h1>Comenzi recente</h1>
-                    <span className="order-count">{orders.length} comenzi</span>
+                    <h1>Recent orders</h1>
+                    <span className="order-count">{orders.length} orders</span>
                 </div>
 
                 {error && <p className="form-inline-error">{error}</p>}
@@ -67,23 +67,23 @@ const AdminDashboard = () => {
                     <table className="admin-table">
                         <thead>
                             <tr>
-                                <th>ID comandă</th>
-                                <th>Client</th>
-                                <th>Vehicul</th>
-                                <th>Programare</th>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Vehicle</th>
+                                <th>Schedule</th>
                                 <th>Total</th>
                                 <th>Status</th>
-                                <th>Acțiune</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="empty-state">Se încarcă…</td>
+                                    <td colSpan="7" className="empty-state">Loading…</td>
                                 </tr>
                             ) : orders.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="empty-state">Nu există comenzi încă.</td>
+                                    <td colSpan="7" className="empty-state">No orders yet.</td>
                                 </tr>
                             ) : (
                                 orders.map((order) => (
@@ -101,7 +101,7 @@ const AdminDashboard = () => {
                                         <td>
                                             <div className="client-info">
                                                 <span>{order.scheduleText}</span>
-                                                <small>creată {new Date(order.createdAt).toLocaleString('ro-RO')}</small>
+                                                <small>created {new Date(order.createdAt).toLocaleString('en-US')}</small>
                                             </div>
                                         </td>
                                         <td>
@@ -114,7 +114,7 @@ const AdminDashboard = () => {
                                         </td>
                                         <td>
                                             <Link to={`/admin/order/${order.id}`} className="change-account-btn">
-                                                Detalii
+                                                Details
                                             </Link>
                                         </td>
                                     </tr>

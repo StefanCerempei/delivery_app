@@ -26,7 +26,7 @@ router.get('/orders', async (req, res) => {
 
 router.get('/orders/:code', async (req, res) => {
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.code = ?`, [req.params.code]);
-    if (!rows[0]) return res.status(404).json({ error: 'Comanda nu a fost găsită.' });
+    if (!rows[0]) return res.status(404).json({ error: 'Order not found.' });
     res.json({ order: toOrderDto(rows[0], { includeCustomer: true }) });
 });
 
@@ -35,7 +35,7 @@ router.patch('/orders/:code/status', async (req, res) => {
     if (!data) return;
 
     const [result] = await pool.query('UPDATE orders SET status = ? WHERE code = ?', [data.status, req.params.code]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Comanda nu a fost găsită.' });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Order not found.' });
 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.code = ?`, [req.params.code]);
     res.json({ order: toOrderDto(rows[0], { includeCustomer: true }) });

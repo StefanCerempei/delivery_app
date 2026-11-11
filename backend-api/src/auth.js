@@ -49,12 +49,12 @@ export async function loadUser(req, _res, next) {
 }
 
 export function requireAuth(req, res, next) {
-    if (!req.user) return res.status(401).json({ error: 'Trebuie să fii autentificat.' });
+    if (!req.user) return res.status(401).json({ error: 'Please log in first.' });
     next();
 }
 
 export function requireAdmin(req, res, next) {
-    if (!req.user) return res.status(401).json({ error: 'Trebuie să fii autentificat.' });
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Acces permis doar dispecerilor.' });
+    if (!req.user) return res.status(401).json({ error: 'Please log in first.' });
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Dispatcher access only.' });
     next();
 }

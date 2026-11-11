@@ -8,7 +8,7 @@ export const locationSchema = z.object({
 });
 
 export const registerSchema = z.object({
-    fullName: z.string().trim().min(2, 'Introdu numele complet.').max(120),
+    fullName: z.string().trim().min(2, 'Please enter your full name.').max(120),
     phone: z
         .string()
         .trim()
@@ -16,13 +16,13 @@ export const registerSchema = z.object({
         .refine((v) => {
             const digits = v.replace(/\D/g, '');
             return digits.length >= 9 && digits.length <= 15;
-        }, 'Număr de telefon invalid.'),
-    email: z.string().trim().toLowerCase().email('Email invalid.').max(255),
-    password: z.string().min(8, 'Parola trebuie să aibă minim 8 caractere.').max(200)
+        }, 'Please enter a valid phone number.'),
+    email: z.string().trim().toLowerCase().email('Please enter a valid email address.').max(255),
+    password: z.string().min(8, 'Password must be at least 8 characters.').max(200)
 });
 
 export const loginSchema = z.object({
-    email: z.string().trim().toLowerCase().email('Email invalid.').max(255),
+    email: z.string().trim().toLowerCase().email('Please enter a valid email address.').max(255),
     password: z.string().min(1).max(200)
 });
 
@@ -44,7 +44,7 @@ export const createOrderSchema = z.object({
             label: z.string().trim().max(120).optional()
         })
     ]),
-    itemsDescription: z.string().trim().min(2, 'Descrie ce mutăm.').max(2000),
+    itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
     photosCount: z.number().int().min(0).max(5).default(0)
 });
 
@@ -57,7 +57,7 @@ export function parseBody(schema, req, res) {
     const result = schema.safeParse(req.body);
     if (!result.success) {
         const first = result.error.issues[0];
-        res.status(400).json({ error: first?.message || 'Date invalide.', field: first?.path?.join('.') });
+        res.status(400).json({ error: first?.message || 'Invalid data.', field: first?.path?.join('.') });
         return null;
     }
     return result.data;

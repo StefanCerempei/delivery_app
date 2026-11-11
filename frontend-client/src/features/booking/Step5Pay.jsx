@@ -60,7 +60,7 @@ const StripePaymentForm = ({ order, onPaid }) => {
         });
 
         if (stripeError) {
-            setError(stripeError.message || 'Plata nu a putut fi procesată.');
+            setError(stripeError.message || 'Your payment could not be processed.');
             setIsPaying(false);
             return;
         }
@@ -156,7 +156,7 @@ const Step5Pay = () => {
         setOrderError('');
         if (!user) return setOrderError('Please create your Reloq account first to continue.');
         if (paymentsEnabled && !stripePromise)
-            return setOrderError('Plățile nu sunt configurate complet (lipsește VITE_STRIPE_PUBLISHABLE_KEY).');
+            return setOrderError('Online payments are not fully configured yet. Please try again later.');
 
         setIsCreating(true);
         try {

@@ -26,7 +26,7 @@ const AdminLogin = () => {
             const { user } = await api.login(email.trim(), password);
             if (user.role !== 'admin') {
                 await api.logout();
-                setError('Acest cont nu are acces la dispecerat.');
+                setError('This account does not have dispatcher access.');
                 return;
             }
             navigate('/admin/dashboard', { replace: true });
@@ -47,7 +47,7 @@ const AdminLogin = () => {
 
                 <form onSubmit={handleLogin} className="admin-login-form">
                     <div className="form-group">
-                        <label htmlFor="admin-email">Email dispecer</label>
+                        <label htmlFor="admin-email">Dispatcher email</label>
                         <input
                             id="admin-email"
                             type="email"
@@ -60,7 +60,7 @@ const AdminLogin = () => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="admin-password">Parolă</label>
+                        <label htmlFor="admin-password">Password</label>
                         <input
                             id="admin-password"
                             type="password"
@@ -76,7 +76,7 @@ const AdminLogin = () => {
                     {error && <p className="form-inline-error">{error}</p>}
 
                     <Button type="submit" disabled={busy}>
-                        {busy ? 'Se verifică…' : 'Autentificare'}
+                        {busy ? 'Signing in…' : 'Sign in'}
                     </Button>
                 </form>
             </div>

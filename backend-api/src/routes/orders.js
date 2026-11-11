@@ -29,7 +29,7 @@ router.post('/estimate', estimateLimiter, async (req, res) => {
 
     const route = await getRoute(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
-        return res.status(422).json({ error: `Distanța maximă este ${MAX_DISTANCE_MILES} mile.` });
+        return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
     }
 
     const prices = allPrices(route);
@@ -62,11 +62,11 @@ router.post('/orders', requireAuth, createLimiter, async (req, res) => {
     if (!data) return;
 
     const schedule = scheduleFrom(data.schedule);
-    if (!schedule) return res.status(400).json({ error: 'Data programării nu este validă.' });
+    if (!schedule) return res.status(400).json({ error: 'The selected date is not valid.' });
 
     const route = await getRoute(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
-        return res.status(422).json({ error: `Distanța maximă este ${MAX_DISTANCE_MILES} mile.` });
+        return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
     }
     const price = priceFor(data.vehicle, route);
 
@@ -127,7 +127,7 @@ async function loadOwnOrder(req, res) {
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.code = ?`, [req.params.code]);
     const row = rows[0];
     if (!row || (row.user_id !== req.user.id && req.user.role !== 'admin')) {
-        res.status(404).json({ error: 'Comanda nu a fost găsită.' });
+        res.status(404).json({ error: 'Order not found.' });
         return null;
     }
     return row;
@@ -138,7 +138,7 @@ router.post('/orders/:code/confirm-payment', requireAuth, async (req, res) => {
     const row = await loadOwnOrder(req, res);
     if (!row) return;
     if (!stripe || !row.stripe_payment_intent_id) {
-        return res.status(400).json({ error: 'Plata online nu este activă pentru această comandă.' });
+        return res.status(400).json({ error: 'Online payment is not enabled for this order.' });
     }
 
     const intent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id, {

@@ -13,7 +13,7 @@ const authLimiter = rateLimit({
     limit: 20,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    message: { error: 'Prea multe încercări. Încearcă din nou peste câteva minute.' }
+    message: { error: 'Too many attempts. Please try again in a few minutes.' }
 });
 
 // Hash fals folosit când emailul nu există, ca timpul de răspuns să nu dezvăluie conturile existente.
@@ -25,7 +25,7 @@ router.post('/register', authLimiter, async (req, res) => {
 
     const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [data.email]);
     if (existing.length > 0) {
-        return res.status(409).json({ error: 'Există deja un cont cu acest email. Folosește „Log in”.' });
+        return res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
     }
 
     const hash = await bcrypt.hash(data.password, 12);
@@ -51,7 +51,7 @@ router.post('/login', authLimiter, async (req, res) => {
     const ok = await bcrypt.compare(data.password, user?.password_hash || DUMMY_HASH);
 
     if (!user || !ok) {
-        return res.status(401).json({ error: 'Email sau parolă incorectă.' });
+        return res.status(401).json({ error: 'Incorrect email or password.' });
     }
 
     setSessionCookie(res, user);

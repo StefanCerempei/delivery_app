@@ -20,12 +20,18 @@ async function request(path, { method = 'GET', body } = {}) {
             body: body ? JSON.stringify(body) : undefined
         });
     } catch {
-        throw new ApiError('Nu mă pot conecta la server. Verifică internetul și încearcă din nou.', 0);
+        throw new ApiError('Cannot reach the server. Check your connection and try again.', 0);
+    }
+
+    // Dacă serverul API nu rulează, hostingul poate întoarce pagina HTML a site-ului în loc de JSON.
+    const isJson = (res.headers.get('content-type') || '').includes('application/json');
+    if (!isJson) {
+        throw new ApiError('Our booking service is temporarily unavailable. Please try again shortly.', res.status);
     }
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-        throw new ApiError(data.error || `Eroare ${res.status}`, res.status, data);
+        throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data);
     }
     return data;
 }

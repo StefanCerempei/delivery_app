@@ -47,7 +47,7 @@ async function ensureAdmin() {
     const hash = await bcrypt.hash(config.adminPassword, 12);
     await pool.query(
         `INSERT INTO users (email, password_hash, full_name, role)
-         VALUES (?, ?, 'Dispecer Reloq', 'admin')
+         VALUES (?, ?, 'Reloq Dispatcher', 'admin')
          ON DUPLICATE KEY UPDATE role = 'admin', password_hash = VALUES(password_hash)`,
         [config.adminEmail, hash]
     );

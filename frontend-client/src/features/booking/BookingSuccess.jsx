@@ -12,46 +12,46 @@ const BookingSuccess = () => {
         <div className="step-container success-view">
             <div className="success-hero">
                 <div className="success-badge-icon">✓</div>
-                <span className="order-code-pill">COMANDA #{completedOrder.id}</span>
-                <h1>Rezervare confirmată!</h1>
+                <span className="order-code-pill">ORDER #{completedOrder.id}</span>
+                <h1>Booking confirmed!</h1>
                 <p className="subtitle" style={{ marginBottom: 0 }}>
-                    Contul tău Reloq este activ. Am trimis confirmarea către{' '}
+                    Your Reloq account is active. We sent the confirmation to{' '}
                     <strong>{completedOrder.customer?.email}</strong>.
                 </p>
             </div>
 
-            {/* Status live echipaj */}
+            {/* Live crew status */}
             <div className="live-status-card">
                 <div className="status-step active">
                     <span className="status-pulse" />
                     <div>
-                        <strong>Căutăm echipajul Reloq cel mai apropiat</strong>
-                        <small>Vei primi SMS la {completedOrder.customer?.phone} când șoferul pornește</small>
+                        <strong>Finding the nearest Reloq crew</strong>
+                        <small>We'll text {completedOrder.customer?.phone} as soon as your driver is on the way</small>
                     </div>
                 </div>
             </div>
 
-            {/* Detalii comandă */}
+            {/* Order details */}
             <div className="success-details-card">
                 <div className="detail-line">
-                    <span>Vehicul & Echipaj</span>
+                    <span>Vehicle & crew</span>
                     <strong>
                         {completedOrder.vehicle?.name} ({completedOrder.vehicle?.crewLabel})
                     </strong>
                 </div>
                 <div className="detail-line">
-                    <span>Programare</span>
+                    <span>Schedule</span>
                     <strong>{completedOrder.scheduleText}</strong>
                 </div>
                 <div className="detail-line">
-                    <span>Obiecte</span>
+                    <span>Items</span>
                     <strong>{completedOrder.itemsDescription}</strong>
                 </div>
                 <div className="detail-line total">
                     <span>
                         {completedOrder.status === 'paid'
-                            ? `Achitat${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
-                            : 'De plată la finalizare'}
+                            ? `Paid${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
+                            : 'Pay after the job'}
                     </span>
                     <strong className="paid-sum">{formatPrice(completedOrder.totalAmount)}</strong>
                 </div>
@@ -59,7 +59,7 @@ const BookingSuccess = () => {
 
             <div className="step-footer">
                 <Button variant="secondary" onClick={resetBooking}>
-                    + Plasează o nouă comandă Reloq
+                    + Book another Reloq
                 </Button>
             </div>
         </div>

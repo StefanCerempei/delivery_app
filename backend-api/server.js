@@ -79,7 +79,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', orderRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.use('/api', (_req, res) => res.status(404).json({ error: 'Ruta API nu există.' }));
+app.use('/api', (_req, res) => res.status(404).json({ error: 'API route not found.' }));
 
 // Site-ul React
 if (fs.existsSync(distDir)) {
@@ -99,14 +99,14 @@ if (fs.existsSync(distDir)) {
         res.sendFile(path.join(distDir, 'index.html'));
     });
 } else {
-    app.get('/', (_req, res) => res.send('Reloq API rulează. Frontend-ul nu este compilat (lipsește frontend-client/dist).'));
+    app.get('/', (_req, res) => res.send('Reloq API is running. The frontend is not built (frontend-client/dist is missing).'));
 }
 
 // Eroare neașteptată: o logăm, dar nu trimitem detalii interne la client.
 app.use((err, _req, res, _next) => {
     console.error('[reloq] Eroare:', err);
-    if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON invalid.' });
-    res.status(500).json({ error: 'A apărut o eroare pe server. Încearcă din nou.' });
+    if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON.' });
+    res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
 });
 
 try {

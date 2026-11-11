@@ -41,21 +41,21 @@ const AdminOrderDetail = () => {
         return (
             <div className="admin-layout">
                 <main className="admin-content">
-                    <Link to="/admin/dashboard" className="back-btn">← Înapoi la dashboard</Link>
+                    <Link to="/admin/dashboard" className="back-btn">← Back to dashboard</Link>
                     <p className="form-inline-error">{error}</p>
                 </main>
             </div>
         );
     }
 
-    if (!order) return <div className="admin-layout"><main className="admin-content">Se încarcă…</main></div>;
+    if (!order) return <div className="admin-layout"><main className="admin-content">Loading…</main></div>;
 
     return (
         <div className="admin-layout">
             <header className="admin-header">
-                <Link to="/admin/dashboard" className="back-btn">← Înapoi la dashboard</Link>
+                <Link to="/admin/dashboard" className="back-btn">← Back to dashboard</Link>
                 <div className="admin-brand">
-                    <h2>Comanda #{order.id}</h2>
+                    <h2>Order #{order.id}</h2>
                     <span className={`status-badge ${order.status}`}>{STATUS_LABELS[order.status] || order.status}</span>
                 </div>
             </header>
@@ -63,7 +63,7 @@ const AdminOrderDetail = () => {
             <main className="admin-content detail-grid">
                 <div className="detail-column">
                     <div className="admin-card">
-                        <h3>Actualizare status</h3>
+                        <h3>Update status</h3>
                         <div className="status-actions">
                             {STATUS_ACTIONS.map((status) => (
                                 <Button
@@ -72,7 +72,7 @@ const AdminOrderDetail = () => {
                                     disabled={saving !== null}
                                     onClick={() => handleStatusChange(status)}
                                 >
-                                    {saving === status ? 'Se salvează…' : STATUS_LABELS[status]}
+                                    {saving === status ? 'Saving…' : STATUS_LABELS[status]}
                                 </Button>
                             ))}
                         </div>
@@ -80,38 +80,38 @@ const AdminOrderDetail = () => {
                     </div>
 
                     <div className="admin-card">
-                        <h3>Client</h3>
-                        <p><strong>Nume:</strong> {order.customer?.fullName}</p>
+                        <h3>Customer</h3>
+                        <p><strong>Name:</strong> {order.customer?.fullName}</p>
                         <p><strong>Email:</strong> {order.customer?.email}</p>
-                        <p><strong>Telefon:</strong> {order.customer?.phone || '—'}</p>
+                        <p><strong>Phone:</strong> {order.customer?.phone || '—'}</p>
                     </div>
                 </div>
 
                 <div className="detail-column">
                     <div className="admin-card">
-                        <h3>Traseu</h3>
+                        <h3>Route</h3>
                         <div className="route-timeline admin-timeline">
-                            <p><strong>De la:</strong> {order.pickup?.address}</p>
-                            <p><strong>La:</strong> {order.dropoff?.address}</p>
+                            <p><strong>From:</strong> {order.pickup?.address}</p>
+                            <p><strong>To:</strong> {order.dropoff?.address}</p>
                         </div>
                         <p>
-                            <strong>Distanță:</strong> {order.routeInfo?.distanceMiles} mi • ~{order.routeInfo?.durationMins} min
+                            <strong>Distance:</strong> {order.routeInfo?.distanceMiles} mi • ~{order.routeInfo?.durationMins} min
                         </p>
-                        <p><strong>Programare:</strong> {order.scheduleText}</p>
+                        <p><strong>Schedule:</strong> {order.scheduleText}</p>
                     </div>
 
                     <div className="admin-card">
-                        <h3>Vehicul & obiecte</h3>
-                        <p><strong>Vehicul:</strong> {order.vehicle?.name} ({order.vehicle?.crewLabel})</p>
-                        <p><strong>Obiecte:</strong> {order.itemsDescription}</p>
-                        <p><strong>Poze încărcate:</strong> {order.photosCount}</p>
+                        <h3>Vehicle & items</h3>
+                        <p><strong>Vehicle:</strong> {order.vehicle?.name} ({order.vehicle?.crewLabel})</p>
+                        <p><strong>Items:</strong> {order.itemsDescription}</p>
+                        <p><strong>Photos:</strong> {order.photosCount}</p>
                         <p>
-                            <strong>Plată:</strong>{' '}
+                            <strong>Payment:</strong>{' '}
                             {order.cardLast4
-                                ? `achitată online (card •••• ${order.cardLast4})`
+                                ? `paid online (card •••• ${order.cardLast4})`
                                 : order.status === 'pending_payment'
-                                  ? 'neachitată'
-                                  : 'la livrare / încasată manual'}
+                                  ? 'unpaid'
+                                  : 'collected on delivery / manually'}
                         </p>
                         <p className="total-amount">
                             <strong>Total:</strong> {formatPrice(order.totalAmount)}

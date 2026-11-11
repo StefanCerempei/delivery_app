@@ -17,7 +17,7 @@ export function usePriceEstimate(pickup, dropoff) {
 
         api.estimate(toLocation(pickup), toLocation(dropoff))
             .then(({ estimates, routeInfo }) => {
-                if (!cancelled) setState({ estimates, routeInfo, loading: false, error: '' });
+                if (!cancelled) setState({ estimates: estimates || {}, routeInfo: routeInfo || null, loading: false, error: '' });
             })
             .catch((err) => {
                 if (!cancelled) setState({ estimates: {}, routeInfo: null, loading: false, error: err.message });
