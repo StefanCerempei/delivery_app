@@ -8,14 +8,14 @@ const DEFAULT_CENTER = [37.7749, -122.4194]; // San Francisco
 
 const pickupIcon = L.divIcon({
     className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#2563eb;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 4px rgba(37,99,235,0.35),0 4px 12px rgba(0,0,0,0.6);"></div>`,
+    html: `<div style="width:18px;height:18px;background:#2563eb;border:3px solid #ffffff;border-radius:50%;box-shadow:0 0 0 5px rgba(37,99,235,0.22),0 6px 14px rgba(15,23,42,0.28);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
 });
 
 const dropoffIcon = L.divIcon({
     className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#10b981;border:3px solid #ffffff;border-radius:5px;box-shadow:0 0 0 4px rgba(16,185,129,0.35),0 4px 12px rgba(0,0,0,0.6);"></div>`,
+    html: `<div style="width:18px;height:18px;background:#10b981;border:3px solid #ffffff;border-radius:5px;box-shadow:0 0 0 5px rgba(16,185,129,0.22),0 6px 14px rgba(15,23,42,0.28);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
 });
@@ -25,14 +25,14 @@ const MapViewportUpdater = ({ pickup, dropoff, routeCoords }) => {
 
     useEffect(() => {
         if (routeCoords && routeCoords.length > 0) {
-            map.fitBounds(L.latLngBounds(routeCoords), { padding: [70, 70] });
+            map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80] });
         } else if (pickup?.lat && dropoff?.lat) {
             map.fitBounds(
                 L.latLngBounds([
                     [pickup.lat, pickup.lng],
                     [dropoff.lat, dropoff.lng]
                 ]),
-                { padding: [70, 70] }
+                { padding: [80, 80] }
             );
         } else if (pickup?.lat) {
             map.flyTo([pickup.lat, pickup.lng], 15);
@@ -109,7 +109,7 @@ const MapPreview = () => {
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={13}
-                style={{ width: '100%', height: '100%', backgroundColor: '#09090b' }}
+                style={{ width: '100%', height: '100%', backgroundColor: '#e2e8f0' }}
                 zoomControl={false}
             >
                 <TileLayer
@@ -126,11 +126,11 @@ const MapPreview = () => {
                     <>
                         <Polyline
                             positions={routeCoords}
-                            pathOptions={{ color: '#1d4ed8', weight: 9, opacity: 0.35 }}
+                            pathOptions={{ color: '#2563eb', weight: 11, opacity: 0.2 }}
                         />
                         <Polyline
                             positions={routeCoords}
-                            pathOptions={{ color: '#3b82f6', weight: 5, opacity: 1 }}
+                            pathOptions={{ color: '#2563eb', weight: 4.5, opacity: 0.95 }}
                         />
                     </>
                 )}
