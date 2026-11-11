@@ -1,0 +1,122 @@
+// Punctul de pornire al aplicației Reloq.
+// Servește API-ul (/api/...) și site-ul React compilat (frontend-client/dist)
+// de pe același domeniu, deci nu e nevoie de CORS și cookie-urile de sesiune sunt sigure.
+
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import { config } from './src/config.js';
+import { pool, migrate } from './src/db.js';
+import { loadUser } from './src/auth.js';
+import { stripe } from './src/stripe.js';
+import authRoutes from './src/routes/auth.js';
+import orderRoutes from './src/routes/orders.js';
+import adminRoutes from './src/routes/admin.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distDir = path.resolve(__dirname, '../frontend-client/dist');
+
+const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1); // Hostinger rulează aplicația în spatele unui proxy
+
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            useDefaults: true,
+            directives: {
+                'script-src': ["'self'", 'https://js.stripe.com'],
+                'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+                'font-src': ["'self'", 'https://fonts.gstatic.com'],
+                'img-src': ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org'],
+                'connect-src': [
+                    "'self'",
+                    'https://nominatim.openstreetmap.org',
+                    'https://router.project-osrm.org',
+                    'https://api.stripe.com'
+                ],
+                'frame-src': ['https://js.stripe.com', 'https://hooks.stripe.com']
+            }
+        },
+        crossOriginEmbedderPolicy: false
+    })
+);
+
+if (config.corsOrigin) {
+    // Folosit doar dacă frontend-ul e pe alt domeniu decât API-ul.
+    app.use('/api', (req, res, next) => {
+        res.set('Access-Control-Allow-Origin', config.corsOrigin);
+        res.set('Access-Control-Allow-Credentials', 'true');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+        res.set('Vary', 'Origin');
+        if (req.method === 'OPTIONS') return res.sendStatus(204);
+        next();
+    });
+}
+
+app.use(express.json({ limit: '50kb' }));
+app.use(cookieParser());
+app.use('/api', loadUser);
+
+app.get('/api/health', async (_req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        res.json({ ok: true, db: 'connected', payments: Boolean(stripe) });
+    } catch {
+        res.status(503).json({ ok: false, db: 'unreachable' });
+    }
+});
+
+app.get('/api/config', (_req, res) => {
+    res.json({ paymentsEnabled: Boolean(stripe), currency: config.currency });
+});
+
+app.use('/api/auth', authRoutes);
+app.use('/api', orderRoutes);
+app.use('/api/admin', adminRoutes);
+
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Ruta API nu există.' }));
+
+// Site-ul React
+if (fs.existsSync(distDir)) {
+    app.use(
+        express.static(distDir, {
+            index: false,
+            setHeaders(res, filePath) {
+                if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+                    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+                }
+            }
+        })
+    );
+    // Orice altă adresă (/admin/login etc.) încarcă aplicația React, care își face singură rutarea.
+    app.get(/.*/, (_req, res) => {
+        res.set('Cache-Control', 'no-cache');
+        res.sendFile(path.join(distDir, 'index.html'));
+    });
+} else {
+    app.get('/', (_req, res) => res.send('Reloq API rulează. Frontend-ul nu este compilat (lipsește frontend-client/dist).'));
+}
+
+// Eroare neașteptată: o logăm, dar nu trimitem detalii interne la client.
+app.use((err, _req, res, _next) => {
+    console.error('[reloq] Eroare:', err);
+    if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON invalid.' });
+    res.status(500).json({ error: 'A apărut o eroare pe server. Încearcă din nou.' });
+});
+
+try {
+    await migrate();
+    console.log('[reloq] Baza de date este pregătită.');
+} catch (err) {
+    console.error('[reloq] Nu mă pot conecta la baza de date. Verifică DB_HOST / DB_USER / DB_PASSWORD / DB_NAME.');
+    console.error(err.message);
+}
+
+app.listen(config.port, () => {
+    console.log(`[reloq] Server pornit pe portul ${config.port}${stripe ? ' (plăți Stripe active)' : ''}`);
+});
