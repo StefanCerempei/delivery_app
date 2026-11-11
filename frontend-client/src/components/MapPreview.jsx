@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
 
-const DEFAULT_CENTER = [45.7489, 21.2087];
+const DEFAULT_CENTER = [37.7749, -122.4194]; // San Francisco
 
 const pickupIcon = L.divIcon({
     className: 'custom-map-pin',
@@ -68,16 +68,20 @@ const MapPreview = () => {
                     const latLngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
                     setRouteCoords(latLngs);
 
+                    const distanceKm = Number((route.distance / 1000).toFixed(2));
+                    const distanceMiles = Number((distanceKm * 0.621371).toFixed(1));
+
                     updateBookingData({
                         routeInfo: {
-                            distanceKm: Number((route.distance / 1000).toFixed(2)),
+                            distanceKm,
+                            distanceMiles,
                             durationMins: Math.max(1, Math.round(route.duration / 60))
                         }
                     });
                 }
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    console.error('Eroare calcul rută OSRM:', err);
+                    console.error('OSRM route error:', err);
                 }
             }
         }
@@ -88,7 +92,6 @@ const MapPreview = () => {
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            {/* Badge plutitor peste hartă */}
             <div className="map-floating-hud">
                 <div className="hud-brand">
                     <span className="brand-dot" />
@@ -96,7 +99,7 @@ const MapPreview = () => {
                 </div>
                 {pickup?.lat && dropoff?.lat && routeInfo && (
                     <div className="hud-route-pill">
-                        <span>{routeInfo.distanceKm} km</span>
+                        <span>{routeInfo.distanceMiles} mi</span>
                         <span className="hud-sep">•</span>
                         <span>~{routeInfo.durationMins} min</span>
                     </div>
@@ -121,7 +124,6 @@ const MapPreview = () => {
 
                 {routeCoords.length > 0 && (
                     <>
-                        {/* Contur subtil sub linia traseului pentru contrast */}
                         <Polyline
                             positions={routeCoords}
                             pathOptions={{ color: '#1d4ed8', weight: 9, opacity: 0.35 }}

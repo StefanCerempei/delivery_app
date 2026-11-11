@@ -1,9 +1,9 @@
 export function formatPrice(amount) {
     if (amount == null || Number.isNaN(amount)) return '—';
-    return `${Math.round(amount)} lei`;
+    return `$${Math.round(amount)}`;
 }
 
-export function formatDistance(km) {
-    if (!km) return '0 km';
-    return `${Number(km).toFixed(1)} km`;
+export function formatDistance(miles) {
+    if (!miles) return '0 mi';
+    return `${Number(miles).toFixed(1)} mi`;
 }

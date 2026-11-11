@@ -8,7 +8,6 @@ const AddressInput = ({ placeholder, value, onSelect }) => {
     const skipNextSearch = useRef(false);
     const wrapperRef = useRef(null);
 
-    // Sincronizează textul dacă adresele sunt inversate (Swap)
     useEffect(() => {
         skipNextSearch.current = true;
         setQuery(value?.address || '');
@@ -46,14 +45,14 @@ const AddressInput = ({ placeholder, value, onSelect }) => {
 
                 const res = await fetch(url, {
                     signal: controller.signal,
-                    headers: { 'Accept-Language': 'ro,en' }
+                    headers: { 'Accept-Language': 'en' }
                 });
                 const data = await res.json();
                 setSuggestions(data);
                 setIsOpen(data.length > 0);
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    console.error('Eroare căutare adresă:', err);
+                    console.error('Address lookup error:', err);
                 }
             } finally {
                 setLoading(false);
@@ -105,7 +104,7 @@ const AddressInput = ({ placeholder, value, onSelect }) => {
             {loading && <span className="field-spinner" />}
 
             {!loading && query && (
-                <button type="button" className="field-clear-btn" onClick={handleClear} title="Șterge">
+                <button type="button" className="field-clear-btn" onClick={handleClear} title="Clear">
                     ×
                 </button>
             )}

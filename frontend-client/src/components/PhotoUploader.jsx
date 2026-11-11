@@ -13,18 +13,18 @@ const PhotoUploader = ({ photos = [], onChange }) => {
         const incoming = Array.from(fileList);
 
         if (photos.length + incoming.length > MAX_PHOTOS) {
-            setError(`Poți încărca maximum ${MAX_PHOTOS} fotografii.`);
+            setError(`You can upload up to ${MAX_PHOTOS} photos.`);
             return;
         }
 
         const validItems = [];
         for (const file of incoming) {
             if (!file.type.startsWith('image/')) {
-                setError('Sunt permise doar fișiere imagine (JPG, PNG, WebP).');
+                setError('Only image files (JPG, PNG, WebP) are supported.');
                 continue;
             }
             if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-                setError(`Fiecare imagine trebuie să aibă sub ${MAX_SIZE_MB} MB.`);
+                setError(`Each image must be smaller than ${MAX_SIZE_MB} MB.`);
                 continue;
             }
 
@@ -61,7 +61,7 @@ const PhotoUploader = ({ photos = [], onChange }) => {
     return (
         <div className="photo-uploader-block">
             <div className="uploader-label-row">
-                <span className="picker-section-label">FOTOGRAFII OBIECTE (OPȚIONAL)</span>
+                <span className="picker-section-label">ITEM PHOTOS (OPTIONAL)</span>
                 <span className="photo-counter">
           {photos.length}/{MAX_PHOTOS}
         </span>
@@ -96,8 +96,8 @@ const PhotoUploader = ({ photos = [], onChange }) => {
                     />
                     <div className="dropzone-icon">📷</div>
                     <div className="dropzone-text">
-                        <strong>Trage pozele aici sau apasă pentru a alege</strong>
-                        <span>Ajută echipajul Reloq să pregătească chingile și păturile de protecție</span>
+                        <strong>Drag photos here or click to browse</strong>
+                        <span>Helps your Reloq crew bring the right straps & moving blankets</span>
                     </div>
                 </div>
             )}
@@ -113,7 +113,7 @@ const PhotoUploader = ({ photos = [], onChange }) => {
                                 type="button"
                                 className="remove-photo-btn"
                                 onClick={() => handleRemove(photo.id)}
-                                title="Elimină poza"
+                                title="Remove photo"
                             >
                                 ×
                             </button>

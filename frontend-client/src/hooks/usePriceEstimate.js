@@ -1,22 +1,22 @@
 import { useMemo } from 'react';
 
-// Tarife temporare de dezvoltare (vor fi înlocuite de răspunsul POST /api/estimate)
+// Temporary frontend pricing rates in USD (will be replaced by POST /api/estimate)
 const MOCK_RATES = {
-    courier: { base: 45, perKm: 4.5, perMin: 0.8, minTotal: 55 },
-    lite: { base: 75, perKm: 5.5, perMin: 1.0, minTotal: 89 },
-    pickup: { base: 125, perKm: 7.0, perMin: 1.5, minTotal: 149 },
-    van: { base: 175, perKm: 8.5, perMin: 2.0, minTotal: 199 }
+    courier: { base: 29, perMile: 1.75, perMin: 0.45, minTotal: 35 },
+    lite: { base: 45, perMile: 2.25, perMin: 0.6, minTotal: 55 },
+    pickup: { base: 69, perMile: 2.85, perMin: 0.85, minTotal: 79 },
+    van: { base: 95, perMile: 3.5, perMin: 1.1, minTotal: 109 }
 };
 
 export function usePriceEstimate(routeInfo) {
     return useMemo(() => {
-        const distanceKm = routeInfo?.distanceKm || 0;
+        const distanceMiles = routeInfo?.distanceMiles || 0;
         const durationMins = routeInfo?.durationMins || 0;
 
         const estimates = {};
 
         Object.entries(MOCK_RATES).forEach(([vehicleId, rate]) => {
-            const distanceCost = distanceKm * rate.perKm;
+            const distanceCost = distanceMiles * rate.perMile;
             const timeCost = durationMins * rate.perMin;
             const rawTotal = rate.base + distanceCost + timeCost;
             const total = Math.max(rate.minTotal, Math.round(rawTotal));
@@ -31,5 +31,5 @@ export function usePriceEstimate(routeInfo) {
         });
 
         return estimates;
-    }, [routeInfo?.distanceKm, routeInfo?.durationMins]);
+    }, [routeInfo?.distanceMiles, routeInfo?.durationMins]);
 }

@@ -19,7 +19,6 @@ const Step5Pay = () => {
         setCompletedOrder
     } = useBooking();
 
-    // Stare pentru formularul de cont (Creează cont vs Am deja cont)
     const [authMode, setAuthMode] = useState('register');
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
@@ -27,7 +26,6 @@ const Step5Pay = () => {
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
 
-    // Stare pentru cardul bancar
     const [cardNumber, setCardNumber] = useState('');
     const [cardExpiry, setCardExpiry] = useState('');
     const [cardCvc, setCardCvc] = useState('');
@@ -39,7 +37,7 @@ const Step5Pay = () => {
 
     const scheduleText =
         bookingData.scheduledTime === 'asap'
-            ? 'Acum (în ~30 min)'
+            ? 'Now (in ~30 min)'
             : `${bookingData.scheduledTime?.dateLabel} • ${bookingData.scheduledTime?.slotLabel}`;
 
     const handleAccountSubmit = (e) => {
@@ -47,19 +45,19 @@ const Step5Pay = () => {
         setAuthError('');
 
         if (authMode === 'register' && fullName.trim().length < 2) {
-            setAuthError('Introdu numele tău complet.');
+            setAuthError('Please enter your full name.');
             return;
         }
         if (authMode === 'register' && !isValidPhone(phone)) {
-            setAuthError('Introdu un număr de telefon valid (ex: 0722 123 456).');
+            setAuthError('Please enter a valid mobile number (e.g., (415) 555-0192).');
             return;
         }
         if (!isValidEmail(email)) {
-            setAuthError('Introdu o adresă de email validă.');
+            setAuthError('Please enter a valid email address.');
             return;
         }
         if (password.length < 6) {
-            setAuthError('Parola trebuie să aibă minimum 6 caractere.');
+            setAuthError('Password must be at least 6 characters.');
             return;
         }
 
@@ -70,7 +68,7 @@ const Step5Pay = () => {
                 authMode === 'register'
                     ? fullName.trim()
                     : cleanEmail.split('@')[0],
-            phone: authMode === 'register' ? phone.trim() : '0722 000 000',
+            phone: authMode === 'register' ? phone.trim() : '(415) 555-0199',
             email: cleanEmail,
             createdAt: new Date().toISOString()
         };
@@ -83,27 +81,26 @@ const Step5Pay = () => {
         setPayError('');
 
         if (!user) {
-            setPayError('Creează-ți mai întâi contul Reloq pentru a continua.');
+            setPayError('Please create your Reloq account first to continue.');
             return;
         }
 
         const rawDigits = cardNumber.replace(/\s/g, '');
         if (rawDigits.length < 16) {
-            setPayError('Introdu toate cele 16 cifre ale cardului.');
+            setPayError('Please enter all 16 digits of your card.');
             return;
         }
         if (cardExpiry.length < 5) {
-            setPayError('Introdu data expirării în format LL/AA.');
+            setPayError('Please enter the expiration date in MM/YY format.');
             return;
         }
         if (cardCvc.length < 3) {
-            setPayError('Introdu codul CVC de 3 cifre.');
+            setPayError('Please enter the 3- or 4-digit CVC code.');
             return;
         }
 
         setIsProcessing(true);
 
-        // Simulăm procesarea plății (va fi înlocuită cu Stripe PaymentIntent)
         setTimeout(() => {
             const orderCode = `RLQ-${Math.floor(10000 + Math.random() * 90000)}`;
             const newOrder = {
@@ -127,7 +124,7 @@ const Step5Pay = () => {
                 const existing = JSON.parse(localStorage.getItem('reloq_orders') || '[]');
                 localStorage.setItem('reloq_orders', JSON.stringify([newOrder, ...existing]));
             } catch (err) {
-                console.warn('Nu s-a putut salva comanda local:', err);
+                console.warn('Could not save order locally:', err);
             }
 
             setIsProcessing(false);
@@ -138,13 +135,13 @@ const Step5Pay = () => {
     return (
         <div className="step-container">
             <div className="step-heading">
-                <h1>Cont & Plată</h1>
+                <h1>Account & Payment</h1>
                 <p className="subtitle">
-                    Creează-ți contul Reloq pentru urmărirea echipajului și finalizează rezervarea.
+                    Create your Reloq account for live crew tracking and complete your booking.
                 </p>
             </div>
 
-            {/* 1. Recapitulare compactă comandă */}
+            {/* 1. Compact order recap */}
             <div className="checkout-recap-card">
                 <div className="recap-top-row">
                     <div>
@@ -166,14 +163,14 @@ const Step5Pay = () => {
                 </div>
             </div>
 
-            {/* 2. Secțiunea de Cont Reloq (obligatorie înainte de plată) */}
+            {/* 2. Reloq Account Gate */}
             {!user ? (
                 <form className="account-gate-card" onSubmit={handleAccountSubmit}>
                     <div className="account-gate-header">
                         <span className="step-badge-num">1</span>
                         <div>
-                            <strong>Creează contul tău Reloq</strong>
-                            <small>Necesar pentru notificări SMS și urmărirea live pe hartă</small>
+                            <strong>Create your Reloq account</strong>
+                            <small>Required for SMS updates and live map tracking</small>
                         </div>
                     </div>
 
@@ -186,7 +183,7 @@ const Step5Pay = () => {
                                 setAuthError('');
                             }}
                         >
-                            Cont nou
+                            Sign up
                         </button>
                         <button
                             type="button"
@@ -196,7 +193,7 @@ const Step5Pay = () => {
                                 setAuthError('');
                             }}
                         >
-                            Am deja cont
+                            Log in
                         </button>
                     </div>
 
@@ -206,14 +203,14 @@ const Step5Pay = () => {
                                 <input
                                     type="text"
                                     className="reloq-input"
-                                    placeholder="Nume complet (ex: Andrei Popescu)"
+                                    placeholder="Full name (e.g., Alex Morgan)"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                 />
                                 <input
                                     type="tel"
                                     className="reloq-input"
-                                    placeholder="Telefon mobil (ex: 0722 123 456)"
+                                    placeholder="Mobile phone (e.g., (415) 555-0192)"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                 />
@@ -223,7 +220,7 @@ const Step5Pay = () => {
                         <input
                             type="email"
                             className="reloq-input"
-                            placeholder="Adresă de email"
+                            placeholder="Email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
@@ -231,7 +228,7 @@ const Step5Pay = () => {
                         <input
                             type="password"
                             className="reloq-input"
-                            placeholder="Parolă (min. 6 caractere)"
+                            placeholder="Password (min. 6 characters)"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
@@ -241,8 +238,8 @@ const Step5Pay = () => {
 
                     <button type="submit" className="create-account-btn">
                         {authMode === 'register'
-                            ? 'Creează cont Reloq și continuă →'
-                            : 'Conectează-te și continuă →'}
+                            ? 'Create Reloq account & continue →'
+                            : 'Log in & continue →'}
                     </button>
                 </form>
             ) : (
@@ -257,12 +254,12 @@ const Step5Pay = () => {
                         </div>
                     </div>
                     <button type="button" className="change-account-btn" onClick={logoutUser}>
-                        Schimbă
+                        Switch
                     </button>
                 </div>
             )}
 
-            {/* 3. Secțiunea de Plată cu cardul */}
+            {/* 3. Card Payment Section */}
             <form
                 className={`payment-card-box ${!user ? 'locked' : ''}`}
                 onSubmit={handlePayAndConfirm}
@@ -270,11 +267,11 @@ const Step5Pay = () => {
                 <div className="account-gate-header">
                     <span className="step-badge-num">2</span>
                     <div>
-                        <strong>Detalii plată</strong>
+                        <strong>Payment details</strong>
                         <small>
                             {user
-                                ? 'Tranzacție securizată • Suma se blochează până la livrare'
-                                : 'Completează pasul 1 (contul Reloq) pentru a debloca plata'}
+                                ? 'Encrypted checkout • You are only charged once delivery is complete'
+                                : 'Complete step 1 (Reloq account) to unlock payment'}
                         </small>
                     </div>
                 </div>
@@ -284,7 +281,7 @@ const Step5Pay = () => {
                         type="text"
                         inputMode="numeric"
                         className="reloq-input"
-                        placeholder="Număr card (ex: 4242 4242 4242 4242)"
+                        placeholder="Card number (e.g., 4242 4242 4242 4242)"
                         disabled={!user || isProcessing}
                         value={cardNumber}
                         onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
@@ -295,7 +292,7 @@ const Step5Pay = () => {
                             type="text"
                             inputMode="numeric"
                             className="reloq-input"
-                            placeholder="LL/AA"
+                            placeholder="MM/YY"
                             disabled={!user || isProcessing}
                             value={cardExpiry}
                             onChange={(e) => setCardExpiry(formatCardExpiry(e.target.value))}
@@ -318,11 +315,11 @@ const Step5Pay = () => {
                 <div className="step-footer" style={{ paddingTop: '16px' }}>
                     <Button type="submit" disabled={!user || isProcessing}>
                         {isProcessing
-                            ? 'Se procesează plata...'
-                            : `Plătește ${formatPrice(totalAmount)} și confirmă Reloq`}
+                            ? 'Processing payment...'
+                            : `Pay ${formatPrice(totalAmount)} & book Reloq`}
                     </Button>
                     <p className="trust-note">
-                        Chitanța și link-ul de tracking se trimit automat pe {user?.email || 'email'}
+                        Receipt and live tracking link will be sent to {user?.email || 'your email'}
                     </p>
                 </div>
             </form>

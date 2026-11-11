@@ -29,9 +29,9 @@ const Step2Vehicle = () => {
     return (
         <div className="step-container">
             <div className="step-heading">
-                <h1>Alege vehiculul</h1>
+                <h1>Choose your vehicle</h1>
                 <p className="subtitle">
-                    Selectează dimensiunea potrivită pentru obiectele tale.
+                    Select the right size truck and crew for your items.
                 </p>
             </div>
 
@@ -83,7 +83,7 @@ const Step2Vehicle = () => {
 
             <div className="step-footer">
                 <Button onClick={handleContinue} disabled={!selectedVehicleId}>
-                    Continuă la programare →
+                    Continue to schedule →
                 </Button>
             </div>
         </div>

@@ -4,14 +4,14 @@ import PhotoUploader from '../../components/PhotoUploader';
 import Button from '../../components/Button';
 
 const QUICK_ITEMS = [
-    'Canapea 3 locuri',
-    'Frigider',
-    'Mașină de spălat',
-    'Saltea + pat',
-    'Birou',
-    'Televizor',
-    '5–10 cutii',
-    'Dulap demontat'
+    '3-seat sofa',
+    'Refrigerator',
+    'Washer / Dryer',
+    'Mattress & bed',
+    'Office desk',
+    'Large TV',
+    '5–10 boxes',
+    'Dresser'
 ];
 
 const Step4Items = () => {
@@ -32,10 +32,7 @@ const Step4Items = () => {
     };
 
     const handleContinue = () => {
-        if (!description.trim()) {
-            alert('Te rugăm să descrii pe scurt ce obiecte transportăm.');
-            return;
-        }
+        if (!description.trim()) return;
 
         updateBookingData({
             itemsDescription: description.trim(),
@@ -47,15 +44,14 @@ const Step4Items = () => {
     return (
         <div className="step-container">
             <div className="step-heading">
-                <h1>Ce transportăm?</h1>
+                <h1>What are we moving?</h1>
                 <p className="subtitle">
-                    Spune-ne ce obiecte ai și dacă există scări înguste sau detalii de acces.
+                    List your items and mention any stairs, elevators, or parking notes.
                 </p>
             </div>
 
-            {/* Sugestii rapide */}
             <div className="quick-items-section">
-                <span className="picker-section-label">ADĂUGARE RAPIDĂ</span>
+                <span className="picker-section-label">QUICK ADD</span>
                 <div className="quick-chips-wrap">
                     {QUICK_ITEMS.map((item) => {
                         const isIncluded = description.toLowerCase().includes(item.toLowerCase());
@@ -74,30 +70,28 @@ const Step4Items = () => {
                 </div>
             </div>
 
-            {/* Descriere detaliată */}
             <div className="items-textarea-group">
                 <label htmlFor="items-desc" className="picker-section-label">
-                    LISTA OBIECTELOR & DETALII ACCES
+                    ITEM LIST & ACCESS DETAILS
                 </label>
                 <textarea
                     id="items-desc"
                     className="items-textarea"
                     rows={4}
-                    placeholder="Ex: O canapea extensibilă, 6 cutii cu haine și o măsuță de cafea. Preluare de la etajul 2, există lift."
+                    placeholder="e.g., Sectional sofa, 6 moving boxes, and a coffee table. 2nd floor pickup with elevator access."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                 />
             </div>
 
-            {/* Upload poze */}
             <PhotoUploader photos={photos} onChange={setPhotos} />
 
             <div className="step-footer">
                 <Button onClick={handleContinue} disabled={!description.trim()}>
-                    Continuă la plată →
+                    Continue to payment →
                 </Button>
                 <p className="trust-note">
-                    Echipajul Reloq aduce folie stretch, chingi și pături de protecție
+                    Every Reloq truck comes equipped with shrink wrap, straps & moving blankets
                 </p>
             </div>
         </div>

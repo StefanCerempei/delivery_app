@@ -17,13 +17,12 @@ const Step1Route = () => {
     return (
         <div className="step-container">
             <div className="step-heading">
-                <h1>Unde mutăm?</h1>
+                <h1>Where are we moving?</h1>
                 <p className="subtitle">
-                    Alege punctul de preluare și destinația pentru a calcula traseul instant.
+                    Enter your pickup and dropoff addresses for an instant route estimate.
                 </p>
             </div>
 
-            {/* Card unitar stil Lugg / Uber */}
             <div className="route-card">
                 <div className="route-timeline">
                     <span className="dot-pickup" />
@@ -33,9 +32,9 @@ const Step1Route = () => {
 
                 <div className="route-inputs-stack">
                     <div className="route-slot">
-                        <span className="slot-tag">PRELUARE</span>
+                        <span className="slot-tag">PICKUP</span>
                         <AddressInput
-                            placeholder="Adresa de preluare..."
+                            placeholder="Pickup address..."
                             value={bookingData.pickup}
                             onSelect={(loc) => updateBookingData({ pickup: loc })}
                         />
@@ -44,9 +43,9 @@ const Step1Route = () => {
                     <div className="route-divider" />
 
                     <div className="route-slot">
-                        <span className="slot-tag">DESTINAȚIE</span>
+                        <span className="slot-tag">DROPOFF</span>
                         <AddressInput
-                            placeholder="Unde livrăm?"
+                            placeholder="Where are we delivering?"
                             value={bookingData.dropoff}
                             onSelect={(loc) => updateBookingData({ dropoff: loc })}
                         />
@@ -58,7 +57,7 @@ const Step1Route = () => {
                         type="button"
                         className="swap-route-btn"
                         onClick={handleSwapAddresses}
-                        title="Inversează adresele"
+                        title="Swap addresses"
                     >
                         ⇅
                     </button>
@@ -68,12 +67,12 @@ const Step1Route = () => {
             {isReady && bookingData.routeInfo && (
                 <div className="trip-metrics-card">
                     <div className="metric-item">
-                        <span className="metric-label">Distanță rutieră</span>
-                        <span className="metric-value">{bookingData.routeInfo.distanceKm} km</span>
+                        <span className="metric-label">Driving distance</span>
+                        <span className="metric-value">{bookingData.routeInfo.distanceMiles} mi</span>
                     </div>
                     <div className="metric-sep" />
                     <div className="metric-item">
-                        <span className="metric-label">Timp estimat</span>
+                        <span className="metric-label">Est. drive time</span>
                         <span className="metric-value">~{bookingData.routeInfo.durationMins} min</span>
                     </div>
                 </div>
@@ -81,10 +80,10 @@ const Step1Route = () => {
 
             <div className="step-footer">
                 <Button onClick={nextStep} disabled={!isReady}>
-                    Alege vehiculul →
+                    Choose vehicle →
                 </Button>
                 <p className="trust-note">
-                    2 mutători profesioniști • Încărcare și descărcare incluse
+                    Background-checked movers • Loading & unloading included
                 </p>
             </div>
         </div>

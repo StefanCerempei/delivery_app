@@ -6,42 +6,42 @@ import vanIcon from '../assets/icons/van.svg';
 export const VEHICLES = [
     {
         id: 'courier',
-        name: 'Lugg Courier',
+        name: 'Reloq Courier',
         crewCount: 1,
-        crewLabel: '1 mutător',
+        crewLabel: '1 mover',
         badge: null,
-        dimensions: 'Portbagaj / Hatchback',
-        description: 'Cutii, bagaje, cumpărături din magazin, TV sau colete mici.',
+        dimensions: 'Trunk / Hatchback',
+        description: 'Boxes, luggage, store pickups, TVs, or small parcels.',
         icon: courierIcon
     },
     {
         id: 'lite',
-        name: 'Lugg Lite',
+        name: 'Reloq Lite',
         crewCount: 1,
-        crewLabel: '1 mutător',
+        crewLabel: '1 mover',
         badge: null,
-        dimensions: 'SUV / Dubiță mică',
-        description: '1–2 obiecte medii: fotoliu, birou, comodă sau televizor mare.',
+        dimensions: 'SUV / Small Cargo',
+        description: '1–2 medium items: armchair, desk, dresser, or large TV.',
         icon: liteIcon
     },
     {
         id: 'pickup',
-        name: 'Lugg Pickup',
+        name: 'Reloq Pickup',
         crewCount: 2,
-        crewLabel: '2 mutători',
+        crewLabel: '2 movers',
         badge: 'Popular',
-        dimensions: 'Benă 2.4m × 1.6m',
-        description: 'Canapea, saltea king-size, frigider, mașină de spălat.',
+        dimensions: '8ft Pickup Bed',
+        description: 'Sofa, king mattress, refrigerator, washer & dryer.',
         icon: pickupIcon
     },
     {
         id: 'van',
-        name: 'Lugg Van',
+        name: 'Reloq Van',
         crewCount: 2,
-        crewLabel: '2 mutători',
-        badge: 'Capacitate max.',
-        dimensions: 'Dubă închisă 3.7m',
-        description: 'Mutări de garsoniere, colțare mari, multiple piese de mobilier.',
+        crewLabel: '2 movers',
+        badge: 'Max Capacity',
+        dimensions: '12ft Cargo Van',
+        description: 'Studio moves, large sectionals, multiple furniture pieces.',
         icon: vanIcon
     }
 ];

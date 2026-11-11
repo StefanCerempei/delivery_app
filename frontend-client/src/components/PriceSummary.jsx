@@ -7,25 +7,25 @@ const PriceSummary = ({ vehicle, estimate, routeInfo }) => {
     return (
         <div className="price-summary-card">
             <div className="price-summary-header">
-                <span>Detalii tarif • {vehicle.name}</span>
+                <span>Fare breakdown • {vehicle.name}</span>
                 <span className="crew-tag">{vehicle.crewLabel}</span>
             </div>
 
             <div className="price-rows">
                 <div className="price-row">
-                    <span>Tarif de bază și manipulare</span>
+                    <span>Base fare & loading</span>
                     <span>{formatPrice(estimate.baseFare)}</span>
                 </div>
                 <div className="price-row">
-                    <span>Traseu ({formatDistance(routeInfo?.distanceKm)})</span>
+                    <span>Distance & time ({formatDistance(routeInfo?.distanceMiles)})</span>
                     <span>{formatPrice(estimate.distanceCost + estimate.timeCost)}</span>
                 </div>
             </div>
 
             <div className="price-total-row">
                 <div>
-                    <strong>Total estimat</strong>
-                    <small>Fără taxe ascunse</small>
+                    <strong>Estimated total</strong>
+                    <small>No hidden fees</small>
                 </div>
                 <span className="total-amount">{formatPrice(estimate.total)}</span>
             </div>

@@ -2,28 +2,27 @@ import React, { useState, useMemo } from 'react';
 import { useBooking } from '../../context/BookingContext';
 import Button from '../../components/Button';
 
-const DAYS_RO = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
-const MONTHS_RO = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
+const DAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const TIME_SLOTS = [
-    { id: '08:00', label: '08:00 – 09:00' },
-    { id: '09:00', label: '09:00 – 10:00' },
-    { id: '10:00', label: '10:00 – 11:00' },
-    { id: '11:00', label: '11:00 – 12:00' },
-    { id: '12:00', label: '12:00 – 13:00' },
-    { id: '13:00', label: '13:00 – 14:00' },
-    { id: '14:00', label: '14:00 – 15:00' },
-    { id: '15:00', label: '15:00 – 16:00' },
-    { id: '16:00', label: '16:00 – 17:00' },
-    { id: '17:00', label: '17:00 – 18:00' },
-    { id: '18:00', label: '18:00 – 19:00' },
-    { id: '19:00', label: '19:00 – 20:00' }
+    { id: '08:00', label: '8:00 AM – 9:00 AM' },
+    { id: '09:00', label: '9:00 AM – 10:00 AM' },
+    { id: '10:00', label: '10:00 AM – 11:00 AM' },
+    { id: '11:00', label: '11:00 AM – 12:00 PM' },
+    { id: '12:00', label: '12:00 PM – 1:00 PM' },
+    { id: '13:00', label: '1:00 PM – 2:00 PM' },
+    { id: '14:00', label: '2:00 PM – 3:00 PM' },
+    { id: '15:00', label: '3:00 PM – 4:00 PM' },
+    { id: '16:00', label: '4:00 PM – 5:00 PM' },
+    { id: '17:00', label: '5:00 PM – 6:00 PM' },
+    { id: '18:00', label: '6:00 PM – 7:00 PM' },
+    { id: '19:00', label: '7:00 PM – 8:00 PM' }
 ];
 
 const Step3Time = () => {
     const { bookingData, updateBookingData, nextStep } = useBooking();
 
-    // Generăm următoarele 7 zile începând de mâine
     const upcomingDays = useMemo(() => {
         const days = [];
         const base = new Date();
@@ -36,9 +35,9 @@ const Step3Time = () => {
 
             days.push({
                 dateStr: `${yyyy}-${mm}-${dd}`,
-                dayName: i === 1 ? 'Mâine' : DAYS_RO[d.getDay()],
+                dayName: i === 1 ? 'Tomorrow' : DAYS_EN[d.getDay()],
                 dayNumber: d.getDate(),
-                monthName: MONTHS_RO[d.getMonth()]
+                monthName: MONTHS_EN[d.getMonth()]
             });
         }
         return days;
@@ -66,7 +65,7 @@ const Step3Time = () => {
                 scheduledTime: {
                     type: 'scheduled',
                     dateStr: dayObj.dateStr,
-                    dateLabel: `${dayObj.dayName}, ${dayObj.dayNumber} ${dayObj.monthName}`,
+                    dateLabel: `${dayObj.dayName}, ${dayObj.monthName} ${dayObj.dayNumber}`,
                     slotId: slotObj.id,
                     slotLabel: slotObj.label,
                     iso: `${dayObj.dateStr}T${slotObj.id}:00`
@@ -79,13 +78,12 @@ const Step3Time = () => {
     return (
         <div className="step-container">
             <div className="step-heading">
-                <h1>Când ai nevoie de Reloq?</h1>
+                <h1>When do you need Reloq?</h1>
                 <p className="subtitle">
-                    Poți chema un echipaj imediat sau poți rezerva o fereastră orară.
+                    Request a crew right away or book an arrival window in advance.
                 </p>
             </div>
 
-            {/* Opțiunile principale: ASAP vs Programat */}
             <div className="time-mode-list">
                 <div
                     className={`time-mode-card ${mode === 'asap' ? 'selected' : ''}`}
@@ -97,10 +95,10 @@ const Step3Time = () => {
                     <div className="time-mode-icon">⚡</div>
                     <div className="time-mode-info">
                         <div className="time-mode-title">
-                            <strong>Acum (în ~30 min)</strong>
-                            <span className="instant-pill">Rapid</span>
+                            <strong>Now (in ~30 min)</strong>
+                            <span className="instant-pill">Fastest</span>
                         </div>
-                        <p>Cel mai apropiat echipaj Reloq pleacă imediat spre adresa de preluare.</p>
+                        <p>The nearest available Reloq crew heads straight to your pickup.</p>
                     </div>
                     <span className={`radio-circle ${mode === 'asap' ? 'checked' : ''}`} />
                 </div>
@@ -115,18 +113,17 @@ const Step3Time = () => {
                     <div className="time-mode-icon">📅</div>
                     <div className="time-mode-info">
                         <div className="time-mode-title">
-                            <strong>Programează mai târziu</strong>
+                            <strong>Schedule for later</strong>
                         </div>
-                        <p>Alege ziua și intervalul orar convenabil pentru tine.</p>
+                        <p>Pick a date and 1-hour arrival window that fits your plan.</p>
                     </div>
                     <span className={`radio-circle ${mode === 'scheduled' ? 'checked' : ''}`} />
                 </div>
             </div>
 
-            {/* Selector zi + oră când este selectat "Programează" */}
             {mode === 'scheduled' && (
                 <div className="schedule-picker-box">
-                    <span className="picker-section-label">SELECTEAZĂ ZIUA</span>
+                    <span className="picker-section-label">SELECT DATE</span>
                     <div className="days-strip">
                         {upcomingDays.map((day) => {
                             const active = selectedDate === day.dateStr;
@@ -146,7 +143,7 @@ const Step3Time = () => {
                     </div>
 
                     <span className="picker-section-label" style={{ marginTop: '18px' }}>
-            INTERVAL ORAR DE SOSIRE
+            ARRIVAL WINDOW
           </span>
                     <div className="slots-grid">
                         {TIME_SLOTS.map((slot) => {
@@ -168,10 +165,10 @@ const Step3Time = () => {
 
             <div className="step-footer">
                 <Button onClick={handleContinue}>
-                    Continuă la detalii obiecte →
+                    Continue to item details →
                 </Button>
                 <p className="trust-note">
-                    Anulare gratuită cu până la 2 ore înainte de preluare
+                    Free cancellation up to 2 hours before pickup
                 </p>
             </div>
         </div>
