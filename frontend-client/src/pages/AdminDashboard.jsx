@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { formatPrice } from '../utils/formatters';
 import { api } from '../api/client';
+import Logo from '../components/Logo';
 import './Admin.css';
 
 export const STATUS_LABELS = {
@@ -47,8 +48,8 @@ const AdminDashboard = () => {
         <div className="admin-layout">
             <header className="admin-header">
                 <div className="admin-brand">
-                    <span className="brand-dot" />
-                    <h2>RELOQ DISPATCH</h2>
+                    <Logo height={24} />
+                    <span className="admin-brand-label">Dispatch</span>
                 </div>
                 <button onClick={handleLogout} className="change-account-btn">
                     Log out

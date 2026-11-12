@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import { api } from '../api/client';
+import Logo from '../components/Logo';
 import './Admin.css';
 
 const AdminLogin = () => {
@@ -40,9 +41,9 @@ const AdminLogin = () => {
     return (
         <div className="admin-login-layout">
             <div className="admin-login-card">
-                <div className="admin-brand">
-                    <span className="brand-dot" />
-                    <h2>RELOQ ADMIN</h2>
+                <div className="admin-login-brand">
+                    <Logo variant="full" height={56} />
+                    <span className="admin-brand-label">Dispatch console</span>
                 </div>
 
                 <form onSubmit={handleLogin} className="admin-login-form">

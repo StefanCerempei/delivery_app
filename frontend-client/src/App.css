@@ -1,39 +1,45 @@
 /* =========================================================
    RELOQ — Design tokens & primitive globale
-   Paletă: grafit cald + portocaliu „hi-vis” (pickup / CTA)
-   + verde-teal (dropoff / confirmări)
+   Paletă din logo: roșu Reloq (#FF3F34), bleumarin (#0B1F3B), gri (#8A949E)
+   + verde-teal pentru dropoff / confirmări
    ========================================================= */
 
 :root {
-    /* Suprafețe */
-    --bg: #0b0c0e;
-    --panel: #111215;
-    --surface: #17181c;
-    --surface-2: #1d1e23;
-    --surface-3: #25262c;
+    /* Suprafețe — grafit cu nuanță bleumarin (din Q-ul logo-ului, #0B1F3B) */
+    --bg: #0a0f18;
+    --panel: #0e1521;
+    --surface: #141c2a;
+    --surface-2: #1a2332;
+    --surface-3: #222c3d;
 
     /* Linii */
     --line: rgba(255, 255, 255, 0.07);
     --line-strong: rgba(255, 255, 255, 0.13);
 
     /* Text */
-    --text: #f4f1ea;
-    --text-2: #c9c4ba;
-    --muted: #9a958c;
-    --faint: #6b6760;
+    --text: #f1f4f8;
+    --text-2: #c3cbd6;
+    --muted: #8a949e; /* gri-ul din logo */
+    --faint: #5f6a78;
+
+    /* Brand Reloq */
+    --brand-red: #ff3f34;
+    --brand-navy: #0b1f3b;
+    --brand-gray: #8a949e;
 
     /* Accente */
-    --accent: #ff6a1a;
-    --accent-hover: #ff7d36;
-    --accent-ink: #1a0b03;
-    --accent-soft: rgba(255, 106, 26, 0.12);
-    --accent-ring: rgba(255, 106, 26, 0.35);
+    --accent: #ff3f34; /* roșul din logo: pickup, highlight-uri, selecții */
+    --accent-strong: #de2f27; /* fundal butoane: contrast AA cu text alb */
+    --accent-hover: #ef3a30;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(255, 63, 52, 0.12);
+    --accent-ring: rgba(255, 63, 52, 0.35);
 
     --go: #2dd4a7;
     --go-soft: rgba(45, 212, 167, 0.12);
 
-    --danger: #ff7a7a;
-    --danger-soft: rgba(255, 122, 122, 0.1);
+    --danger: #ff8a80;
+    --danger-soft: rgba(255, 138, 128, 0.1);
 
     /* Tipografie */
     --font-display: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif;
@@ -46,7 +52,7 @@
     --r-lg: 16px;
     --r-xl: 22px;
     --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.6);
-    --shadow-glow: 0 10px 30px -8px rgba(255, 106, 26, 0.55);
+    --shadow-glow: 0 10px 30px -8px rgba(222, 47, 39, 0.55);
 
     --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -119,7 +125,7 @@ textarea {
     flex-shrink: 0;
     border-radius: 3px;
     background-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft), 0 0 14px rgba(255, 106, 26, 0.7);
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 0 14px rgba(255, 63, 52, 0.7);
 }
 
 /* ================= Butoane ================= */
@@ -148,7 +154,7 @@ textarea {
 }
 
 .lugg-btn-primary {
-    background-color: var(--accent);
+    background-color: var(--accent-strong);
     color: var(--accent-ink);
     box-shadow: var(--shadow-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
@@ -269,11 +275,11 @@ textarea {
 /* ================= Leaflet ================= */
 .leaflet-container {
     font-family: var(--font-body);
-    background: #101114 !important;
+    background: #0b111b !important;
 }
 
 .leaflet-control-attribution {
-    background: rgba(11, 12, 14, 0.6) !important;
+    background: rgba(10, 15, 24, 0.6) !important;
     color: var(--faint) !important;
     font-size: 10px !important;
     backdrop-filter: blur(8px);
@@ -284,9 +290,9 @@ textarea {
     color: var(--muted) !important;
 }
 
-/* Hartă grafit caldă, cu contrast bun pentru traseu */
+/* Hartă închisă, rece, cu contrast bun pentru traseul roșu */
 .leaflet-tile-pane {
-    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) saturate(20%) sepia(8%);
+    filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%) saturate(35%);
 }
 
 .custom-map-pin {
@@ -302,4 +308,11 @@ textarea {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* ================= Logo ================= */
+.reloq-logo {
+    display: block;
+    width: auto;
+    user-select: none;
 }

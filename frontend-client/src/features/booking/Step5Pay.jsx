@@ -15,10 +15,10 @@ const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
 const stripeAppearance = {
     theme: 'night',
     variables: {
-        colorPrimary: '#ff6a1a',
-        colorBackground: '#17181c',
-        colorText: '#f4f1ea',
-        colorTextSecondary: '#9a958c',
+        colorPrimary: '#ff3f34',
+        colorBackground: '#141c2a',
+        colorText: '#f1f4f8',
+        colorTextSecondary: '#8a949e',
         colorDanger: '#ff7a7a',
         borderRadius: '12px',
         fontFamily: 'Geist, system-ui, sans-serif',
@@ -26,7 +26,7 @@ const stripeAppearance = {
     },
     rules: {
         '.Input': { border: '1px solid rgba(255,255,255,0.13)', boxShadow: 'none' },
-        '.Input:focus': { border: '1px solid #ff6a1a', boxShadow: '0 0 0 4px rgba(255,106,26,0.12)' }
+        '.Input:focus': { border: '1px solid #ff3f34', boxShadow: '0 0 0 4px rgba(255,63,52,0.14)' }
     }
 };
 

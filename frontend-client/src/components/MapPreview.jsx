@@ -3,19 +3,20 @@ import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
+import Logo from './Logo';
 
 const DEFAULT_CENTER = [37.7749, -122.4194]; // San Francisco
 
 const pickupIcon = L.divIcon({
     className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#ff6a1a;border:3px solid #0b0c0e;border-radius:50%;box-shadow:0 0 0 6px rgba(255,106,26,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
+    html: `<div style="width:18px;height:18px;background:#ff3f34;border:3px solid #0a0f18;border-radius:50%;box-shadow:0 0 0 6px rgba(255,63,52,0.28),0 6px 16px rgba(0,0,0,0.5);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
 });
 
 const dropoffIcon = L.divIcon({
     className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#2dd4a7;border:3px solid #0b0c0e;border-radius:5px;box-shadow:0 0 0 6px rgba(45,212,167,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
+    html: `<div style="width:18px;height:18px;background:#2dd4a7;border:3px solid #0a0f18;border-radius:5px;box-shadow:0 0 0 6px rgba(45,212,167,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
 });
@@ -94,8 +95,7 @@ const MapPreview = () => {
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div className="map-floating-hud">
                 <div className="hud-brand">
-                    <span className="brand-dot" />
-                    <span>RELOQ</span>
+                    <Logo height={20} />
                 </div>
                 {pickup?.lat && dropoff?.lat && routeInfo && (
                     <div className="hud-route-pill">
@@ -109,7 +109,7 @@ const MapPreview = () => {
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={13}
-                style={{ width: '100%', height: '100%', backgroundColor: '#101114' }}
+                style={{ width: '100%', height: '100%', backgroundColor: '#0b111b' }}
                 zoomControl={false}
             >
                 <TileLayer
@@ -126,11 +126,11 @@ const MapPreview = () => {
                     <>
                         <Polyline
                             positions={routeCoords}
-                            pathOptions={{ color: '#ff6a1a', weight: 12, opacity: 0.18 }}
+                            pathOptions={{ color: '#ff3f34', weight: 12, opacity: 0.18 }}
                         />
                         <Polyline
                             positions={routeCoords}
-                            pathOptions={{ color: '#ff6a1a', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
+                            pathOptions={{ color: '#ff3f34', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
                         />
                     </>
                 )}

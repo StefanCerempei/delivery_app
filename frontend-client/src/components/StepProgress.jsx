@@ -1,5 +1,6 @@
 import React from 'react';
 import { useBooking } from '../context/BookingContext';
+import Logo from './Logo';
 
 const STEP_LABELS = ['Route', 'Vehicle', 'Schedule', 'Items', 'Payment'];
 
@@ -15,8 +16,7 @@ const StepProgress = () => {
                     </button>
                 ) : (
                     <div className="brand-mark">
-                        <span className="brand-dot" />
-                        RELOQ
+                        <Logo height={26} />
                     </div>
                 )}
 
