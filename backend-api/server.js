@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { config } from './src/config.js';
+import { config, configOk, configProblems } from './src/config.js';
 import { pool, migrate } from './src/db.js';
 import { loadUser } from './src/auth.js';
 import { stripe } from './src/stripe.js';
@@ -62,13 +62,26 @@ app.use(express.json({ limit: '50kb' }));
 app.use(cookieParser());
 app.use('/api', loadUser);
 
+let dbError = null; // ultimul cod de eroare MySQL (ex. ER_ACCESS_DENIED_ERROR), fără detalii sensibile
+
 app.get('/api/health', async (_req, res) => {
+    if (!configOk) {
+        return res.status(503).json({ ok: false, problems: configProblems });
+    }
     try {
         await pool.query('SELECT 1');
-        res.json({ ok: true, db: 'connected', payments: Boolean(stripe) });
-    } catch {
-        res.status(503).json({ ok: false, db: 'unreachable' });
+        dbError = null;
+        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), node: process.version });
+    } catch (err) {
+        dbError = err.code || 'UNKNOWN';
+        res.status(503).json({ ok: false, db: 'unreachable', error: dbError, dbHost: config.db.host });
     }
+});
+
+// Dacă lipsesc setări obligatorii, restul API-ului răspunde clar cu 503 în loc să cadă serverul.
+app.use('/api', (_req, res, next) => {
+    if (configOk) return next();
+    res.status(503).json({ error: 'Our booking service is not configured yet. Please try again later.' });
 });
 
 app.get('/api/config', (_req, res) => {
@@ -109,7 +122,9 @@ app.use((err, _req, res, _next) => {
     res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
 });
 
-try {
+if (!configOk) {
+    console.error('[reloq] Configurare incompletă:', configProblems.join('; '));
+} else try {
     await migrate();
     console.log('[reloq] Baza de date este pregătită.');
 } catch (err) {

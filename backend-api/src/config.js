@@ -1,15 +1,26 @@
 // Configurația aplicației, citită din variabilele de mediu.
 // Pe Hostinger le setezi în hPanel → aplicația Node.js → Environment variables.
 // Local le pui în backend-api/.env (vezi .env.example).
+//
+// Dacă lipsește ceva, serverul NU se oprește: pornește în „mod de diagnostic”,
+// iar /api/health arată ce variabile lipsesc (doar numele, niciodată valorile).
 
 // Implicit producție. Doar local, cu NODE_ENV=development în .env, se relaxează regulile.
 const isProduction = process.env.NODE_ENV !== 'development';
 
-function required(name, fallbackForDev) {
+export const configProblems = [];
+
+function read(name, { fallbackForDev } = {}) {
     const value = process.env[name];
     if (value && value.trim() !== '') return value.trim();
     if (!isProduction && fallbackForDev !== undefined) return fallbackForDev;
-    throw new Error(`Lipsește variabila de mediu obligatorie: ${name}`);
+    configProblems.push(`${name} is missing`);
+    return null;
+}
+
+const jwtSecret = read('JWT_SECRET', { fallbackForDev: 'dev-only-secret-change-me-dev-only-secret' });
+if (jwtSecret && jwtSecret.length < 32) {
+    configProblems.push('JWT_SECRET must be at least 32 characters');
 }
 
 export const config = {
@@ -19,13 +30,13 @@ export const config = {
     db: {
         host: process.env.DB_HOST || 'localhost',
         port: Number(process.env.DB_PORT) || 3306,
-        user: required('DB_USER'),
+        user: read('DB_USER'),
         password: process.env.DB_PASSWORD ?? '',
-        database: required('DB_NAME')
+        database: read('DB_NAME')
     },
 
     // Cheie lungă și aleatorie (minim 32 de caractere) pentru semnarea sesiunilor.
-    jwtSecret: required('JWT_SECRET', 'dev-only-secret-change-me-dev-only-secret'),
+    jwtSecret: jwtSecret && jwtSecret.length >= 32 ? jwtSecret : null,
     sessionDays: Number(process.env.SESSION_DAYS) || 7,
 
     // Contul de dispecer creat automat la prima pornire (dacă nu există niciun admin).
@@ -40,6 +51,8 @@ export const config = {
     corsOrigin: process.env.CORS_ORIGIN || null
 };
 
-if (config.jwtSecret.length < 32) {
-    throw new Error('JWT_SECRET trebuie să aibă cel puțin 32 de caractere.');
+if (isProduction && !process.env.DB_PASSWORD) {
+    configProblems.push('DB_PASSWORD is missing');
 }
+
+export const configOk = configProblems.length === 0;
