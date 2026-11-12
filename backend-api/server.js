@@ -16,6 +16,7 @@ import { mailEnabled, verifyMailer } from './src/mailer.js';
 import authRoutes from './src/routes/auth.js';
 import orderRoutes from './src/routes/orders.js';
 import adminRoutes from './src/routes/admin.js';
+import accountRoutes from './src/routes/account.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../frontend-client/dist');
@@ -94,6 +95,7 @@ app.get('/api/config', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/account', accountRoutes);
 app.use('/api', orderRoutes);
 app.use('/api/admin', adminRoutes);
 

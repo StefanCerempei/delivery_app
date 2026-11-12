@@ -199,6 +199,12 @@ const AuthPage = ({ mode }) => {
                         </div>
                     </label>
 
+                    {!isSignup && (
+                        <Link to="/forgot-password" className="auth-forgot">
+                            Forgot password?
+                        </Link>
+                    )}
+
                     {error && <p className="form-inline-error">{error}</p>}
 
                     <Button type="submit" disabled={busy}>

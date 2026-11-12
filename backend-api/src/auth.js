@@ -4,8 +4,12 @@ import { pool } from './db.js';
 
 export const SESSION_COOKIE = 'reloq_session';
 
-export function setSessionCookie(res, user) {
-    const token = jwt.sign({ sub: String(user.id), role: user.role }, config.jwtSecret, {
+/**
+ * `sessionVersion` crește la fiecare schimbare/resetare de parolă;
+ * sesiunile emise cu o versiune mai veche nu mai sunt acceptate.
+ */
+export function setSessionCookie(res, user, sessionVersion = 0) {
+    const token = jwt.sign({ sub: String(user.id), role: user.role, sv: sessionVersion }, config.jwtSecret, {
         expiresIn: `${config.sessionDays}d`
     });
     res.cookie(SESSION_COOKIE, token, {
@@ -45,10 +49,15 @@ export async function loadUser(req, _res, next) {
         const payload = jwt.verify(token, config.jwtSecret);
         // Citim din DB la fiecare cerere: un cont șters sau retrogradat pierde accesul imediat.
         const [rows] = await pool.query(
-            'SELECT id, email, full_name, phone, role, email_verified_at FROM users WHERE id = ?',
+            'SELECT id, email, full_name, phone, role, email_verified_at, session_version FROM users WHERE id = ?',
             [Number(payload.sub)]
         );
-        if (rows[0]) req.user = publicUser(rows[0]);
+        const row = rows[0];
+        // După o schimbare/resetare de parolă, sesiunile vechi (alte dispozitive) nu mai sunt valabile.
+        if (row && (payload.sv ?? 0) === row.session_version) {
+            req.user = publicUser(row);
+            req.sessionVersion = row.session_version;
+        }
     } catch {
         // token invalid sau expirat: tratat ca neautentificat
     }

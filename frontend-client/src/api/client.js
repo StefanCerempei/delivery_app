@@ -43,6 +43,11 @@ export const api = {
     register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
     login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
     logout: () => request('/auth/logout', { method: 'POST' }),
+    forgotPassword: (email) => request('/auth/password/forgot', { method: 'POST', body: { email } }),
+    resetPassword: (token, password) => request('/auth/password/reset', { method: 'POST', body: { token, password } }),
+    updateProfile: (payload) => request('/account/profile', { method: 'PATCH', body: payload }),
+    changePassword: (currentPassword, newPassword) =>
+        request('/account/password', { method: 'POST', body: { currentPassword, newPassword } }),
     sendVerificationCode: () => request('/auth/verify-email/send', { method: 'POST' }),
     confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 

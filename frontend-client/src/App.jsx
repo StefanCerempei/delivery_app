@@ -9,6 +9,8 @@ import { BookingProvider } from './context/BookingContext';
 import { AuthProvider } from './context/AuthContext';
 import AuthPage from './pages/AuthPage';
 import AccountPage from './pages/AccountPage';
+import AccountSettingsPage from './pages/AccountSettingsPage';
+import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
 import './App.css';
 
 function App() {
@@ -30,6 +32,9 @@ function App() {
                 <Route path="/login" element={<AuthPage mode="login" />} />
                 <Route path="/signup" element={<AuthPage mode="signup" />} />
                 <Route path="/account" element={<AccountPage />} />
+                <Route path="/account/settings" element={<AccountSettingsPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                 {/* Pagini legale */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />

@@ -178,3 +178,35 @@ export function sendVerificationCodeEmail({ to, fullName, code, minutes }) {
     const text = `Your RELOQ verification code is ${code}\n\nIt expires in ${minutes} minutes. If you didn't create a RELOQ account, ignore this email.`;
     return sendMailNow({ to, subject: `${code} is your RELOQ verification code`, html, text });
 }
+
+/** Linkul de resetare a parolei. */
+export function sendPasswordResetEmail({ to, fullName, url, minutes }) {
+    const firstName = String(fullName || '').trim().split(/\s+/)[0] || 'there';
+    const html = layout({
+        preheader: 'Reset your RELOQ password',
+        title: 'Reset your password',
+        intro: `Hi ${esc(firstName)}, we received a request to reset the password for your RELOQ account.`,
+        body: `${button(url, 'Choose a new password')}
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">This link expires in ${minutes} minutes and can be used once. If you didn’t ask for a reset, ignore this email — your password stays the same.</p>
+<p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:${BRAND.gray};word-break:break-all">Button not working? Paste this link into your browser:<br>${esc(url)}</p>`
+    });
+    const text = `Reset your RELOQ password:\n${url}\n\nThis link expires in ${minutes} minutes. If you didn't ask for a reset, ignore this email.`;
+    return sendMailNow({ to, subject: 'Reset your RELOQ password', html, text });
+}
+
+/** Confirmare după schimbarea parolei (alertă de securitate). */
+export function notifyPasswordChanged({ to, fullName }) {
+    const firstName = String(fullName || '').trim().split(/\s+/)[0] || 'there';
+    const html = layout({
+        preheader: 'Your RELOQ password was changed',
+        title: 'Your password was changed',
+        intro: `Hi ${esc(firstName)}, the password for your RELOQ account was just changed and other devices were signed out.`,
+        body: `<p style="margin:16px 0 0;font-size:14px;line-height:1.55;color:#374151">If this wasn’t you, reset your password right away or call us at ${BRAND.phone}.</p>`
+    });
+    sendMailInBackground({
+        to,
+        subject: 'Your RELOQ password was changed',
+        html,
+        text: `The password for your RELOQ account was just changed. If this wasn't you, reset it right away or call ${BRAND.phone}.`
+    });
+}

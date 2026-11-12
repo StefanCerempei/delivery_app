@@ -57,6 +57,9 @@ const AccountPage = () => {
                     <Link to="/" className="lugg-btn lugg-btn-primary account-book-btn">
                         Book a move
                     </Link>
+                    <Link to="/account/settings" className="change-account-btn">
+                        Settings
+                    </Link>
                     <button type="button" className="change-account-btn" onClick={handleLogout}>
                         Log out
                     </button>

@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { setSessionCookie, clearSessionCookie, publicUser, requireAuth } from '../auth.js';
-import { registerSchema, loginSchema, verifyCodeSchema, parseBody } from '../validation.js';
+import { registerSchema, loginSchema, verifyCodeSchema, forgotPasswordSchema, resetPasswordSchema, parseBody } from '../validation.js';
+import { requestPasswordReset, resetPasswordWithToken } from '../passwordReset.js';
 import { sendVerificationCode, confirmVerificationCode, VerificationError, RESEND_COOLDOWN_SECONDS } from '../verification.js';
 
 const router = Router();
@@ -56,7 +57,7 @@ router.post('/login', authLimiter, async (req, res) => {
     if (!data) return;
 
     const [rows] = await pool.query(
-        'SELECT id, email, password_hash, full_name, phone, role, email_verified_at FROM users WHERE email = ?',
+        'SELECT id, email, password_hash, full_name, phone, role, email_verified_at, session_version FROM users WHERE email = ?',
         [data.email]
     );
     const user = rows[0];
@@ -66,7 +67,7 @@ router.post('/login', authLimiter, async (req, res) => {
         return res.status(401).json({ error: 'Incorrect email or password.' });
     }
 
-    setSessionCookie(res, user);
+    setSessionCookie(res, user, user.session_version);
     res.json({ user: publicUser(user) });
 });
 
@@ -107,6 +108,35 @@ router.post('/verify-email/confirm', verifyLimiter, requireAuth, async (req, res
     } catch (err) {
         sendVerificationError(res, err);
     }
+});
+
+const resetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Please try again in a few minutes.' }
+});
+
+/** POST /api/auth/password/forgot — { email }. Răspunde la fel indiferent dacă există contul. */
+router.post('/password/forgot', resetLimiter, async (req, res) => {
+    const data = parseBody(forgotPasswordSchema, req, res);
+    if (!data) return;
+    await requestPasswordReset(req, data.email);
+    res.json({ ok: true });
+});
+
+/** POST /api/auth/password/reset — { token, password }. La succes, clientul e logat. */
+router.post('/password/reset', resetLimiter, async (req, res) => {
+    const data = parseBody(resetPasswordSchema, req, res);
+    if (!data) return;
+    const row = await resetPasswordWithToken(data.token, data.password);
+    if (!row) {
+        return res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
+    }
+    const user = publicUser(row);
+    setSessionCookie(res, user, row.session_version);
+    res.json({ user });
 });
 
 router.post('/logout', (_req, res) => {

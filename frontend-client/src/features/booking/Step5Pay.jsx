@@ -319,6 +319,12 @@ const Step5Pay = () => {
                         />
                     </div>
 
+                    {authMode === 'login' && (
+                        <Link to="/forgot-password" target="_blank" rel="noopener" className="auth-forgot">
+                            Forgot password?
+                        </Link>
+                    )}
+
                     {authError && <p className="form-inline-error">{authError}</p>}
 
                     <button type="submit" className="create-account-btn" disabled={authBusy}>

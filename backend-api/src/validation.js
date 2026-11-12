@@ -11,16 +11,21 @@ export const locationSchema = z.object({
     lng: z.number().min(-180).max(180)
 });
 
+const fullNameField = z.string().trim().min(2, 'Please enter your full name.').max(120);
+const phoneField = z
+    .string()
+    .trim()
+    .max(32)
+    .refine((v) => {
+        const digits = v.replace(/\D/g, '');
+        return digits.length >= 9 && digits.length <= 15;
+    }, 'Please enter a valid phone number.');
+const emailField = z.string().trim().toLowerCase().pipe(z.email('Please enter a valid email address.')).pipe(z.string().max(255));
+const newPasswordField = z.string().min(8, 'Password must be at least 8 characters.').max(200);
+
 export const registerSchema = z.object({
-    fullName: z.string().trim().min(2, 'Please enter your full name.').max(120),
-    phone: z
-        .string()
-        .trim()
-        .max(32)
-        .refine((v) => {
-            const digits = v.replace(/\D/g, '');
-            return digits.length >= 9 && digits.length <= 15;
-        }, 'Please enter a valid phone number.'),
+    fullName: fullNameField,
+    phone: phoneField,
     dateOfBirth: z
         .string({ error: 'Please enter your date of birth.' })
         .superRefine((value, ctx) => {
@@ -42,6 +47,23 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email('Please enter a valid email address.')).pipe(z.string().max(255)),
     password: z.string().min(1).max(200)
+});
+
+export const profileSchema = z.object({
+    fullName: fullNameField,
+    phone: phoneField
+});
+
+export const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1, 'Please enter your current password.').max(200),
+    newPassword: newPasswordField
+});
+
+export const forgotPasswordSchema = z.object({ email: emailField });
+
+export const resetPasswordSchema = z.object({
+    token: z.string().regex(/^[A-Za-z0-9_-]{43}$/, { error: 'This reset link is invalid.' }),
+    password: newPasswordField
 });
 
 export const verifyCodeSchema = z.object({

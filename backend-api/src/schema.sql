@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
     role          ENUM('customer', 'admin') NOT NULL DEFAULT 'customer',
     age_confirmed_at DATETIME NULL,
     email_verified_at DATETIME NULL,
+    password_changed_at DATETIME NULL,
+    session_version INT UNSIGNED NOT NULL DEFAULT 0,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email)
@@ -70,4 +72,15 @@ CREATE TABLE IF NOT EXISTS email_verifications (
     sends_count  TINYINT UNSIGNED NOT NULL DEFAULT 1,
     PRIMARY KEY (user_id),
     CONSTRAINT fk_email_verifications_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Linkuri de resetare a parolei. Un singur link activ per cont; tokenul e salvat doar ca hash.
+CREATE TABLE IF NOT EXISTS password_resets (
+    user_id     INT UNSIGNED NOT NULL,
+    token_hash  CHAR(64)     NOT NULL,
+    expires_at  DATETIME     NOT NULL,
+    created_at  DATETIME     NOT NULL,
+    PRIMARY KEY (user_id),
+    UNIQUE KEY uq_password_resets_token (token_hash),
+    CONSTRAINT fk_password_resets_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
