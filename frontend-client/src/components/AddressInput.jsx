@@ -1,16 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 
-// Căutăm doar adrese din SUA; zona Massachusetts e favorizată (apare prima),
-// dar sunt permise și adrese din statele vecine (mutări interstatale).
-// Format Nominatim: stânga(lon),sus(lat),dreapta(lon),jos(lat)
-const SERVICE_VIEWBOX = '-73.6,43.0,-69.8,41.1';
+// Autocomplete cu Photon (OpenStreetMap): sugerează adrese pe măsură ce scrii.
+// Rezultatele sunt limitate la nord-estul SUA (raza de 300 mile din jurul Massachusetts)
+// și favorizează zona Ashland, MA.
+const PHOTON_URL = 'https://photon.komoot.io/api/';
+const SERVICE_BBOX = '-80.6,38.8,-66.8,47.6'; // stânga, jos, dreapta, sus
+const BIAS = { lat: 42.26, lon: -71.46 };
+
+/** „1 Beacon Street, Boston, MA 02108” din câmpurile Photon */
+function toSuggestion(feature) {
+    const p = feature.properties || {};
+    const [lon, lat] = feature.geometry?.coordinates || [];
+    const streetLine = p.street ? [p.housenumber, p.street].filter(Boolean).join(' ') : null;
+    const title = p.name && p.name !== p.street ? p.name : streetLine || p.name || p.city || '';
+    const stateZip = [p.state && STATE_ABBR[p.state] ? STATE_ABBR[p.state] : p.state, p.postcode].filter(Boolean).join(' ');
+    const locality = p.city || p.town || p.village || p.district || p.county;
+    const subtitleParts = [title !== streetLine ? streetLine : null, locality, stateZip].filter(Boolean);
+    const subtitle = subtitleParts.join(', ');
+    return {
+        id: `${p.osm_type}${p.osm_id}`,
+        title,
+        subtitle,
+        address: [title, subtitle].filter(Boolean).join(', '),
+        lat: Number(lat),
+        lng: Number(lon),
+        countrycode: p.countrycode
+    };
+}
+
+const STATE_ABBR = {
+    Massachusetts: 'MA', 'New Hampshire': 'NH', 'Rhode Island': 'RI', Connecticut: 'CT', Vermont: 'VT', Maine: 'ME',
+    'New York': 'NY', 'New Jersey': 'NJ', Pennsylvania: 'PA', Delaware: 'DE', Maryland: 'MD'
+};
 
 const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
     const [query, setQuery] = useState(value?.address || '');
     const [suggestions, setSuggestions] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [searched, setSearched] = useState(false);
+    const [searchError, setSearchError] = useState('');
     const skipNextSearch = useRef(false);
     const wrapperRef = useRef(null);
 
@@ -35,6 +65,8 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
             return;
         }
 
+        setSearched(false);
+        setSearchError('');
         if (!query || query.trim().length < 3) {
             setSuggestions([]);
             setIsOpen(false);
@@ -45,20 +77,32 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
         const timer = setTimeout(async () => {
             try {
                 setLoading(true);
-                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-                    query
-                )}&limit=5&addressdetails=1&countrycodes=us&viewbox=${SERVICE_VIEWBOX}&bounded=0`;
-
-                const res = await fetch(url, {
-                    signal: controller.signal,
-                    headers: { 'Accept-Language': 'en' }
+                const params = new URLSearchParams({
+                    q: query.trim(),
+                    limit: '8',
+                    lang: 'en',
+                    lat: String(BIAS.lat),
+                    lon: String(BIAS.lon),
+                    bbox: SERVICE_BBOX
                 });
+                const res = await fetch(`${PHOTON_URL}?${params}`, { signal: controller.signal });
+                if (!res.ok) throw new Error(`Address search failed (${res.status})`);
                 const data = await res.json();
-                setSuggestions(data);
-                setIsOpen(data.length > 0);
+                const seen = new Set();
+                const results = (data.features || [])
+                    .map(toSuggestion)
+                    .filter((s) => s.countrycode === 'US' && s.title && Number.isFinite(s.lat))
+                    .filter((s) => (seen.has(s.address) ? false : seen.add(s.address)))
+                    .slice(0, 5);
+                setSuggestions(results);
+                setSearchError('');
+                setSearched(true);
+                setIsOpen(true);
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    console.error('Address lookup error:', err);
+                    setSuggestions([]);
+                    setSearchError('Address search is unavailable right now. Please try again.');
+                    setIsOpen(true);
                 }
             } finally {
                 setLoading(false);
@@ -73,12 +117,8 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
 
     const handleSelectSuggestion = (item) => {
         skipNextSearch.current = true;
-        const selectedLocation = {
-            address: item.display_name,
-            lat: parseFloat(item.lat),
-            lng: parseFloat(item.lon)
-        };
-        setQuery(item.display_name);
+        const selectedLocation = { address: item.address, lat: item.lat, lng: item.lng };
+        setQuery(item.address);
         setSuggestions([]);
         setIsOpen(false);
         onSelect(selectedLocation);
@@ -108,8 +148,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                     setQuery(e.target.value);
                     if (!e.target.value) onSelect(null);
                 }}
-                onFocus={() => suggestions.length > 0 && setIsOpen(true)}
-                autoComplete="off"
+                onFocus={() => (suggestions.length > 0 || searched) && setIsOpen(true)}
             />
 
             {loading && <span className="field-spinner" />}
@@ -122,21 +161,22 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
 
             {isOpen && suggestions.length > 0 && (
                 <ul className="address-dropdown">
-                    {suggestions.map((item) => {
-                        const parts = item.display_name.split(',');
-                        const mainTitle = parts[0];
-                        const subTitle = parts.slice(1, 4).join(',');
-                        return (
-                            <li key={item.place_id} onClick={() => handleSelectSuggestion(item)}>
-                                <span className="dropdown-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg></span>
-                                <div className="dropdown-text">
-                                    <strong>{mainTitle}</strong>
-                                    {subTitle && <span>{subTitle}</span>}
-                                </div>
-                            </li>
-                        );
-                    })}
+                    {suggestions.map((item) => (
+                        <li key={item.id} onClick={() => handleSelectSuggestion(item)}>
+                            <span className="dropdown-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg></span>
+                            <div className="dropdown-text">
+                                <strong>{item.title}</strong>
+                                {item.subtitle && <span>{item.subtitle}</span>}
+                            </div>
+                        </li>
+                    ))}
                 </ul>
+            )}
+
+            {isOpen && !loading && suggestions.length === 0 && (searched || searchError) && (
+                <div className="address-dropdown address-dropdown-empty" role="status">
+                    {searchError || 'No matching address. Try a street and town, e.g. “98 Mountain Gate Rd, Ashland”.'}
+                </div>
             )}
         </div>
     );

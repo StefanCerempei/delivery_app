@@ -35,6 +35,7 @@ app.use(
                 'img-src': ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org'],
                 'connect-src': [
                     "'self'",
+                    'https://photon.komoot.io',
                     'https://nominatim.openstreetmap.org',
                     'https://router.project-osrm.org',
                     'https://api.stripe.com'

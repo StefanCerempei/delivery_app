@@ -1610,3 +1610,10 @@
     margin-top: 12px;
     line-height: 1.5;
 }
+
+.address-dropdown-empty {
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+}
