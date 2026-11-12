@@ -10,6 +10,8 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
+    // Momentul ultimului cod trimis (ca să nu cerem altul imediat după înregistrare)
+    const [codeSentAt, setCodeSentAt] = useState(0);
 
     const refresh = useCallback(async () => {
         try {
@@ -29,13 +31,26 @@ export const AuthProvider = ({ children }) => {
     }, [refresh]);
 
     const registerUser = async (payload) => {
-        const { user } = await api.register(payload);
+        const { user, codeSent } = await api.register(payload);
+        if (codeSent) setCodeSentAt(Date.now());
         setUser(user);
         return user;
     };
 
     const loginUser = async (email, password) => {
         const { user } = await api.login(email, password);
+        setUser(user);
+        return user;
+    };
+
+    const sendVerificationCode = async () => {
+        const res = await api.sendVerificationCode();
+        setCodeSentAt(Date.now());
+        return res;
+    };
+
+    const verifyEmail = async (code) => {
+        const { user } = await api.confirmVerificationCode(code);
         setUser(user);
         return user;
     };
@@ -49,7 +64,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, authChecked, registerUser, loginUser, logoutUser, refresh }}>
+        <AuthContext.Provider value={{ user, authChecked, registerUser, loginUser, logoutUser, refresh, codeSentAt, sendVerificationCode, verifyEmail }}>
             {children}
         </AuthContext.Provider>
     );

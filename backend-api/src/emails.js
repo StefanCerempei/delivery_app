@@ -1,5 +1,5 @@
 // Șabloanele emailurilor. Tot textul introdus de clienți e escapat (fără HTML injectat în emailuri).
-import { mailSettings, sendMailInBackground } from './mailer.js';
+import { mailSettings, sendMailInBackground, sendMailNow } from './mailer.js';
 
 const BRAND = {
     name: 'RELOQ Moving Services',
@@ -163,4 +163,18 @@ export function notifyStatusChange(order) {
         }),
         text: `${tpl.title}.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
     });
+}
+
+/** Codul unic de verificare a emailului. Întoarce un Promise (eroarea ajunge la client). */
+export function sendVerificationCodeEmail({ to, fullName, code, minutes }) {
+    const firstName = String(fullName || '').trim().split(/\s+/)[0] || 'there';
+    const html = layout({
+        preheader: `Your RELOQ verification code is ${code}`,
+        title: 'Verify your email',
+        intro: `Hi ${esc(firstName)}, enter this code in the RELOQ app to confirm your email and complete your booking.`,
+        body: `<p style="margin:24px 0 8px;text-align:center"><span style="display:inline-block;font-family:'SFMono-Regular',Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:10px;color:${BRAND.navy};background:#F3F5F8;border:1px solid #E6E9EE;border-radius:12px;padding:14px 22px">${esc(code)}</span></p>
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">The code expires in ${minutes} minutes. If you didn’t create a RELOQ account, you can ignore this email.</p>`
+    });
+    const text = `Your RELOQ verification code is ${code}\n\nIt expires in ${minutes} minutes. If you didn't create a RELOQ account, ignore this email.`;
+    return sendMailNow({ to, subject: `${code} is your RELOQ verification code`, html, text });
 }

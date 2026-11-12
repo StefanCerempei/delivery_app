@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone         VARCHAR(32)  NULL,
     role          ENUM('customer', 'admin') NOT NULL DEFAULT 'customer',
     age_confirmed_at DATETIME NULL,
+    email_verified_at DATETIME NULL,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email)
@@ -56,4 +57,17 @@ CREATE TABLE IF NOT EXISTS orders (
     KEY idx_orders_user (user_id),
     KEY idx_orders_status_created (status, created_at),
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Coduri unice (6 cifre) pentru verificarea emailului. Un singur cod activ per cont; codul e salvat doar ca hash.
+CREATE TABLE IF NOT EXISTS email_verifications (
+    user_id      INT UNSIGNED NOT NULL,
+    code_hash    CHAR(64)     NOT NULL,
+    expires_at   DATETIME     NOT NULL,
+    attempts     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    sent_at      DATETIME     NOT NULL,
+    sends_window_start DATETIME NOT NULL,
+    sends_count  TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_email_verifications_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -27,7 +27,14 @@ export function clearSessionCookie(res) {
 }
 
 export function publicUser(row) {
-    return { id: row.id, email: row.email, fullName: row.full_name, phone: row.phone, role: row.role };
+    return {
+        id: row.id,
+        email: row.email,
+        fullName: row.full_name,
+        phone: row.phone,
+        role: row.role,
+        emailVerified: Boolean(row.email_verified_at)
+    };
 }
 
 /** Atașează req.user dacă există o sesiune validă. Nu blochează cererea. */
@@ -38,7 +45,7 @@ export async function loadUser(req, _res, next) {
         const payload = jwt.verify(token, config.jwtSecret);
         // Citim din DB la fiecare cerere: un cont șters sau retrogradat pierde accesul imediat.
         const [rows] = await pool.query(
-            'SELECT id, email, full_name, phone, role FROM users WHERE id = ?',
+            'SELECT id, email, full_name, phone, role, email_verified_at FROM users WHERE id = ?',
             [Number(payload.sub)]
         );
         if (rows[0]) req.user = publicUser(rows[0]);
@@ -56,5 +63,14 @@ export function requireAuth(req, res, next) {
 export function requireAdmin(req, res, next) {
     if (!req.user) return res.status(401).json({ error: 'Please log in first.' });
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Dispatcher access only.' });
+    next();
+}
+
+/** Comenzile se pot plasa doar cu emailul confirmat prin cod. */
+export function requireVerifiedEmail(req, res, next) {
+    if (!req.user) return res.status(401).json({ error: 'Please log in first.' });
+    if (!req.user.emailVerified) {
+        return res.status(403).json({ error: 'Please verify your email before booking.', code: 'EMAIL_NOT_VERIFIED' });
+    }
     next();
 }

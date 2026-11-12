@@ -2,7 +2,7 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, requireVerifiedEmail } from '../auth.js';
 import { getRoute, allPrices, priceFor, MAX_DISTANCE_MILES, VEHICLES } from '../pricing.js';
 import { estimateSchema, createOrderSchema, parseBody } from '../validation.js';
 import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
@@ -70,7 +70,7 @@ function scheduleFrom(input) {
 }
 
 /** POST /api/orders — creează comanda; prețul e recalculat aici. */
-router.post('/orders', requireAuth, createLimiter, async (req, res) => {
+router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => {
     const data = parseBody(createOrderSchema, req, res);
     if (!data) return;
 

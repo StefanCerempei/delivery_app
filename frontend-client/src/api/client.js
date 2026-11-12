@@ -43,6 +43,8 @@ export const api = {
     register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
     login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
     logout: () => request('/auth/logout', { method: 'POST' }),
+    sendVerificationCode: () => request('/auth/verify-email/send', { method: 'POST' }),
+    confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),
     createOrder: (payload) => request('/orders', { method: 'POST', body: payload }),

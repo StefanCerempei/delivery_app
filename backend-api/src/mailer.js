@@ -68,3 +68,10 @@ export function sendMailInBackground({ to, subject, html, text, replyTo }) {
         .then((info) => console.log(`[reloq] Email trimis: „${subject}” → ${to} (${info.messageId})`))
         .catch((err) => console.error(`[reloq] Email eșuat: „${subject}” → ${to}: ${err.code || ''} ${err.message}`));
 }
+
+/** Trimite un email și așteaptă rezultatul (pentru coduri de verificare, unde clientul trebuie să știe dacă a plecat). */
+export async function sendMailNow({ to, subject, html, text }) {
+    if (!transporter) throw new Error('Email is not configured');
+    const info = await transporter.sendMail({ from: mailSettings.from, to, subject, html, text });
+    console.log(`[reloq] Email trimis: „${subject}” → ${to} (${info.messageId})`);
+}

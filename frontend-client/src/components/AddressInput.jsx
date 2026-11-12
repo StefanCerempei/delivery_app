@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+
+// Căutăm doar adrese din SUA; zona Massachusetts e favorizată (apare prima),
+// dar sunt permise și adrese din statele vecine (mutări interstatale).
+// Format Nominatim: stânga(lon),sus(lat),dreapta(lon),jos(lat)
+const SERVICE_VIEWBOX = '-73.6,43.0,-69.8,41.1';
+
 const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
     const [query, setQuery] = useState(value?.address || '');
     const [suggestions, setSuggestions] = useState([]);
@@ -41,7 +47,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                 setLoading(true);
                 const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
                     query
-                )}&limit=5&addressdetails=1`;
+                )}&limit=5&addressdetails=1&countrycodes=us&viewbox=${SERVICE_VIEWBOX}&bounded=0`;
 
                 const res = await fetch(url, {
                     signal: controller.signal,

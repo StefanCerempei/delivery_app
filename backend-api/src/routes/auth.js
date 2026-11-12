@@ -2,8 +2,9 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { setSessionCookie, clearSessionCookie, publicUser } from '../auth.js';
-import { registerSchema, loginSchema, parseBody } from '../validation.js';
+import { setSessionCookie, clearSessionCookie, publicUser, requireAuth } from '../auth.js';
+import { registerSchema, loginSchema, verifyCodeSchema, parseBody } from '../validation.js';
+import { sendVerificationCode, confirmVerificationCode, VerificationError, RESEND_COOLDOWN_SECONDS } from '../verification.js';
 
 const router = Router();
 
@@ -35,9 +36,19 @@ router.post('/register', authLimiter, async (req, res) => {
         [data.email, hash, data.fullName, data.phone]
     );
 
-    const user = { id: result.insertId, email: data.email, full_name: data.fullName, phone: data.phone, role: 'customer' };
+    const user = publicUser({ id: result.insertId, email: data.email, full_name: data.fullName, phone: data.phone, role: 'customer' });
     setSessionCookie(res, user);
-    res.status(201).json({ user: publicUser(user) });
+
+    // Trimitem imediat codul de verificare. Dacă emailul nu pleacă, clientul îl poate cere din nou.
+    let codeSent = false;
+    try {
+        await sendVerificationCode(user);
+        codeSent = true;
+    } catch (err) {
+        if (!(err instanceof VerificationError)) console.error('[reloq] Cod de verificare:', err);
+    }
+
+    res.status(201).json({ user, codeSent, resendAfter: RESEND_COOLDOWN_SECONDS });
 });
 
 router.post('/login', authLimiter, async (req, res) => {
@@ -45,7 +56,7 @@ router.post('/login', authLimiter, async (req, res) => {
     if (!data) return;
 
     const [rows] = await pool.query(
-        'SELECT id, email, password_hash, full_name, phone, role FROM users WHERE email = ?',
+        'SELECT id, email, password_hash, full_name, phone, role, email_verified_at FROM users WHERE email = ?',
         [data.email]
     );
     const user = rows[0];
@@ -57,6 +68,45 @@ router.post('/login', authLimiter, async (req, res) => {
 
     setSessionCookie(res, user);
     res.json({ user: publicUser(user) });
+});
+
+const verifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Please try again in a few minutes.' }
+});
+
+function sendVerificationError(res, err) {
+    if (err instanceof VerificationError) {
+        return res.status(err.status).json({ error: err.message, ...err.extra });
+    }
+    throw err;
+}
+
+/** POST /api/auth/verify-email/send — trimite (din nou) codul de 6 cifre. */
+router.post('/verify-email/send', verifyLimiter, requireAuth, async (req, res) => {
+    if (req.user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+    try {
+        await sendVerificationCode(req.user);
+        res.json({ ok: true, resendAfter: RESEND_COOLDOWN_SECONDS });
+    } catch (err) {
+        sendVerificationError(res, err);
+    }
+});
+
+/** POST /api/auth/verify-email/confirm — { code: "123456" } */
+router.post('/verify-email/confirm', verifyLimiter, requireAuth, async (req, res) => {
+    if (req.user.emailVerified) return res.json({ user: req.user });
+    const data = parseBody(verifyCodeSchema, req, res);
+    if (!data) return;
+    try {
+        await confirmVerificationCode(req.user, data.code);
+        res.json({ user: { ...req.user, emailVerified: true } });
+    } catch (err) {
+        sendVerificationError(res, err);
+    }
 });
 
 router.post('/logout', (_req, res) => {

@@ -44,6 +44,10 @@ export const loginSchema = z.object({
     password: z.string().min(1).max(200)
 });
 
+export const verifyCodeSchema = z.object({
+    code: z.string().trim().regex(/^\d{6}$/, { error: 'Enter the 6-digit code from your email.' })
+});
+
 export const estimateSchema = z.object({
     pickup: locationSchema,
     dropoff: locationSchema

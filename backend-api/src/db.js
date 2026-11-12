@@ -29,6 +29,7 @@ export async function migrate() {
     }
 
     await addColumnIfMissing('users', 'age_confirmed_at', 'DATETIME NULL AFTER role');
+    await addColumnIfMissing('users', 'email_verified_at', 'DATETIME NULL AFTER age_confirmed_at');
     await ensureAdmin();
 }
 

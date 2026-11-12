@@ -8,6 +8,8 @@ import { formatPrice } from '../../utils/formatters';
 import { isValidEmail, isValidPhone, birthDateError, maxBirthDate } from '../../utils/validators';
 import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
+import EmailVerifyCard from '../../components/EmailVerifyCard';
+import { useAuth } from '../../context/AuthContext';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
@@ -107,6 +109,8 @@ const Step5Pay = () => {
     const [clientSecret, setClientSecret] = useState(null);
     const [orderError, setOrderError] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const { refresh } = useAuth();
+    const verified = Boolean(user?.emailVerified);
 
     useEffect(() => {
         api.config()
@@ -161,6 +165,7 @@ const Step5Pay = () => {
     const handleCreateOrder = async () => {
         setOrderError('');
         if (!user) return setOrderError('Please create your Reloq account first to continue.');
+        if (!verified) return setOrderError('Please verify your email first.');
         const schedule = schedulePayload(bookingData.scheduledTime);
         if (!schedule) return setOrderError('Please go back and pick a date and arrival window.');
         if (paymentsEnabled && !stripePromise)
@@ -183,6 +188,7 @@ const Step5Pay = () => {
                 setCompletedOrder(res.order); // fără plată online: comanda rămâne „pending_payment”
             }
         } catch (err) {
+            if (err.data?.code === 'EMAIL_NOT_VERIFIED') refresh();
             setOrderError(err.message);
         } finally {
             setIsCreating(false);
@@ -347,15 +353,19 @@ const Step5Pay = () => {
                 </div>
             )}
 
+            {user && !verified && <EmailVerifyCard stepNumber={2} onVerified={() => setOrderError('')} />}
+
             {/* 3. Plată */}
-            <div className={`payment-card-box ${!user ? 'locked' : ''}`}>
+            <div className={`payment-card-box ${!user || !verified ? 'locked' : ''}`}>
                 <div className="account-gate-header">
-                    <span className="step-badge-num">2</span>
+                    <span className="step-badge-num">{user && !verified ? 3 : 2}</span>
                     <div>
                         <strong>{paymentsEnabled ? 'Payment details' : 'Confirm booking'}</strong>
                         <small>
                             {!user
                                 ? 'Complete step 1 (Reloq account) to unlock payment'
+                                : !verified
+                                  ? 'Verify your email to unlock booking'
                                 : paymentsEnabled
                                   ? 'Secure checkout powered by Stripe'
                                   : 'Pay the crew after the job is done'}
@@ -371,7 +381,7 @@ const Step5Pay = () => {
                     <>
                         {orderError && <p className="form-inline-error">{orderError}</p>}
                         <div className="step-footer">
-                            <Button onClick={handleCreateOrder} disabled={!user || isCreating || totalAmount == null}>
+                            <Button onClick={handleCreateOrder} disabled={!user || !verified || isCreating || totalAmount == null}>
                                 {isCreating
                                     ? 'Creating your booking…'
                                     : paymentsEnabled
