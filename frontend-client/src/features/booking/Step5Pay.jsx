@@ -22,7 +22,7 @@ const stripeAppearance = {
         colorTextSecondary: '#8a949e',
         colorDanger: '#ff7a7a',
         borderRadius: '12px',
-        fontFamily: 'Geist, system-ui, sans-serif',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
         spacingUnit: '4px'
     },
     rules: {

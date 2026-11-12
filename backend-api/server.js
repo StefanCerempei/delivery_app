@@ -29,8 +29,8 @@ app.use(
             useDefaults: true,
             directives: {
                 'script-src': ["'self'", 'https://js.stripe.com'],
-                'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-                'font-src': ["'self'", 'https://fonts.gstatic.com'],
+                'style-src': ["'self'", "'unsafe-inline'"],
+                'font-src': ["'self'"], // fonturile sunt găzduite local, nu de pe Google
                 'img-src': ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org'],
                 'connect-src': [
                     "'self'",

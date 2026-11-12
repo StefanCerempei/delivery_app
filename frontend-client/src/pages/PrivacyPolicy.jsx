@@ -142,10 +142,6 @@ const PrivacyPolicy = () => (
                     routing service.
                 </li>
                 <li>
-                    <strong>Google Fonts</strong> serves the fonts used on our pages, so your browser connects to Google
-                    and shares your IP address with it.
-                </li>
-                <li>
                     <strong>Authorities and advisers</strong> where required by law, to enforce our{' '}
                     <Link to="/terms">Terms of Service</Link> or to protect the rights and safety of our customers,
                     crews or the public.
