@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
 import Button from '../../components/Button';
@@ -84,6 +85,10 @@ const Step1Route = () => {
                 </Button>
                 <p className="trust-note">
                     Background-checked movers • Loading & unloading included
+                </p>
+                <p className="trust-note legal-inline-links">
+                    <Link to="/terms" target="_blank" rel="noopener">Terms</Link> •{' '}
+                    <Link to="/privacy" target="_blank" rel="noopener">Privacy</Link>
                 </p>
             </div>
         </div>

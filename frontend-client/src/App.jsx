@@ -3,6 +3,8 @@ import BookingPage from './pages/BookingPage';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrderDetail from './pages/AdminOrderDetail';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import { BookingProvider } from './context/BookingContext';
 import './App.css';
 
@@ -19,6 +21,10 @@ function App() {
                         </BookingProvider>
                     }
                 />
+
+                {/* Pagini legale */}
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
 
                 {/* Zona de Administrare */}
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

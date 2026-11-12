@@ -1605,3 +1605,8 @@
 .payment-card-box form > .step-footer {
     margin-top: 18px;
 }
+
+.auth-consent {
+    margin-top: 12px;
+    line-height: 1.5;
+}

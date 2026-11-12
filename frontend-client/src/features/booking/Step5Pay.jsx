@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { Link } from 'react-router-dom';
 import { useBooking } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
@@ -292,6 +293,12 @@ const Step5Pay = () => {
                               ? 'Create Reloq account & continue →'
                               : 'Log in & continue →'}
                     </button>
+
+                    <p className="trust-note legal-inline-links auth-consent">
+                        By continuing you agree to Reloq’s{' '}
+                        <Link to="/terms" target="_blank" rel="noopener">Terms of Service</Link> and{' '}
+                        <Link to="/privacy" target="_blank" rel="noopener">Privacy Policy</Link>.
+                    </p>
                 </form>
             ) : (
                 <div className="account-verified-card">
