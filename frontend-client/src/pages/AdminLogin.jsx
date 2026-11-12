@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import { api } from '../api/client';
 import Logo from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 import './Admin.css';
 
 const AdminLogin = () => {
@@ -11,6 +12,7 @@ const AdminLogin = () => {
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const navigate = useNavigate();
+    const { loginUser, logoutUser } = useAuth();
 
     // Dacă dispecerul are deja sesiune activă, mergem direct la dashboard.
     useEffect(() => {
@@ -24,9 +26,9 @@ const AdminLogin = () => {
         setError('');
         setBusy(true);
         try {
-            const { user } = await api.login(email.trim(), password);
+            const user = await loginUser(email.trim(), password);
             if (user.role !== 'admin') {
-                await api.logout();
+                await logoutUser();
                 setError('This account does not have dispatcher access.');
                 return;
             }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../api/client';
+import { useAuth } from './AuthContext';
 
 const BookingContext = createContext();
 
@@ -16,21 +16,54 @@ const EMPTY_BOOKING = {
     photos: []
 };
 
-export const BookingProvider = ({ children }) => {
-    const [currentStep, setCurrentStep] = useState(1);
-    const [completedOrder, setCompletedOrder] = useState(null);
-    const [bookingData, setBookingData] = useState(EMPTY_BOOKING);
+// Rezervarea în curs se păstrează în tab-ul curent (sessionStorage), ca să nu se piardă
+// dacă clientul merge la Log in / Sign up sau reîncarcă pagina. Pozele nu se păstrează
+// (sunt doar previzualizări locale). Draft-ul dispare la închiderea tab-ului sau după comandă.
+const DRAFT_KEY = 'reloq_booking_draft';
 
-    // Contul clientului vine din sesiunea de pe server (cookie httpOnly), nu din localStorage.
-    const [user, setUser] = useState(null);
-    const [authChecked, setAuthChecked] = useState(false);
+function readDraft() {
+    try {
+        const raw = sessionStorage.getItem(DRAFT_KEY);
+        if (!raw) return null;
+        const draft = JSON.parse(raw);
+        return {
+            step: Math.min(Math.max(Number(draft.step) || 1, 1), 5),
+            data: { ...EMPTY_BOOKING, ...draft.data, photos: [] }
+        };
+    } catch {
+        return null;
+    }
+}
+
+function writeDraft(step, data) {
+    try {
+        const { photos, ...rest } = data;
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ step, data: rest }));
+    } catch {
+        // stocare indisponibilă (mod privat etc.) — continuăm fără draft
+    }
+}
+
+function clearDraft() {
+    try {
+        sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+        // ignorăm
+    }
+}
+
+export const BookingProvider = ({ children }) => {
+    const draft = readDraft();
+    const [currentStep, setCurrentStep] = useState(draft?.step || 1);
+    const [completedOrder, setCompletedOrderState] = useState(null);
+    const [bookingData, setBookingData] = useState(draft?.data || EMPTY_BOOKING);
+
+    // Contul vine din AuthContext (global în aplicație)
+    const { user, authChecked, registerUser, loginUser, logoutUser } = useAuth();
 
     useEffect(() => {
-        api.me()
-            .then(({ user }) => setUser(user))
-            .catch(() => setUser(null))
-            .finally(() => setAuthChecked(true));
-    }, []);
+        if (!completedOrder) writeDraft(currentStep, bookingData);
+    }, [currentStep, bookingData, completedOrder]);
 
     const updateBookingData = useCallback((newData) => {
         setBookingData((prev) => ({ ...prev, ...newData }));
@@ -39,30 +72,16 @@ export const BookingProvider = ({ children }) => {
     const nextStep = () => setCurrentStep((p) => Math.min(p + 1, 5));
     const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 1));
 
-    const registerUser = async (payload) => {
-        const { user } = await api.register(payload);
-        setUser(user);
-        return user;
-    };
-
-    const loginUser = async (email, password) => {
-        const { user } = await api.login(email, password);
-        setUser(user);
-        return user;
-    };
-
-    const logoutUser = async () => {
-        try {
-            await api.logout();
-        } finally {
-            setUser(null);
-        }
+    const setCompletedOrder = (order) => {
+        clearDraft();
+        setCompletedOrderState(order);
     };
 
     const resetBooking = () => {
         bookingData.photos?.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
+        clearDraft();
         setCurrentStep(1);
-        setCompletedOrder(null);
+        setCompletedOrderState(null);
         setBookingData(EMPTY_BOOKING);
     };
 

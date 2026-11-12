@@ -6,11 +6,15 @@ import AdminOrderDetail from './pages/AdminOrderDetail';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import { BookingProvider } from './context/BookingContext';
+import { AuthProvider } from './context/AuthContext';
+import AuthPage from './pages/AuthPage';
+import AccountPage from './pages/AccountPage';
 import './App.css';
 
 function App() {
     return (
         <Router>
+            <AuthProvider>
             <Routes>
                 {/* Fluxul Clientului */}
                 <Route
@@ -21,6 +25,11 @@ function App() {
                         </BookingProvider>
                     }
                 />
+
+                {/* Contul clientului */}
+                <Route path="/login" element={<AuthPage mode="login" />} />
+                <Route path="/signup" element={<AuthPage mode="signup" />} />
+                <Route path="/account" element={<AccountPage />} />
 
                 {/* Pagini legale */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -35,6 +44,7 @@ function App() {
                 {/* Orice altă rută nevalidă redirecționează la pagina principală */}
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </AuthProvider>
         </Router>
     );
 }

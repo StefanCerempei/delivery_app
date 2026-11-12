@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { formatPrice } from '../utils/formatters';
 import { api } from '../api/client';
 import Logo from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 import './Admin.css';
 
 export const STATUS_LABELS = {
@@ -18,6 +19,7 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { logoutUser } = useAuth();
 
     const load = useCallback(async () => {
         setError('');
@@ -40,7 +42,7 @@ const AdminDashboard = () => {
     }, [load]);
 
     const handleLogout = async () => {
-        await api.logout().catch(() => {});
+        await logoutUser().catch(() => {});
         navigate('/admin/login');
     };
 

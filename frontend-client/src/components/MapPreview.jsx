@@ -4,6 +4,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
 import Logo from './Logo';
+import { Link } from 'react-router-dom';
+import { useAuth, initials } from '../context/AuthContext';
 
 const DEFAULT_CENTER = [37.7749, -122.4194]; // San Francisco
 
@@ -93,6 +95,8 @@ const MapPreview = () => {
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <AccountChip />
+
             <div className="map-floating-hud">
                 <div className="hud-brand">
                     <Logo height={20} />
@@ -136,6 +140,27 @@ const MapPreview = () => {
                 )}
             </MapContainer>
         </div>
+    );
+};
+
+
+/** Butonul de cont din colțul hărții: „Log in” sau avatarul clientului. */
+const AccountChip = () => {
+    const { user, authChecked } = useAuth();
+    if (!authChecked) return null;
+    if (!user) {
+        return (
+            <Link to="/login?next=/" className="hud-account">
+                Log in
+            </Link>
+        );
+    }
+    const target = user.role === 'admin' ? '/admin/dashboard' : '/account';
+    return (
+        <Link to={target} className="hud-account signed-in" title="My account">
+            <span className="hud-account-avatar">{initials(user.fullName)}</span>
+            {user.role === 'admin' ? 'Dispatch' : 'My account'}
+        </Link>
     );
 };
 

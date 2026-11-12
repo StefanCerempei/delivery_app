@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useBooking } from '../../context/BookingContext';
 import { formatPrice } from '../../utils/formatters';
 import Button from '../../components/Button';
@@ -58,6 +59,9 @@ const BookingSuccess = () => {
             </div>
 
             <div className="step-footer">
+                <Link to="/account" className="lugg-btn lugg-btn-primary" onClick={resetBooking}>
+                    View my orders
+                </Link>
                 <Button variant="secondary" onClick={resetBooking}>
                     + Book another Reloq
                 </Button>
