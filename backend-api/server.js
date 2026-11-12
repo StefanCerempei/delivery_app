@@ -12,6 +12,7 @@ import { config, configOk, configProblems } from './src/config.js';
 import { pool, migrate } from './src/db.js';
 import { loadUser } from './src/auth.js';
 import { stripe } from './src/stripe.js';
+import { mailEnabled, verifyMailer } from './src/mailer.js';
 import authRoutes from './src/routes/auth.js';
 import orderRoutes from './src/routes/orders.js';
 import adminRoutes from './src/routes/admin.js';
@@ -74,7 +75,7 @@ app.get('/api/health', async (_req, res) => {
     try {
         await pool.query('SELECT 1');
         dbError = null;
-        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), node: process.version });
+        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), email: mailEnabled, node: process.version });
     } catch (err) {
         dbError = err.code || 'UNKNOWN';
         res.status(503).json({ ok: false, db: 'unreachable', error: dbError, dbHost: config.db.host });
@@ -134,6 +135,8 @@ if (!configOk) {
     console.error('[reloq] Nu mă pot conecta la baza de date. Verifică DB_HOST / DB_USER / DB_PASSWORD / DB_NAME.');
     console.error(err.message);
 }
+
+verifyMailer();
 
 app.listen(config.port, () => {
     console.log(`[reloq] Server pornit pe portul ${config.port}${stripe ? ' (plăți Stripe active)' : ''}`);

@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { statusSchema, parseBody } from '../validation.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
+import { notifyStatusChange } from '../emails.js';
 
 const router = Router();
 
@@ -34,11 +35,18 @@ router.patch('/orders/:code/status', async (req, res) => {
     const data = parseBody(statusSchema, req, res);
     if (!data) return;
 
-    const [result] = await pool.query('UPDATE orders SET status = ? WHERE code = ?', [data.status, req.params.code]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Order not found.' });
+    const [before] = await pool.query('SELECT status FROM orders WHERE code = ?', [req.params.code]);
+    if (!before[0]) return res.status(404).json({ error: 'Order not found.' });
+
+    await pool.query('UPDATE orders SET status = ? WHERE code = ?', [data.status, req.params.code]);
 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.code = ?`, [req.params.code]);
-    res.json({ order: toOrderDto(rows[0], { includeCustomer: true }) });
+    const order = toOrderDto(rows[0], { includeCustomer: true });
+
+    // Emailul pleacă doar la o schimbare reală (nu dacă dispecerul apasă de două ori același buton)
+    if (before[0].status !== data.status) notifyStatusChange(order);
+
+    res.json({ order });
 });
 
 export default router;

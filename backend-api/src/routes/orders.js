@@ -9,6 +9,7 @@ import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js'
 import { stripe } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
+import { notifyNewOrder } from '../emails.js';
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -44,6 +45,16 @@ router.post('/estimate', estimateLimiter, async (req, res) => {
     });
 });
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
+
+/** „Sat, Nov 14 • 10:00 AM – 11:00 AM” */
+function scheduleLabel(day, slot) {
+    const h = Number(slot.slice(0, 2));
+    return `${WEEKDAYS[day.getUTCDay()]}, ${MONTHS[day.getUTCMonth()]} ${day.getUTCDate()} • ${hourLabel(h)} – ${hourLabel(h + 1)}`;
+}
+
 /** Programarea e valabilă doar de mâine (ora din Massachusetts) până la MAX_DAYS_AHEAD zile. */
 function scheduleFrom(input) {
     const day = parseDateOnly(input.date);
@@ -53,7 +64,8 @@ function scheduleFrom(input) {
     return {
         type: 'scheduled',
         scheduledFor: `${input.date} ${input.slot}:00`,
-        label: input.label || `${input.date} • ${input.slot}`
+        // Eticheta e generată aici, nu luată din browser (ajunge în emailuri și în dispecerat)
+        label: scheduleLabel(day, input.slot)
     };
 }
 
@@ -122,7 +134,12 @@ router.post('/orders', requireAuth, createLimiter, async (req, res) => {
     }
 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [id]);
-    res.status(201).json({ order: toOrderDto(rows[0]), clientSecret, paymentsEnabled: Boolean(stripe) });
+    const created = toOrderDto(rows[0], { includeCustomer: true });
+
+    // Cu plata online, confirmarea pleacă după ce plata e verificată; altfel imediat.
+    if (!stripe) notifyNewOrder(created);
+
+    res.status(201).json({ order: created, clientSecret, paymentsEnabled: Boolean(stripe) });
 });
 
 /** Încarcă o comandă doar dacă aparține utilizatorului (sau e admin). */
@@ -149,12 +166,14 @@ router.post('/orders/:code/confirm-payment', requireAuth, async (req, res) => {
     });
 
     const paid = intent.status === 'succeeded' && intent.amount_received === row.total_cents;
-    if (paid && row.status === 'pending_payment') {
+    const justPaid = paid && row.status === 'pending_payment';
+    if (justPaid) {
         const last4 = intent.latest_charge?.payment_method_details?.card?.last4 || null;
         await pool.query("UPDATE orders SET status = 'paid', card_last4 = ? WHERE id = ?", [last4, row.id]);
     }
 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [row.id]);
+    if (justPaid) notifyNewOrder(toOrderDto(rows[0], { includeCustomer: true }));
     res.json({ order: toOrderDto(rows[0]), paymentStatus: intent.status });
 });
 
