@@ -232,3 +232,16 @@
         padding: 20px;
     }
 }
+
+.legal-footer-company {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.license-line {
+    margin-top: -6px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+}

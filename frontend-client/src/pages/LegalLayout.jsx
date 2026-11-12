@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
-import { COMPANY } from '../data/company';
+import { COMPANY, LICENSE_LINE } from '../data/company';
 import './Legal.css';
 
 /** Afișează valoarea din COMPANY sau un placeholder vizibil dacă nu e completată. */
@@ -50,11 +50,20 @@ const LegalLayout = ({ title, sections, children }) => {
             </main>
 
             <footer className="legal-footer">
-                <span>© 2026 {COMPANY.brand}</span>
+                <div className="legal-footer-company">
+                    <span>© 2026 {COMPANY.legalName}</span>
+                    <span>{COMPANY.address} • {COMPANY.phone}</span>
+                    <span>{LICENSE_LINE}</span>
+                </div>
                 <nav>
                     <Link to="/terms">Terms of Service</Link>
                     <Link to="/privacy">Privacy Policy</Link>
-                    <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>
+                    <a href={COMPANY.fmcsaRightsAndResponsibilities} target="_blank" rel="noopener noreferrer">
+                        Your Rights &amp; Responsibilities
+                    </a>
+                    <a href={COMPANY.fmcsaReadyToMove} target="_blank" rel="noopener noreferrer">
+                        Ready to Move?
+                    </a>
                 </nav>
             </footer>
         </div>

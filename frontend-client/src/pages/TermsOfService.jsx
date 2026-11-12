@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout, { CompanyName, Field } from './LegalLayout';
-import { COMPANY } from '../data/company';
+import { COMPANY, LICENSE_LINE } from '../data/company';
 
 const SECTIONS = [
     ['agreement', 'Agreement to these terms'],
@@ -12,7 +12,7 @@ const SECTIONS = [
     ['cancellations', 'Changes and cancellations'],
     ['your-responsibilities', 'Your responsibilities'],
     ['prohibited-items', 'Items we cannot move'],
-    ['damage', 'Damage, loss and claims'],
+    ['damage', 'Liability for your belongings and claims'],
     ['liability', 'Limitation of liability'],
     ['indemnity', 'Indemnity'],
     ['acceptable-use', 'Acceptable use of the website'],
@@ -43,7 +43,8 @@ const TermsOfService = () => (
             <h2>2. Our service</h2>
             <p>
                 Reloq provides on-demand moving and delivery services: picking up items at one address, transporting
-                them and delivering them to another, with loading and unloading by our crew. We currently operate in{' '}
+                them and delivering them to another, with loading and unloading by our own crews. We are a licensed,
+                bonded and insured mover ({LICENSE_LINE}) and currently operate in{' '}
                 <Field value={COMPANY.serviceArea} label="Service area" />. Vehicle types, crew sizes and the items each
                 vehicle is suited for are described when you book.
             </p>
@@ -153,33 +154,56 @@ const TermsOfService = () => (
         </section>
 
         <section id="damage">
-            <h2>9. Damage, loss and claims</h2>
+            <h2>9. Liability for your belongings and claims</h2>
             <p>
-                Our crews handle your belongings with care. If something is damaged or lost while in our care, please:
+                Our liability for loss of or damage to your belongings depends on the valuation coverage that applies
+                to your move:
             </p>
             <ul>
-                <li>note it to the crew before they leave, if possible;</li>
                 <li>
-                    report it to <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a> within{' '}
-                    {COMPANY.damageClaimHours} hours of delivery, with your order number, a description and photos.
+                    <strong>Moves within Massachusetts</strong> are covered under the valuation options in our tariff
+                    on file with the Massachusetts Department of Public Utilities, which we will provide on request.
+                </li>
+                <li>
+                    <strong>Moves between states</strong> are covered under federal rules. Unless you waive it in writing,
+                    your move is carried with <strong>Full Value Protection</strong>, under which we repair, replace or
+                    pay the current market value of lost or damaged items. You may instead choose{' '}
+                    <strong>Released Value</strong> at no extra charge, which limits our liability to 60 cents per pound
+                    per article. Items worth more than $100 per pound must be declared in writing before the move.
                 </li>
             </ul>
             <p>
-                We will review every claim in good faith and, where we are responsible, repair the item, pay a fair
-                amount toward its repair or replacement, or refund the booking. We are not responsible for damage
-                caused by poor packing by you, for the internal workings of appliances or electronics, for items
-                listed in section 8, or for pre-existing damage.
+                Please check your items at delivery and note any visible damage to the crew before they leave. Then
+                send a written claim to <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a> with your
+                order number, a description and photos. For interstate moves, written claims must be filed within 9
+                months of delivery. We will acknowledge and resolve claims within the time limits set by law.
+            </p>
+            <p>
+                We are not responsible for loss or damage caused by items you packed yourself (unless the damage results
+                from our handling), by the internal workings of appliances or electronics, for items listed in section
+                8, or for damage that existed before the move.
+            </p>
+            <p>
+                Before an interstate move, please read the FMCSA publications{' '}
+                <a href={COMPANY.fmcsaRightsAndResponsibilities} target="_blank" rel="noopener noreferrer">
+                    Your Rights and Responsibilities When You Move
+                </a>{' '}
+                and{' '}
+                <a href={COMPANY.fmcsaReadyToMove} target="_blank" rel="noopener noreferrer">
+                    Ready to Move?
+                </a>
+                .
             </p>
         </section>
 
         <section id="liability">
             <h2>10. Limitation of liability</h2>
             <p>
-                To the extent permitted by law, our total liability for any claim relating to a booking is limited to
-                the greater of the amount you paid for that booking or the amount required by applicable law, and we
-                are not liable for indirect or consequential losses, such as lost profits or missed appointments.
-                Nothing in these Terms limits liability that cannot be limited by law, including liability for death or
-                personal injury caused by negligence, for fraud, or your statutory rights as a consumer.
+                Except for our liability for your belongings described in section 9, and to the extent permitted by law,
+                we are not liable for indirect or consequential losses, such as lost profits or missed appointments, and
+                our total liability for any other claim relating to a booking is limited to the amount you paid for that
+                booking. Nothing in these Terms limits liability that cannot be limited by law, including liability for
+                death or personal injury caused by negligence, for fraud, or your rights as a consumer.
             </p>
         </section>
 
@@ -240,6 +264,8 @@ const TermsOfService = () => (
                 <CompanyName />
                 <br />
                 <Field value={COMPANY.address} label="Registered address" />
+                <br />
+                Phone: <a href={`tel:${COMPANY.phone.replace(/\D/g, '')}`}>{COMPANY.phone}</a>
                 <br />
                 <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>
             </p>

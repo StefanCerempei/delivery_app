@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { COMPANY, LICENSE_LINE } from '../../data/company';
 import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
 import Button from '../../components/Button';
@@ -88,8 +89,16 @@ const Step1Route = () => {
                 </p>
                 <p className="trust-note legal-inline-links">
                     <Link to="/terms" target="_blank" rel="noopener">Terms</Link> •{' '}
-                    <Link to="/privacy" target="_blank" rel="noopener">Privacy</Link>
+                    <Link to="/privacy" target="_blank" rel="noopener">Privacy</Link> •{' '}
+                    <a href={COMPANY.fmcsaRightsAndResponsibilities} target="_blank" rel="noopener noreferrer">
+                        Your Rights &amp; Responsibilities
+                    </a>{' '}
+                    •{' '}
+                    <a href={COMPANY.fmcsaReadyToMove} target="_blank" rel="noopener noreferrer">
+                        Ready to Move?
+                    </a>
                 </p>
+                <p className="trust-note license-line">{LICENSE_LINE}</p>
             </div>
         </div>
     );

@@ -247,6 +247,8 @@ const PrivacyPolicy = () => (
                 <br />
                 <Field value={COMPANY.address} label="Registered address" />
                 <br />
+                Phone: <a href={`tel:${COMPANY.phone.replace(/\D/g, '')}`}>{COMPANY.phone}</a>
+                <br />
                 Privacy questions: <a href={`mailto:${COMPANY.privacyEmail}`}>{COMPANY.privacyEmail}</a>
                 <br />
                 General support: <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>
