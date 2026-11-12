@@ -62,6 +62,7 @@ const AccountSettingsPage = () => {
                         <a href="mailto:info@reloqmove.com">info@reloqmove.com</a>.
                     </p>
                 </section>
+                {user.role !== 'admin' && <DeleteAccountSection />}
             </main>
         </div>
     );
@@ -199,6 +200,94 @@ const PasswordForm = () => {
             <p className="settings-note">
                 Forgot your current password? <Link to="/forgot-password">Reset it by email</Link>.
             </p>
+        </form>
+    );
+};
+
+const DeleteAccountSection = () => {
+    const navigate = useNavigate();
+    const { deleteAccount } = useAuth();
+    const [open, setOpen] = useState(false);
+    const [password, setPassword] = useState('');
+    const [confirmed, setConfirmed] = useState(false);
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    const handleDelete = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (!password) return setError('Please enter your password to confirm.');
+        if (!confirmed) return setError('Please confirm that you understand this can’t be undone.');
+        setBusy(true);
+        try {
+            await deleteAccount(password);
+            navigate('/', { replace: true });
+        } catch (err) {
+            setError(err.message);
+            setBusy(false);
+        }
+    };
+
+    if (!open) {
+        return (
+            <section className="settings-card settings-danger">
+                <h2>Delete account</h2>
+                <p className="settings-note">
+                    Permanently delete your RELOQ account and personal details. You can’t delete your account while a
+                    move is upcoming.
+                </p>
+                <button type="button" className="danger-btn" onClick={() => setOpen(true)}>
+                    Delete my account
+                </button>
+            </section>
+        );
+    }
+
+    return (
+        <form className="settings-card settings-danger auth-form" onSubmit={handleDelete} noValidate>
+            <h2>Delete account</h2>
+            <p className="settings-note">
+                This permanently deletes your login, name, phone and email. Records of past moves are kept only as long as
+                the law requires, without your personal details. <strong>This can’t be undone.</strong>
+            </p>
+            <input type="text" name="username" autoComplete="username" hidden readOnly />
+            <PasswordField
+                id="delete-password"
+                name="password"
+                label="Enter your password to confirm"
+                autoComplete="current-password"
+                value={password}
+                onChange={setPassword}
+            />
+            <label className="settings-check">
+                <input
+                    id="delete-confirm"
+                    name="confirmDelete"
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                />
+                <span>I understand my account will be deleted permanently.</span>
+            </label>
+            {error && <p className="form-inline-error">{error}</p>}
+            <div className="settings-actions">
+                <button type="submit" className="danger-btn" disabled={busy}>
+                    {busy ? 'Deleting…' : 'Delete my account permanently'}
+                </button>
+                <button
+                    type="button"
+                    className="change-account-btn"
+                    onClick={() => {
+                        setOpen(false);
+                        setPassword('');
+                        setConfirmed(false);
+                        setError('');
+                    }}
+                    disabled={busy}
+                >
+                    Cancel
+                </button>
+            </div>
         </form>
     );
 };

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified_at DATETIME NULL,
     password_changed_at DATETIME NULL,
     session_version INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at    DATETIME NULL,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email)

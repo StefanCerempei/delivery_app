@@ -564,3 +564,65 @@ input[type='date'].reloq-input {
         padding: 0 16px;
     }
 }
+
+/* ---------- Ștergerea contului ---------- */
+.settings-danger {
+    border-color: rgba(255, 138, 128, 0.28);
+}
+
+.settings-danger h2 {
+    color: var(--danger);
+}
+
+.settings-danger .settings-note strong {
+    color: var(--text);
+}
+
+.danger-btn {
+    align-self: flex-start;
+    margin-top: 14px;
+    padding: 11px 18px;
+    border: 1px solid rgba(255, 138, 128, 0.45);
+    border-radius: var(--r-md);
+    background-color: var(--danger-soft);
+    color: var(--danger);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.danger-btn:hover:not(:disabled) {
+    background-color: rgba(255, 138, 128, 0.18);
+}
+
+.danger-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.settings-actions .danger-btn {
+    margin-top: 0;
+}
+
+.settings-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-2);
+    cursor: pointer;
+}
+
+.settings-check input {
+    margin-top: 2px;
+    accent-color: var(--accent);
+}

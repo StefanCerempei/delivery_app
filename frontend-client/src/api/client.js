@@ -48,6 +48,7 @@ export const api = {
     updateProfile: (payload) => request('/account/profile', { method: 'PATCH', body: payload }),
     changePassword: (currentPassword, newPassword) =>
         request('/account/password', { method: 'POST', body: { currentPassword, newPassword } }),
+    deleteAccount: (password) => request('/account', { method: 'DELETE', body: { password } }),
     sendVerificationCode: () => request('/auth/verify-email/send', { method: 'POST' }),
     confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 

@@ -59,6 +59,10 @@ export const changePasswordSchema = z.object({
     newPassword: newPasswordField
 });
 
+export const deleteAccountSchema = z.object({
+    password: z.string().min(1, 'Please enter your password to confirm.').max(200)
+});
+
 export const forgotPasswordSchema = z.object({ email: emailField });
 
 export const resetPasswordSchema = z.object({

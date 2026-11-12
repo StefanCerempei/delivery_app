@@ -210,3 +210,20 @@ export function notifyPasswordChanged({ to, fullName }) {
         text: `The password for your RELOQ account was just changed. If this wasn't you, reset it right away or call ${BRAND.phone}.`
     });
 }
+
+/** Confirmare după ștergerea contului (trimisă înainte ca adresa să fie anonimizată). */
+export function notifyAccountDeleted({ to, fullName }) {
+    const firstName = String(fullName || '').trim().split(/\s+/)[0] || 'there';
+    const html = layout({
+        preheader: 'Your RELOQ account was deleted',
+        title: 'Your account was deleted',
+        intro: `Hi ${esc(firstName)}, your RELOQ account and personal details have been deleted. Sorry to see you go.`,
+        body: `<p style="margin:16px 0 0;font-size:14px;line-height:1.55;color:#374151">Records of past moves are kept only as long as the law requires, without your name or contact details. If this wasn’t you, call us at ${BRAND.phone}.</p>`
+    });
+    sendMailInBackground({
+        to,
+        subject: 'Your RELOQ account was deleted',
+        html,
+        text: `Your RELOQ account and personal details have been deleted. If this wasn't you, call ${BRAND.phone}.`
+    });
+}
