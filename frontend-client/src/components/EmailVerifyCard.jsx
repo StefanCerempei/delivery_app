@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 const COOLDOWN = 60;
 
 /** Cere codul de 6 cifre trimis pe email. Apare cât timp contul nu are emailul verificat. */
-const EmailVerifyCard = ({ onVerified, stepNumber }) => {
+const EmailVerifyCard = ({ onVerified, stepNumber, autoSend = true }) => {
     const { user, codeSentAt, sendVerificationCode, verifyEmail } = useAuth();
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
@@ -45,7 +45,7 @@ const EmailVerifyCard = ({ onVerified, stepNumber }) => {
         const since = Math.floor((Date.now() - codeSentAt) / 1000);
         if (codeSentAt && since < COOLDOWN) {
             setWait(COOLDOWN - since);
-        } else {
+        } else if (autoSend) {
             send();
         }
         inputRef.current?.focus();

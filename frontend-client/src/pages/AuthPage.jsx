@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from '../components/Logo';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
+import EmailVerifyCard from '../components/EmailVerifyCard';
 import { isValidEmail, isValidPhone, birthDateError, maxBirthDate, MIN_AGE } from '../utils/validators';
 import './Account.css';
 
@@ -16,7 +17,9 @@ const AuthPage = ({ mode }) => {
     const navigate = useNavigate();
     const [params] = useSearchParams();
     const next = safeNext(params.get('next'));
-    const { user, authChecked, registerUser, loginUser } = useAuth();
+    const { user, authChecked, registerUser, loginUser, logoutUser } = useAuth();
+    // Contul nou (sau unul vechi neverificat) trebuie confirmat cu codul din email înainte de a merge mai departe.
+    const needsVerification = Boolean(user && user.role !== 'admin' && !user.emailVerified);
 
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
@@ -36,7 +39,7 @@ const AuthPage = ({ mode }) => {
 
     // Deja autentificat → nu are rost formularul
     useEffect(() => {
-        if (authChecked && user) goAfterAuth(user);
+        if (authChecked && user && !needsVerification) goAfterAuth(user);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authChecked, user]);
 
@@ -56,10 +59,14 @@ const AuthPage = ({ mode }) => {
 
         setBusy(true);
         try {
-            const u = isSignup
-                ? await registerUser({ fullName: fullName.trim(), phone: phone.trim(), dateOfBirth, email: email.trim(), password })
-                : await loginUser(email.trim(), password);
-            goAfterAuth(u);
+            if (isSignup) {
+                await registerUser({ fullName: fullName.trim(), phone: phone.trim(), dateOfBirth, email: email.trim(), password });
+            } else {
+                await loginUser(email.trim(), password);
+            }
+            setPassword('');
+            setBusy(false);
+            // Redirecționarea o face efectul de mai sus, după verificarea emailului.
         } catch (err) {
             setError(err.message);
             setBusy(false);
@@ -68,6 +75,29 @@ const AuthPage = ({ mode }) => {
 
     const switchTo = isSignup ? '/login' : '/signup';
     const switchHref = next ? `${switchTo}?next=${encodeURIComponent(next)}` : switchTo;
+
+    if (needsVerification) {
+        return (
+            <div className="auth-layout">
+                <div className="auth-card">
+                    <Link to="/" className="auth-logo" aria-label="RELOQ home">
+                        <Logo variant="full" height={52} />
+                    </Link>
+                    <div className="auth-heading">
+                        <h1>Check your email</h1>
+                        <p>One last step to activate your account.</p>
+                    </div>
+                    <EmailVerifyCard />
+                    <p className="auth-switch">
+                        Wrong email?{' '}
+                        <button type="button" className="link-btn" onClick={logoutUser}>
+                            Use a different account
+                        </button>
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="auth-layout">

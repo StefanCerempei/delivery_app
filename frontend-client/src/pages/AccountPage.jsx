@@ -21,7 +21,8 @@ const AccountPage = () => {
 
     useEffect(() => {
         if (!authChecked) return;
-        if (!user) {
+        if (!user || (user.role !== 'admin' && !user.emailVerified)) {
+            // Fără cont sau cu emailul neverificat → pagina de login arată pasul de verificare
             navigate('/login?next=/account', { replace: true });
             return;
         }
