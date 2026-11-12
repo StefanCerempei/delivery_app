@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useBooking } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
-import { isValidEmail, isValidPhone } from '../../utils/validators';
+import { isValidEmail, isValidPhone, birthDateError, maxBirthDate } from '../../utils/validators';
 import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 
@@ -32,7 +32,7 @@ const stripeAppearance = {
 };
 
 function schedulePayload(scheduledTime) {
-    if (!scheduledTime || scheduledTime === 'asap') return { type: 'asap' };
+    if (!scheduledTime || typeof scheduledTime !== 'object') return null;
     return {
         type: 'scheduled',
         date: scheduledTime.dateStr,
@@ -96,6 +96,7 @@ const Step5Pay = () => {
     const [authMode, setAuthMode] = useState('register');
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
@@ -117,9 +118,9 @@ const Step5Pay = () => {
     const totalAmount = order?.totalAmount ?? bookingData.priceEstimate?.total ?? null;
 
     const scheduleText =
-        !bookingData.scheduledTime || bookingData.scheduledTime === 'asap'
-            ? 'Now (in ~30 min)'
-            : `${bookingData.scheduledTime.dateLabel} • ${bookingData.scheduledTime.slotLabel}`;
+        bookingData.scheduledTime && typeof bookingData.scheduledTime === 'object'
+            ? `${bookingData.scheduledTime.dateLabel} • ${bookingData.scheduledTime.slotLabel}`
+            : 'Arrival window not selected';
 
     const elementsOptions = useMemo(
         () => (clientSecret ? { clientSecret, appearance: stripeAppearance } : null),
@@ -133,6 +134,10 @@ const Step5Pay = () => {
         if (authMode === 'register' && fullName.trim().length < 2) return setAuthError('Please enter your full name.');
         if (authMode === 'register' && !isValidPhone(phone))
             return setAuthError('Please enter a valid mobile number (e.g., (415) 555-0192).');
+        if (authMode === 'register') {
+            const dobError = birthDateError(dateOfBirth);
+            if (dobError) return setAuthError(dobError);
+        }
         if (!isValidEmail(email)) return setAuthError('Please enter a valid email address.');
         if (authMode === 'register' && password.length < 8)
             return setAuthError('Password must be at least 8 characters.');
@@ -141,7 +146,7 @@ const Step5Pay = () => {
         setAuthBusy(true);
         try {
             if (authMode === 'register') {
-                await registerUser({ fullName: fullName.trim(), phone: phone.trim(), email: email.trim(), password });
+                await registerUser({ fullName: fullName.trim(), phone: phone.trim(), dateOfBirth, email: email.trim(), password });
             } else {
                 await loginUser(email.trim(), password);
             }
@@ -156,6 +161,8 @@ const Step5Pay = () => {
     const handleCreateOrder = async () => {
         setOrderError('');
         if (!user) return setOrderError('Please create your Reloq account first to continue.');
+        const schedule = schedulePayload(bookingData.scheduledTime);
+        if (!schedule) return setOrderError('Please go back and pick a date and arrival window.');
         if (paymentsEnabled && !stripePromise)
             return setOrderError('Online payments are not fully configured yet. Please try again later.');
 
@@ -165,7 +172,7 @@ const Step5Pay = () => {
                 pickup: toLocation(bookingData.pickup),
                 dropoff: toLocation(bookingData.dropoff),
                 vehicle: bookingData.vehicle,
-                schedule: schedulePayload(bookingData.scheduledTime),
+                schedule,
                 itemsDescription: bookingData.itemsDescription,
                 photosCount: bookingData.photos?.length || 0
             });
@@ -220,7 +227,7 @@ const Step5Pay = () => {
             {!authChecked ? (
                 <div className="account-gate-card is-loading">Checking your session…</div>
             ) : !user ? (
-                <form className="account-gate-card" onSubmit={handleAccountSubmit}>
+                <form className="account-gate-card" onSubmit={handleAccountSubmit} noValidate>
                     <div className="account-gate-header">
                         <span className="step-badge-num">1</span>
                         <div>
@@ -264,6 +271,18 @@ const Step5Pay = () => {
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                 />
+                                <label className="dob-field">
+                                    <span>Date of birth (you must be 18+)</span>
+                                    <input
+                                        type="date"
+                                        className="reloq-input"
+                                        autoComplete="bday"
+                                        max={maxBirthDate()}
+                                        min="1900-01-01"
+                                        value={dateOfBirth}
+                                        onChange={(e) => setDateOfBirth(e.target.value)}
+                                    />
+                                </label>
                             </>
                         )}
                         <input

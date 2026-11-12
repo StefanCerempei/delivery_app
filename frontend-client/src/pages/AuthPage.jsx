@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from '../components/Logo';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
-import { isValidEmail, isValidPhone } from '../utils/validators';
+import { isValidEmail, isValidPhone, birthDateError, maxBirthDate, MIN_AGE } from '../utils/validators';
 import './Account.css';
 
 /** Doar adrese interne (ex. „/account”), ca un link extern să nu poată redirecționa după login. */
@@ -20,6 +20,7 @@ const AuthPage = ({ mode }) => {
 
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -45,6 +46,10 @@ const AuthPage = ({ mode }) => {
 
         if (isSignup && fullName.trim().length < 2) return setError('Please enter your full name.');
         if (isSignup && !isValidPhone(phone)) return setError('Please enter a valid mobile number, e.g. (508) 555-0192.');
+        if (isSignup) {
+            const dobError = birthDateError(dateOfBirth);
+            if (dobError) return setError(dobError);
+        }
         if (!isValidEmail(email)) return setError('Please enter a valid email address.');
         if (isSignup && password.length < 8) return setError('Password must be at least 8 characters.');
         if (!password) return setError('Please enter your password.');
@@ -52,7 +57,7 @@ const AuthPage = ({ mode }) => {
         setBusy(true);
         try {
             const u = isSignup
-                ? await registerUser({ fullName: fullName.trim(), phone: phone.trim(), email: email.trim(), password })
+                ? await registerUser({ fullName: fullName.trim(), phone: phone.trim(), dateOfBirth, email: email.trim(), password })
                 : await loginUser(email.trim(), password);
             goAfterAuth(u);
         } catch (err) {
@@ -103,6 +108,19 @@ const AuthPage = ({ mode }) => {
                                     onChange={(e) => setPhone(e.target.value)}
                                     placeholder="(508) 555-0192"
                                 />
+                            </label>
+                            <label className="auth-field">
+                                <span>Date of birth</span>
+                                <input
+                                    className="reloq-input"
+                                    type="date"
+                                    autoComplete="bday"
+                                    max={maxBirthDate()}
+                                    min="1900-01-01"
+                                    value={dateOfBirth}
+                                    onChange={(e) => setDateOfBirth(e.target.value)}
+                                />
+                                <small className="auth-hint">You must be at least {MIN_AGE} years old to book with RELOQ.</small>
                             </label>
                         </>
                     )}

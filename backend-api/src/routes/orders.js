@@ -8,6 +8,10 @@ import { estimateSchema, createOrderSchema, parseBody } from '../validation.js';
 import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
 import { stripe } from '../stripe.js';
 import { config } from '../config.js';
+import { businessTodayUTC, parseDateOnly } from '../time.js';
+
+const MAX_DAYS_AHEAD = 30;
+const DAY_MS = 24 * 3600e3;
 
 const router = Router();
 
@@ -40,15 +44,12 @@ router.post('/estimate', estimateLimiter, async (req, res) => {
     });
 });
 
+/** Programarea e valabilă doar de mâine (ora din Massachusetts) până la MAX_DAYS_AHEAD zile. */
 function scheduleFrom(input) {
-    if (input.type === 'asap') {
-        return { type: 'asap', scheduledFor: null, label: 'Now (in ~30 min)' };
-    }
-    const when = new Date(`${input.date}T${input.slot}:00Z`);
-    const now = Date.now();
-    if (Number.isNaN(when.getTime()) || when.getTime() < now - 24 * 3600e3 || when.getTime() > now + 31 * 24 * 3600e3) {
-        return null;
-    }
+    const day = parseDateOnly(input.date);
+    if (!day) return null;
+    const diffDays = Math.round((day.getTime() - businessTodayUTC().getTime()) / DAY_MS);
+    if (diffDays < 1 || diffDays > MAX_DAYS_AHEAD) return null;
     return {
         type: 'scheduled',
         scheduledFor: `${input.date} ${input.slot}:00`,
@@ -62,7 +63,9 @@ router.post('/orders', requireAuth, createLimiter, async (req, res) => {
     if (!data) return;
 
     const schedule = scheduleFrom(data.schedule);
-    if (!schedule) return res.status(400).json({ error: 'The selected date is not valid.' });
+    if (!schedule) {
+        return res.status(400).json({ error: 'Bookings are available from tomorrow onward. Please pick another date.' });
+    }
 
     const route = await getRoute(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {

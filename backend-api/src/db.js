@@ -28,7 +28,20 @@ export async function migrate() {
         await pool.query(statement);
     }
 
+    await addColumnIfMissing('users', 'age_confirmed_at', 'DATETIME NULL AFTER role');
     await ensureAdmin();
+}
+
+/** Migrare simplă pentru baze create înainte de o coloană nouă. */
+async function addColumnIfMissing(table, column, definition) {
+    const [rows] = await pool.query(
+        'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+        [table, column]
+    );
+    if (rows.length === 0) {
+        await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+        console.log(`[reloq] Coloană adăugată: ${table}.${column}`);
+    }
 }
 
 async function ensureAdmin() {

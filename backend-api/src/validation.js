@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { VEHICLES } from './pricing.js';
+import { parseDateOnly, ageOn } from './time.js';
+
+export const MIN_AGE = 18;
+export const ALLOWED_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
 
 export const locationSchema = z.object({
     address: z.string().trim().min(3).max(500),
@@ -17,6 +21,20 @@ export const registerSchema = z.object({
             const digits = v.replace(/\D/g, '');
             return digits.length >= 9 && digits.length <= 15;
         }, 'Please enter a valid phone number.'),
+    dateOfBirth: z
+        .string({ required_error: 'Please enter your date of birth.' })
+        .superRefine((value, ctx) => {
+            const birth = parseDateOnly(value);
+            const age = birth ? ageOn(birth) : null;
+            if (age === null || age > 120) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Please enter a valid date of birth.' });
+            } else if (age < MIN_AGE) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `You must be at least ${MIN_AGE} years old to create a RELOQ account.`
+                });
+            }
+        }),
     email: z.string().trim().toLowerCase().email('Please enter a valid email address.').max(255),
     password: z.string().min(8, 'Password must be at least 8 characters.').max(200)
 });
@@ -35,15 +53,16 @@ export const createOrderSchema = z.object({
     pickup: locationSchema,
     dropoff: locationSchema,
     vehicle: z.enum(Object.keys(VEHICLES)),
-    schedule: z.union([
-        z.object({ type: z.literal('asap') }),
-        z.object({
-            type: z.literal('scheduled'),
+    // Doar rezervări programate (opțiunea „Now / ASAP” a fost scoasă)
+    schedule: z.object(
+        {
+            type: z.literal('scheduled', { errorMap: () => ({ message: 'Please pick a date and arrival window.' }) }),
             date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-            slot: z.string().regex(/^\d{2}:\d{2}$/),
+            slot: z.enum(ALLOWED_SLOTS, { errorMap: () => ({ message: 'Please pick a valid arrival window.' }) }),
             label: z.string().trim().max(120).optional()
-        })
-    ]),
+        },
+        { required_error: 'Please pick a date and arrival window.' }
+    ),
     itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
     photosCount: z.number().int().min(0).max(5).default(0)
 });

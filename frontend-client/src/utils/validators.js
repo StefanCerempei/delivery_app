@@ -19,3 +19,33 @@ export function formatCardExpiry(value) {
     }
     return digits;
 }
+export const MIN_AGE = 18;
+
+/** Vârsta în ani împliniți pentru o dată de forma YYYY-MM-DD (null dacă e invalidă). */
+export function ageFromBirthDate(value) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!m) return null;
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const birth = new Date(Date.UTC(y, mo - 1, d));
+    if (birth.getUTCFullYear() !== y || birth.getUTCMonth() !== mo - 1 || birth.getUTCDate() !== d) return null;
+    const now = new Date();
+    let age = now.getUTCFullYear() - y;
+    if (now.getUTCMonth() + 1 < mo || (now.getUTCMonth() + 1 === mo && now.getUTCDate() < d)) age -= 1;
+    return age;
+}
+
+/** Ultima dată de naștere permisă (azi minus 18 ani), pentru atributul max al câmpului. */
+export function maxBirthDate() {
+    const now = new Date();
+    const d = new Date(Date.UTC(now.getUTCFullYear() - MIN_AGE, now.getUTCMonth(), now.getUTCDate()));
+    return d.toISOString().slice(0, 10);
+}
+
+/** Mesaj de eroare pentru data nașterii, sau '' dacă e în regulă. */
+export function birthDateError(value) {
+    if (!value) return 'Please enter your date of birth.';
+    const age = ageFromBirthDate(value);
+    if (age === null || age > 120) return 'Please enter a valid date of birth.';
+    if (age < MIN_AGE) return `You must be at least ${MIN_AGE} years old to create a RELOQ account.`;
+    return '';
+}

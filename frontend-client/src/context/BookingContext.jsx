@@ -11,7 +11,7 @@ const EMPTY_BOOKING = {
     routeInfo: null, // { distanceMiles, durationMins }
     vehicle: null, // 'courier' | 'lite' | 'pickup' | 'van'
     priceEstimate: null, // estimarea de la server pentru vehiculul ales
-    scheduledTime: 'asap', // 'asap' sau { dateStr, slotId, dateLabel, slotLabel }
+    scheduledTime: null, // { dateStr, slotId, dateLabel, slotLabel } — doar programat, de mâine încolo
     itemsDescription: '',
     photos: []
 };
@@ -28,7 +28,13 @@ function readDraft() {
         const draft = JSON.parse(raw);
         return {
             step: Math.min(Math.max(Number(draft.step) || 1, 1), 5),
-            data: { ...EMPTY_BOOKING, ...draft.data, photos: [] }
+            data: {
+                ...EMPTY_BOOKING,
+                ...draft.data,
+                // drafturi vechi cu „asap” (opțiune scoasă) → clientul alege din nou ziua
+                scheduledTime: typeof draft.data?.scheduledTime === 'object' ? draft.data.scheduledTime : null,
+                photos: []
+            }
         };
     } catch {
         return null;

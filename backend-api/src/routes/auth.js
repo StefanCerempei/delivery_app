@@ -30,7 +30,8 @@ router.post('/register', authLimiter, async (req, res) => {
 
     const hash = await bcrypt.hash(data.password, 12);
     const [result] = await pool.query(
-        "INSERT INTO users (email, password_hash, full_name, phone, role) VALUES (?, ?, ?, ?, 'customer')",
+        // Data nașterii e folosită doar pentru verificarea 18+; nu o salvăm, păstrăm doar momentul confirmării.
+        "INSERT INTO users (email, password_hash, full_name, phone, role, age_confirmed_at) VALUES (?, ?, ?, ?, 'customer', UTC_TIMESTAMP())",
         [data.email, hash, data.fullName, data.phone]
     );
 

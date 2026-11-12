@@ -43,7 +43,9 @@ const PrivacyPolicy = () => (
             <ul>
                 <li>
                     <strong>Account details:</strong> your full name, email address, mobile phone number and a password.
-                    We never store your password itself, only a one-way encrypted hash of it.
+                    We never store your password itself, only a one-way encrypted hash of it. We also ask for your
+                    date of birth to confirm you are at least 18; we use it only for that check and do not store it,
+                    keeping only a record that the check was passed.
                 </li>
                 <li>
                     <strong>Booking details:</strong> pickup and drop-off addresses and their map coordinates, the

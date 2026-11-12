@@ -53,7 +53,10 @@ const TermsOfService = () => (
         <section id="eligibility">
             <h2>3. Eligibility and accounts</h2>
             <ul>
-                <li>You must be at least 18 years old and able to enter into a binding contract.</li>
+                <li>
+                    You must be at least 18 years old and able to enter into a binding contract. We ask for your date
+                    of birth when you create an account to confirm this.
+                </li>
                 <li>
                     The information you give us (name, phone, email, addresses) must be accurate and kept up to date, so
                     our crew can reach you.
@@ -69,9 +72,9 @@ const TermsOfService = () => (
         <section id="bookings">
             <h2>4. Bookings</h2>
             <p>
-                A booking is confirmed when you receive a booking confirmation with an order number. “Now” bookings
-                are dispatched to the nearest available crew; arrival times shown are estimates. Scheduled bookings
-                are for the selected one-hour arrival window. We may decline or cancel a booking if no suitable crew or
+                A booking is confirmed when you receive a booking confirmation with an order number. Bookings are
+                scheduled in advance, from the next day onward, for the one-hour arrival window you select. Same-day
+                bookings are not available through the app; please call us for urgent requests. We may decline or cancel a booking if no suitable crew or
                 vehicle is available, if the addresses are outside our service area, or if the job does not match what
                 was described. In that case we will refund any amount you paid for that booking.
             </p>

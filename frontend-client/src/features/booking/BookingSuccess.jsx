@@ -26,8 +26,10 @@ const BookingSuccess = () => {
                 <div className="status-step active">
                     <span className="status-pulse" />
                     <div>
-                        <strong>Finding the nearest Reloq crew</strong>
-                        <small>We'll text {completedOrder.customer?.phone} as soon as your driver is on the way</small>
+                        <strong>You're booked for {completedOrder.scheduleText}</strong>
+                        <small>
+                            We'll text {completedOrder.customer?.phone} the day before and when your crew is on the way
+                        </small>
                     </div>
                 </div>
             </div>
