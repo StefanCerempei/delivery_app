@@ -41,7 +41,10 @@ app.use(
                 'frame-src': ['https://js.stripe.com', 'https://hooks.stripe.com']
             }
         },
-        crossOriginEmbedderPolicy: false
+        crossOriginEmbedderPolicy: false,
+        // OpenStreetMap (hartă + căutare adrese) blochează cererile fără Referer.
+        // Trimitem doar domeniul site-ului, nu adresa completă a paginii.
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
     })
 );
 
