@@ -91,6 +91,8 @@ const AuthPage = ({ mode }) => {
                             <label className="auth-field">
                                 <span>Full name</span>
                                 <input
+                                    id="auth-fullName"
+                                    name="fullName"
                                     className="reloq-input"
                                     autoComplete="name"
                                     value={fullName}
@@ -101,6 +103,8 @@ const AuthPage = ({ mode }) => {
                             <label className="auth-field">
                                 <span>Mobile phone</span>
                                 <input
+                                    id="auth-phone"
+                                    name="phone"
                                     className="reloq-input"
                                     type="tel"
                                     autoComplete="tel"
@@ -112,6 +116,8 @@ const AuthPage = ({ mode }) => {
                             <label className="auth-field">
                                 <span>Date of birth</span>
                                 <input
+                                    id="auth-dateOfBirth"
+                                    name="dateOfBirth"
                                     className="reloq-input"
                                     type="date"
                                     autoComplete="bday"
@@ -128,6 +134,8 @@ const AuthPage = ({ mode }) => {
                     <label className="auth-field">
                         <span>Email</span>
                         <input
+                            id="auth-email"
+                            name="email"
                             className="reloq-input"
                             type="email"
                             autoComplete="email"
@@ -141,6 +149,8 @@ const AuthPage = ({ mode }) => {
                         <span>Password</span>
                         <div className="password-wrap">
                             <input
+                                id="auth-password"
+                                name="password"
                                 className="reloq-input"
                                 type={showPassword ? 'text' : 'password'}
                                 autoComplete={isSignup ? 'new-password' : 'current-password'}

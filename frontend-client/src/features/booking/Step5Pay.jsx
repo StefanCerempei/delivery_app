@@ -256,6 +256,8 @@ const Step5Pay = () => {
                         {authMode === 'register' && (
                             <>
                                 <input
+                                    id="checkout-fullName"
+                                    name="fullName"
                                     type="text"
                                     className="reloq-input"
                                     placeholder="Full name (e.g., Alex Morgan)"
@@ -264,6 +266,8 @@ const Step5Pay = () => {
                                     onChange={(e) => setFullName(e.target.value)}
                                 />
                                 <input
+                                    id="checkout-phone"
+                                    name="phone"
                                     type="tel"
                                     className="reloq-input"
                                     placeholder="Mobile phone (e.g., (415) 555-0192)"
@@ -274,6 +278,8 @@ const Step5Pay = () => {
                                 <label className="dob-field">
                                     <span>Date of birth (you must be 18+)</span>
                                     <input
+                                        id="checkout-dateOfBirth"
+                                        name="dateOfBirth"
                                         type="date"
                                         className="reloq-input"
                                         autoComplete="bday"
@@ -286,6 +292,8 @@ const Step5Pay = () => {
                             </>
                         )}
                         <input
+                            id="checkout-email"
+                            name="email"
                             type="email"
                             className="reloq-input"
                             placeholder="Email address"
@@ -294,6 +302,8 @@ const Step5Pay = () => {
                             onChange={(e) => setEmail(e.target.value)}
                         />
                         <input
+                            id="checkout-password"
+                            name="password"
                             type="password"
                             className="reloq-input"
                             placeholder={authMode === 'register' ? 'Password (min. 8 characters)' : 'Password'}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const AddressInput = ({ placeholder, value, onSelect }) => {
+const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
     const [query, setQuery] = useState(value?.address || '');
     const [suggestions, setSuggestions] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -90,6 +90,11 @@ const AddressInput = ({ placeholder, value, onSelect }) => {
         <div className="route-field-wrapper" ref={wrapperRef}>
             <input
                 type="text"
+                id={name}
+                name={name}
+                aria-label={label || placeholder}
+                // sugestiile vin din lista noastră; completarea automată a browserului s-ar suprapune peste ea
+                autoComplete="off"
                 className="route-field-input"
                 placeholder={placeholder}
                 value={query}

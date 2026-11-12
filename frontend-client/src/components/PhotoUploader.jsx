@@ -83,6 +83,8 @@ const PhotoUploader = ({ photos = [], onChange }) => {
                 >
                     <input
                         ref={fileInputRef}
+                        id="item-photos"
+                        name="item-photos"
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         multiple

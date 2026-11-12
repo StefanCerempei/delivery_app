@@ -36,6 +36,8 @@ const Step1Route = () => {
                     <div className="route-slot">
                         <span className="slot-tag">PICKUP</span>
                         <AddressInput
+                            name="pickup-address"
+                            label="Pickup address"
                             placeholder="Pickup address..."
                             value={bookingData.pickup}
                             onSelect={(loc) => updateBookingData({ pickup: loc })}
@@ -47,6 +49,8 @@ const Step1Route = () => {
                     <div className="route-slot">
                         <span className="slot-tag">DROPOFF</span>
                         <AddressInput
+                            name="dropoff-address"
+                            label="Drop-off address"
                             placeholder="Where are we delivering?"
                             value={bookingData.dropoff}
                             onSelect={(loc) => updateBookingData({ dropoff: loc })}
