@@ -258,6 +258,7 @@
 /* ================= Login ================= */
 .admin-login-layout {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
@@ -346,4 +347,15 @@
     font-family: var(--font-mono);
     font-weight: 500;
     letter-spacing: 0.02em;
+}
+
+.admin-back-link {
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.admin-back-link:hover {
+    color: var(--text);
 }

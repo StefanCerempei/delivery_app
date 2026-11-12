@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import { api } from '../api/client';
 import Logo from '../components/Logo';
@@ -44,7 +44,9 @@ const AdminLogin = () => {
         <div className="admin-login-layout">
             <div className="admin-login-card">
                 <div className="admin-login-brand">
-                    <Logo variant="full" height={56} />
+                    <Link to="/" aria-label="RELOQ home">
+                        <Logo variant="full" height={56} />
+                    </Link>
                     <span className="admin-brand-label">Dispatch console</span>
                 </div>
 
@@ -83,6 +85,10 @@ const AdminLogin = () => {
                     </Button>
                 </form>
             </div>
+
+            <Link to="/" className="auth-back admin-back-link">
+                ← Back to RELOQ
+            </Link>
         </div>
     );
 };
