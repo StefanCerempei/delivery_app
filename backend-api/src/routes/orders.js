@@ -10,6 +10,7 @@ import { stripe } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
 import { notifyNewOrder } from '../emails.js';
+import { waitForMail } from '../mailer.js';
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -137,7 +138,8 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
     const created = toOrderDto(rows[0], { includeCustomer: true });
 
     // Cu plata online, confirmarea pleacă după ce plata e verificată; altfel imediat.
-    if (!stripe) notifyNewOrder(created);
+    // Pe Hostinger emailul trebuie trimis înainte de răspuns (altfel dă ETIMEDOUT)
+    if (!stripe) await waitForMail(notifyNewOrder(created));
 
     res.status(201).json({ order: created, clientSecret, paymentsEnabled: Boolean(stripe) });
 });
@@ -173,7 +175,7 @@ router.post('/orders/:code/confirm-payment', requireAuth, async (req, res) => {
     }
 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [row.id]);
-    if (justPaid) notifyNewOrder(toOrderDto(rows[0], { includeCustomer: true }));
+    if (justPaid) await waitForMail(notifyNewOrder(toOrderDto(rows[0], { includeCustomer: true })));
     res.json({ order: toOrderDto(rows[0]), paymentStatus: intent.status });
 });
 

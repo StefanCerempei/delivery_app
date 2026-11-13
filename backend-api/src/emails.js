@@ -96,11 +96,12 @@ const orderText = (order, rows) =>
 
 /** Comandă nouă: confirmare pentru client + alertă pentru dispecer. */
 export function notifyNewOrder(order) {
+    const sends = [];
     // 1) Clientul
     if (order.customer?.email) {
         const rows = orderRows(order);
         const firstName = order.customer.fullName?.split(' ')[0] || 'there';
-        sendMailInBackground({
+        sends.push(sendMailInBackground({
             to: order.customer.email,
             subject: `Booking confirmed — ${order.scheduleText} (#${order.id})`,
             html: layout({
@@ -111,13 +112,13 @@ export function notifyNewOrder(order) {
 <p style="margin:16px 0 0;font-size:13px;color:${BRAND.gray}">Need to change or cancel? Free cancellation up to 24 hours before your arrival window. Just reply to this email or call us with your order number.</p>`
             }),
             text: `Your RELOQ move is booked.\n\n${orderText(order, rows)}\n\nFree cancellation up to 24 hours before your arrival window. Questions: ${BRAND.phone} / ${BRAND.email}`
-        });
+        }));
     }
 
     // 2) Dispecerul
     if (mailSettings.notifyTo) {
         const rows = orderRows(order, { forDispatcher: true });
-        sendMailInBackground({
+        sends.push(sendMailInBackground({
             to: mailSettings.notifyTo,
             replyTo: order.customer?.email,
             subject: `New booking #${order.id} — ${order.scheduleText} — ${money(order.totalAmount)}`,
@@ -128,8 +129,9 @@ export function notifyNewOrder(order) {
                 body: `${detailsTable(rows)}${button(link(`/admin/order/${encodeURIComponent(order.id)}`), 'Open in dispatch')}`
             }),
             text: `New booking received.\n\n${orderText(order, rows)}`
-        });
+        }));
     }
+    return Promise.all(sends);
 }
 
 const STATUS_EMAILS = {
@@ -149,10 +151,10 @@ const STATUS_EMAILS = {
 /** Email către client când dispecerul schimbă statusul (doar pentru statusurile care contează pentru el). */
 export function notifyStatusChange(order) {
     const tpl = STATUS_EMAILS[order.status];
-    if (!tpl || !order.customer?.email) return;
+    if (!tpl || !order.customer?.email) return Promise.resolve(false);
     const rows = orderRows(order).filter(([k]) => ['Order', 'Arrival window', 'Pickup', 'Drop-off'].includes(k));
     const name = order.customer.fullName?.split(' ')[0] || 'there';
-    sendMailInBackground({
+    return sendMailInBackground({
         to: order.customer.email,
         subject: tpl.subject(order),
         html: layout({
@@ -203,7 +205,7 @@ export function notifyPasswordChanged({ to, fullName }) {
         intro: `Hi ${esc(firstName)}, the password for your RELOQ account was just changed and other devices were signed out.`,
         body: `<p style="margin:16px 0 0;font-size:14px;line-height:1.55;color:#374151">If this wasn’t you, reset your password right away or call us at ${BRAND.phone}.</p>`
     });
-    sendMailInBackground({
+    return sendMailInBackground({
         to,
         subject: 'Your RELOQ password was changed',
         html,
@@ -220,7 +222,7 @@ export function notifyAccountDeleted({ to, fullName }) {
         intro: `Hi ${esc(firstName)}, your RELOQ account and personal details have been deleted. Sorry to see you go.`,
         body: `<p style="margin:16px 0 0;font-size:14px;line-height:1.55;color:#374151">Records of past moves are kept only as long as the law requires, without your name or contact details. If this wasn’t you, call us at ${BRAND.phone}.</p>`
     });
-    sendMailInBackground({
+    return sendMailInBackground({
         to,
         subject: 'Your RELOQ account was deleted',
         html,

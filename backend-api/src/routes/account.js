@@ -7,6 +7,7 @@ import { pool } from '../db.js';
 import { requireAuth, setSessionCookie, clearSessionCookie } from '../auth.js';
 import { profileSchema, changePasswordSchema, deleteAccountSchema, parseBody } from '../validation.js';
 import { setNewPassword, notifyPasswordChanged } from '../passwordReset.js';
+import { waitForMail } from '../mailer.js';
 import { notifyAccountDeleted } from '../emails.js';
 
 const router = Router();
@@ -41,7 +42,7 @@ router.post('/password', requireAuth, accountLimiter, async (req, res) => {
 
     const sessionVersion = await setNewPassword(req.user.id, data.newPassword);
     setSessionCookie(res, req.user, sessionVersion); // sesiunea curentă rămâne activă; celelalte dispozitive sunt deconectate
-    notifyPasswordChanged({ to: req.user.email, fullName: req.user.fullName });
+    await waitForMail(notifyPasswordChanged({ to: req.user.email, fullName: req.user.fullName }));
     res.json({ ok: true });
 });
 
@@ -91,7 +92,7 @@ router.delete('/', requireAuth, accountLimiter, async (req, res) => {
     }
 
     console.log(`[reloq] Cont șters: #${req.user.id}${Number(counts.total) ? ' (anonimizat, are comenzi)' : ''}`);
-    notifyAccountDeleted({ to: email, fullName });
+    await waitForMail(notifyAccountDeleted({ to: email, fullName }));
     clearSessionCookie(res);
     res.json({ ok: true });
 });

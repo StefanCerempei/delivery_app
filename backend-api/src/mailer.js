@@ -50,23 +50,61 @@ export async function verifyMailer() {
     }
 }
 
+const TRANSIENT_CODES = new Set(['ETIMEDOUT', 'ECONNECTION', 'ESOCKET', 'ECONNRESET', 'EDNS']);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Trimite un email fără să blocheze cererea care l-a declanșat.
+ * Trimite un email și întoarce un Promise care NU aruncă niciodată (rezultat: true/false).
  * O eroare de email nu trebuie să strice o comandă deja salvată.
+ * Reîncearcă o dată la erori de rețea (timeout, conexiune întreruptă).
+ *
+ * IMPORTANT: pe Hostinger (LiteSpeed) procesul Node e încetinit/înghețat după ce răspunsul
+ * a plecat, așa că emailurile trimise „în fundal” dau ETIMEDOUT. Rutele trebuie să facă
+ * `await` (prin waitForMail) ÎNAINTE de res.json().
  */
-export function sendMailInBackground({ to, subject, html, text, replyTo }) {
-    if (!transporter || !to) return;
-    transporter
-        .sendMail({
-            from: mailSettings.from,
-            to,
-            subject,
-            html,
-            text,
-            replyTo: replyTo || mailSettings.replyTo || undefined
+export async function sendMailSafe({ to, subject, html, text, replyTo }) {
+    if (!transporter || !to) return false;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const info = await transporter.sendMail({
+                from: mailSettings.from,
+                to,
+                subject,
+                html,
+                text,
+                replyTo: replyTo || mailSettings.replyTo || undefined
+            });
+            console.log(`[reloq] Email trimis: „${subject}” → ${to} (${info.messageId})${attempt > 1 ? ' (a 2-a încercare)' : ''}`);
+            return true;
+        } catch (err) {
+            const retry = attempt === 1 && TRANSIENT_CODES.has(err.code);
+            console.error(
+                `[reloq] Email eșuat${retry ? ' (reîncerc)' : ''}: „${subject}” → ${to}: ${err.code || ''} ${err.message}`
+            );
+            if (!retry) return false;
+            await sleep(1000);
+        }
+    }
+    return false;
+}
+
+/** Păstrat pentru compatibilitate: același lucru ca sendMailSafe. */
+export const sendMailInBackground = sendMailSafe;
+
+/**
+ * Așteaptă trimiterea emailurilor, dar cel mult `ms` milisecunde, ca clientul să nu stea
+ * prea mult după răspuns. Nu aruncă niciodată.
+ */
+export async function waitForMail(promise, ms = 25000) {
+    if (!promise) return;
+    let timer;
+    await Promise.race([
+        Promise.resolve(promise).catch(() => {}),
+        new Promise((r) => {
+            timer = setTimeout(r, ms);
         })
-        .then((info) => console.log(`[reloq] Email trimis: „${subject}” → ${to} (${info.messageId})`))
-        .catch((err) => console.error(`[reloq] Email eșuat: „${subject}” → ${to}: ${err.code || ''} ${err.message}`));
+    ]);
+    clearTimeout(timer);
 }
 
 /** Trimite un email și așteaptă rezultatul (pentru coduri de verificare, unde clientul trebuie să știe dacă a plecat). */

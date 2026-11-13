@@ -4,6 +4,7 @@ import { requireAdmin } from '../auth.js';
 import { statusSchema, parseBody } from '../validation.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
 import { notifyStatusChange } from '../emails.js';
+import { waitForMail } from '../mailer.js';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.patch('/orders/:code/status', async (req, res) => {
     const order = toOrderDto(rows[0], { includeCustomer: true });
 
     // Emailul pleacă doar la o schimbare reală (nu dacă dispecerul apasă de două ori același buton)
-    if (before[0].status !== data.status) notifyStatusChange(order);
+    if (before[0].status !== data.status) await waitForMail(notifyStatusChange(order));
 
     res.json({ order });
 });

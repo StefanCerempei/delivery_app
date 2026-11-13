@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { pool } from './db.js';
 import { config } from './config.js';
-import { mailEnabled, mailSettings } from './mailer.js';
+import { mailEnabled, mailSettings, waitForMail } from './mailer.js';
 import { sendPasswordResetEmail, notifyPasswordChanged } from './emails.js';
 
 const TOKEN_TTL_MINUTES = 60;
@@ -86,7 +86,7 @@ export async function resetPasswordWithToken(token, password) {
     const sessionVersion = await setNewPassword(user.id, password);
     // Linkul a venit pe email, deci adresa e dovedit a clientului.
     await pool.query('UPDATE users SET email_verified_at = COALESCE(email_verified_at, UTC_TIMESTAMP()) WHERE id = ?', [user.id]);
-    notifyPasswordChanged({ to: user.email, fullName: user.full_name });
+    await waitForMail(notifyPasswordChanged({ to: user.email, fullName: user.full_name }));
     return { ...user, email_verified_at: new Date(), session_version: sessionVersion };
 }
 
