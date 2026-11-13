@@ -77,10 +77,12 @@ app.get('/api/health', async (_req, res) => {
     try {
         await pool.query('SELECT 1');
         dbError = null;
-        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), email: mailEnabled, node: process.version });
+        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), email: mailEnabled });
     } catch (err) {
         dbError = err.code || 'UNKNOWN';
-        res.status(503).json({ ok: false, db: 'unreachable', error: dbError, dbHost: config.db.host });
+        // Adresa serverului de bază de date apare doar în log-uri, nu în răspunsul public.
+        console.error(`[reloq] Health: baza de date nu răspunde (${dbError}) la ${config.db.host}:${config.db.port}`);
+        res.status(503).json({ ok: false, db: 'unreachable', error: dbError });
     }
 });
 

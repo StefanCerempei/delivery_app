@@ -8,8 +8,14 @@ import { isValidEmail, isValidPhone, formatUsPhone, birthDateError, maxBirthDate
 import './Account.css';
 
 /** Doar adrese interne (ex. „/account”), ca un link extern să nu poată redirecționa după login. */
+/**
+ * Acceptă doar adrese interne de forma /cale (fără `//`, `/\`, protocoale sau caractere de control),
+ * ca un link fals de tip /login?next=/\site-fals.com să nu ducă clientul pe alt site după login.
+ */
 function safeNext(value) {
-    return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : null;
+    if (typeof value !== 'string' || value.length > 200) return null;
+    if (!/^\/(?![\/\\])[A-Za-z0-9\-._~\/?=&%#]*$/.test(value)) return null;
+    return value;
 }
 
 const AuthPage = ({ mode }) => {
