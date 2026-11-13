@@ -5,7 +5,7 @@ import Button from '../components/Button';
 import PasswordField from '../components/PasswordField';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { isValidPhone } from '../utils/validators';
+import { isValidPhone, formatUsPhone } from '../utils/validators';
 import './Account.css';
 
 const AccountSettingsPage = () => {
@@ -82,7 +82,7 @@ const ProfileForm = ({ user, updateProfile }) => {
         setError('');
         setSaved(false);
         if (fullName.trim().length < 2) return setError('Please enter your full name.');
-        if (!isValidPhone(phone)) return setError('Please enter a valid mobile number, e.g. (508) 555-0192.');
+        if (!isValidPhone(phone)) return setError('Please enter a valid US mobile number, e.g. (508) 555-0192.');
         setBusy(true);
         try {
             await updateProfile({ fullName: fullName.trim(), phone: phone.trim() });
@@ -112,16 +112,19 @@ const ProfileForm = ({ user, updateProfile }) => {
                 />
             </label>
             <label className="auth-field">
-                <span>Mobile phone</span>
+                <span>Mobile phone (US only)</span>
                 <input
                     id="settings-phone"
                     name="phone"
                     className="reloq-input"
                     type="tel"
-                    autoComplete="tel"
+                    inputMode="tel"
+                    maxLength={14}
+                    autoComplete="tel-national"
+                    placeholder="(508) 555-0192"
                     value={phone}
                     onChange={(e) => {
-                        setPhone(e.target.value);
+                        setPhone(formatUsPhone(e.target.value));
                         setSaved(false);
                     }}
                 />

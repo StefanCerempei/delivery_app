@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useBooking } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
-import { isValidEmail, isValidPhone, birthDateError, maxBirthDate } from '../../utils/validators';
+import { isValidEmail, isValidPhone, formatUsPhone, birthDateError, maxBirthDate } from '../../utils/validators';
 import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
@@ -137,7 +137,7 @@ const Step5Pay = () => {
 
         if (authMode === 'register' && fullName.trim().length < 2) return setAuthError('Please enter your full name.');
         if (authMode === 'register' && !isValidPhone(phone))
-            return setAuthError('Please enter a valid mobile number (e.g., (415) 555-0192).');
+            return setAuthError('Please enter a valid US mobile number, e.g. (508) 555-0192.');
         if (authMode === 'register') {
             const dobError = birthDateError(dateOfBirth);
             if (dobError) return setAuthError(dobError);
@@ -276,10 +276,12 @@ const Step5Pay = () => {
                                     name="phone"
                                     type="tel"
                                     className="reloq-input"
-                                    placeholder="Mobile phone (e.g., (415) 555-0192)"
-                                    autoComplete="tel"
+                                    inputMode="tel"
+                                    maxLength={14}
+                                    placeholder="US mobile phone, e.g. (508) 555-0192"
+                                    autoComplete="tel-national"
                                     value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
+                                    onChange={(e) => setPhone(formatUsPhone(e.target.value))}
                                 />
                                 <label className="dob-field">
                                     <span>Date of birth (you must be 18+)</span>

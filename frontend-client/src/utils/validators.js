@@ -2,9 +2,23 @@ export function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
 
+/** Doar numere din SUA: 10 cifre (opțional cu 1 / +1 în față), fără prefix zonal/centrală care începe cu 0 sau 1. */
 export function isValidPhone(phone) {
-    const digits = String(phone || '').replace(/\D/g, '');
-    return digits.length >= 9 && digits.length <= 15;
+    let digits = String(phone || '').replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+    if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(digits)) return false;
+    return !(digits[1] === '1' && digits[2] === '1'); // fără N11 (211, 911…)
+}
+
+/** Formatează pe măsură ce se tastează: 5085550192 → (508) 555-0192. Ignoră +1 din față. */
+export function formatUsPhone(value) {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (digits.length > 10 && digits.startsWith('1')) digits = digits.slice(1);
+    digits = digits.slice(0, 10);
+    if (digits.length === 0) return '';
+    if (digits.length < 4) return `(${digits}`;
+    if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 export function formatCardNumber(value) {

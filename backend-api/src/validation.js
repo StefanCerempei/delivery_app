@@ -12,14 +12,25 @@ export const locationSchema = z.object({
 });
 
 const fullNameField = z.string().trim().min(2, 'Please enter your full name.').max(120);
+/**
+ * Doar numere din SUA (NANP): 10 cifre, opțional cu prefixul 1 / +1.
+ * Prefixul zonal și centrala nu pot începe cu 0 sau 1, iar prefixul zonal nu poate fi N11 (211, 311, 911…).
+ * Întoarce numărul în forma (XXX) XXX-XXXX sau null dacă nu e valid.
+ */
+export function normalizeUsPhone(value) {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+    if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(digits)) return null;
+    if (digits[1] === '1' && digits[2] === '1') return null;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 const phoneField = z
     .string()
     .trim()
     .max(32)
-    .refine((v) => {
-        const digits = v.replace(/\D/g, '');
-        return digits.length >= 9 && digits.length <= 15;
-    }, 'Please enter a valid phone number.');
+    .refine((v) => normalizeUsPhone(v) !== null, 'Please enter a valid US mobile number, e.g. (508) 555-0192.')
+    .transform((v) => normalizeUsPhone(v));
 const emailField = z.string().trim().toLowerCase().pipe(z.email('Please enter a valid email address.')).pipe(z.string().max(255));
 const newPasswordField = z.string().min(8, 'Password must be at least 8 characters.').max(200);
 

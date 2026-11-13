@@ -4,7 +4,7 @@ import Logo from '../components/Logo';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import EmailVerifyCard from '../components/EmailVerifyCard';
-import { isValidEmail, isValidPhone, birthDateError, maxBirthDate, MIN_AGE } from '../utils/validators';
+import { isValidEmail, isValidPhone, formatUsPhone, birthDateError, maxBirthDate, MIN_AGE } from '../utils/validators';
 import './Account.css';
 
 /** Doar adrese interne (ex. „/account”), ca un link extern să nu poată redirecționa după login. */
@@ -48,7 +48,7 @@ const AuthPage = ({ mode }) => {
         setError('');
 
         if (isSignup && fullName.trim().length < 2) return setError('Please enter your full name.');
-        if (isSignup && !isValidPhone(phone)) return setError('Please enter a valid mobile number, e.g. (508) 555-0192.');
+        if (isSignup && !isValidPhone(phone)) return setError('Please enter a valid US mobile number, e.g. (508) 555-0192.');
         if (isSignup) {
             const dobError = birthDateError(dateOfBirth);
             if (dobError) return setError(dobError);
@@ -131,15 +131,17 @@ const AuthPage = ({ mode }) => {
                                 />
                             </label>
                             <label className="auth-field">
-                                <span>Mobile phone</span>
+                                <span>Mobile phone (US only)</span>
                                 <input
                                     id="auth-phone"
                                     name="phone"
                                     className="reloq-input"
                                     type="tel"
-                                    autoComplete="tel"
+                                    inputMode="tel"
+                                    maxLength={14}
+                                    autoComplete="tel-national"
                                     value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
+                                    onChange={(e) => setPhone(formatUsPhone(e.target.value))}
                                     placeholder="(508) 555-0192"
                                 />
                             </label>
