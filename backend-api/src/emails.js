@@ -3,6 +3,7 @@ import { mailSettings, sendMailInBackground, sendMailNow } from './mailer.js';
 
 const BRAND = {
     name: 'RELOQ Moving Services',
+    logoUrl: mailSettings.appUrl ? `${mailSettings.appUrl}/email-logo.png` : null,
     red: '#E4362C',
     navy: '#0B1F3B',
     gray: '#5F6A78',
@@ -53,8 +54,9 @@ function layout({ preheader, title, intro, body }) {
 <tr><td align="center">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #E6E9EE">
     <tr><td style="background:${BRAND.navy};padding:20px 28px">
-      <span style="font-size:22px;font-weight:900;letter-spacing:1px;color:${BRAND.red}">RELO</span><span style="font-size:22px;font-weight:900;letter-spacing:1px;color:#ffffff">Q</span>
-      <span style="display:block;font-size:10px;letter-spacing:3px;color:#C3CBD6;margin-top:2px">MOVING SERVICES</span>
+      ${BRAND.logoUrl
+          ? `<img src="${BRAND.logoUrl}" alt="RELOQ Moving Services" width="150" height="45" style="display:block;border:0;outline:none;text-decoration:none">`
+          : `<span style="font-size:22px;font-weight:900;letter-spacing:1px;color:${BRAND.red}">RELO</span><span style="font-size:22px;font-weight:900;letter-spacing:1px;color:#ffffff">Q</span><span style="display:block;font-size:10px;letter-spacing:3px;color:#C3CBD6;margin-top:6px">MOVING SERVICES</span>`}
     </td></tr>
     <tr><td style="padding:28px">
       <h1 style="margin:0 0 10px;font-size:22px;line-height:1.25;color:#111827">${esc(title)}</h1>
@@ -94,44 +96,65 @@ const orderText = (order, rows) =>
         .map(([k, v]) => `${k}: ${v}`)
         .join('\n');
 
-/** Comandă nouă: confirmare pentru client + alertă pentru dispecer. */
-export function notifyNewOrder(order) {
-    const sends = [];
-    // 1) Clientul
-    if (order.customer?.email) {
-        const rows = orderRows(order);
-        const firstName = order.customer.fullName?.split(' ')[0] || 'there';
-        sends.push(sendMailInBackground({
-            to: order.customer.email,
-            subject: `Booking confirmed — ${order.scheduleText} (#${order.id})`,
-            html: layout({
-                preheader: `Your RELOQ crew is booked for ${order.scheduleText}.`,
-                title: 'Your move is booked',
-                intro: `Hi ${esc(firstName)}, thanks for choosing RELOQ. Here are your booking details. We'll text you the day before and when your crew is on the way.`,
-                body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}
-<p style="margin:16px 0 0;font-size:13px;color:${BRAND.gray}">Need to change or cancel? Free cancellation up to 24 hours before your arrival window. Just reply to this email or call us with your order number.</p>`
-            }),
-            text: `Your RELOQ move is booked.\n\n${orderText(order, rows)}\n\nFree cancellation up to 24 hours before your arrival window. Questions: ${BRAND.phone} / ${BRAND.email}`
-        }));
-    }
+/** Primul email către client: cererea a fost primită, urmează confirmarea dispecerului. */
+export function notifyOrderReceived(order) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const rows = orderRows(order);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Order submitted successfully — we'll confirm shortly (#${order.id})`,
+        html: layout({
+            preheader: `We received your RELOQ request for ${order.scheduleText}.`,
+            title: 'Order submitted successfully',
+            intro: `Hi ${esc(firstName)}, thanks for choosing RELOQ! We've received your request and our team is reviewing it. In a short time we'll confirm your order — you'll get a confirmation email as soon as it's accepted.`,
+            body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}
+<p style="margin:16px 0 0;font-size:13px;color:${BRAND.gray}">No payment is due yet. This is just a confirmation that we received your request.</p>`
+        }),
+        text: `Order submitted successfully. We received your RELOQ request and will confirm it shortly.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
+    });
+}
 
-    // 2) Dispecerul
-    if (mailSettings.notifyTo) {
-        const rows = orderRows(order, { forDispatcher: true });
-        sends.push(sendMailInBackground({
-            to: mailSettings.notifyTo,
-            replyTo: order.customer?.email,
-            subject: `New booking #${order.id} — ${order.scheduleText} — ${money(order.totalAmount)}`,
-            html: layout({
-                preheader: `${order.customer?.fullName || 'A customer'} booked ${order.vehicle?.name} for ${order.scheduleText}.`,
-                title: 'New booking received',
-                intro: `A new booking just came in through the app. Reply to this email to contact the customer directly.`,
-                body: `${detailsTable(rows)}${button(link(`/admin/order/${encodeURIComponent(order.id)}`), 'Open in dispatch')}`
-            }),
-            text: `New booking received.\n\n${orderText(order, rows)}`
-        }));
-    }
-    return Promise.all(sends);
+/** Confirmarea propriu-zisă, trimisă când dispecerul acceptă comanda (sau la plata online). */
+export function notifyOrderConfirmed(order) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const rows = orderRows(order);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Booking confirmed — ${order.scheduleText} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ crew is booked for ${order.scheduleText}.`,
+            title: 'Your move is confirmed',
+            intro: `Hi ${esc(firstName)}, good news — your RELOQ booking is confirmed! Here are your details. We'll let you know when your crew is on the way.`,
+            body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}
+<p style="margin:16px 0 0;font-size:13px;color:${BRAND.gray}">Need to change or cancel? Free cancellation up to 24 hours before your arrival window. Just reply to this email or call us with your order number.</p>`
+        }),
+        text: `Your RELOQ move is confirmed.\n\n${orderText(order, rows)}\n\nFree cancellation up to 24 hours before your arrival window. Questions: ${BRAND.phone} / ${BRAND.email}`
+    });
+}
+
+/** Alertă pentru dispecer când intră o comandă nouă. */
+export function notifyDispatcherNewOrder(order) {
+    if (!mailSettings.notifyTo) return Promise.resolve(false);
+    const rows = orderRows(order, { forDispatcher: true });
+    return sendMailInBackground({
+        to: mailSettings.notifyTo,
+        replyTo: order.customer?.email,
+        subject: `New order #${order.id} — ${order.scheduleText} — ${money(order.totalAmount)}`,
+        html: layout({
+            preheader: `${order.customer?.fullName || 'A customer'} requested ${order.vehicle?.name} for ${order.scheduleText}.`,
+            title: 'New order to confirm',
+            intro: `A new order just came in through the app. Open it in dispatch to accept and confirm it, or reply to this email to contact the customer directly.`,
+            body: `${detailsTable(rows)}${button(link(`/admin/order/${encodeURIComponent(order.id)}`), 'Open in dispatch')}`
+        }),
+        text: `New order to confirm.\n\n${orderText(order, rows)}`
+    });
+}
+
+/** La crearea comenzii: emailul „primit” către client + alerta către dispecer. */
+export function notifyNewOrder(order) {
+    return Promise.all([notifyOrderReceived(order), notifyDispatcherNewOrder(order)]);
 }
 
 const STATUS_EMAILS = {

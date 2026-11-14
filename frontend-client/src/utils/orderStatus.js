@@ -1,6 +1,7 @@
 // Etichetele statusurilor de comandă, folosite de client (My account) și de dispecerat.
 export const STATUS_LABELS = {
-    pending_payment: 'Awaiting payment',
+    pending_payment: 'New',
+    confirmed: 'Confirmed',
     paid: 'Paid',
     en_route: 'En route',
     completed: 'Completed',
@@ -9,7 +10,8 @@ export const STATUS_LABELS = {
 
 // Varianta pentru client: „Awaiting payment” la plata la livrare sună alarmant, deci explicăm.
 export const CUSTOMER_STATUS_LABELS = {
-    pending_payment: 'Confirmed • pay after the job',
+    pending_payment: 'Submitted • we’ll confirm shortly',
+    confirmed: 'Confirmed • pay after the job',
     paid: 'Confirmed • paid',
     en_route: 'Crew on the way',
     completed: 'Completed',

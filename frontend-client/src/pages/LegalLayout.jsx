@@ -19,7 +19,7 @@ const LegalLayout = ({ title, sections, children }) => {
     return (
         <div className="legal-page">
             <header className="legal-header">
-                <Link to="/" aria-label="Back to Reloq">
+                <Link to="/" aria-label="Back to RELOQ">
                     <Logo height={26} />
                 </Link>
                 <Link to="/" className="change-account-btn">

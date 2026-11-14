@@ -86,7 +86,7 @@ const StripePaymentForm = ({ order, onPaid }) => {
                 <Button type="submit" disabled={!stripe || isPaying}>
                     {isPaying ? 'Processing payment…' : `Pay ${formatPrice(order.totalAmount)}`}
                 </Button>
-                <p className="trust-note">Card details are handled securely by Stripe and never touch Reloq servers.</p>
+                <p className="trust-note">Card details are handled securely by Stripe and never touch RELOQ servers.</p>
             </div>
         </form>
     );
@@ -164,7 +164,7 @@ const Step5Pay = () => {
 
     const handleCreateOrder = async () => {
         setOrderError('');
-        if (!user) return setOrderError('Please create your Reloq account first to continue.');
+        if (!user) return setOrderError('Please create your RELOQ account first to continue.');
         if (!verified) return setOrderError('Please verify your email first.');
         const schedule = schedulePayload(bookingData.scheduledTime);
         if (!schedule) return setOrderError('Please go back and pick a date and arrival window.');
@@ -205,14 +205,14 @@ const Step5Pay = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>Account & Payment</h1>
-                <p className="subtitle">Create your Reloq account for live crew tracking and complete your booking.</p>
+                <p className="subtitle">Create your RELOQ account for live crew tracking and complete your booking.</p>
             </div>
 
             {/* 1. Rezumat comandă */}
             <div className="checkout-recap-card">
                 <div className="recap-top-row">
                     <div>
-                        <span className="recap-vehicle">{selectedVehicle?.name || 'Reloq'}</span>
+                        <span className="recap-vehicle">{selectedVehicle?.name || 'RELOQ'}</span>
                         <span className="recap-sub">{scheduleText}</span>
                     </div>
                     <span className="recap-price">{formatPrice(totalAmount)}</span>
@@ -237,7 +237,7 @@ const Step5Pay = () => {
                     <div className="account-gate-header">
                         <span className="step-badge-num">1</span>
                         <div>
-                            <strong>{authMode === 'register' ? 'Create your Reloq account' : 'Welcome back'}</strong>
+                            <strong>{authMode === 'register' ? 'Create your RELOQ account' : 'Welcome back'}</strong>
                             <small>Required for SMS updates and live map tracking</small>
                         </div>
                     </div>
@@ -333,12 +333,12 @@ const Step5Pay = () => {
                         {authBusy
                             ? 'Please wait…'
                             : authMode === 'register'
-                              ? 'Create Reloq account & continue →'
+                              ? 'Create RELOQ account & continue →'
                               : 'Log in & continue →'}
                     </button>
 
                     <p className="trust-note legal-inline-links auth-consent">
-                        By continuing you agree to Reloq’s{' '}
+                        By continuing you agree to RELOQ’s{' '}
                         <Link to="/terms" target="_blank" rel="noopener">Terms of Service</Link> and{' '}
                         <Link to="/privacy" target="_blank" rel="noopener">Privacy Policy</Link>.
                     </p>
@@ -371,7 +371,7 @@ const Step5Pay = () => {
                         <strong>{paymentsEnabled ? 'Payment details' : 'Confirm booking'}</strong>
                         <small>
                             {!user
-                                ? 'Complete step 1 (Reloq account) to unlock payment'
+                                ? 'Complete step 1 (RELOQ account) to unlock payment'
                                 : !verified
                                   ? 'Verify your email to unlock booking'
                                 : paymentsEnabled
@@ -394,7 +394,7 @@ const Step5Pay = () => {
                                     ? 'Creating your booking…'
                                     : paymentsEnabled
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`
-                                      : `Book Reloq • ${formatPrice(totalAmount)}`}
+                                      : `Book RELOQ • ${formatPrice(totalAmount)}`}
                             </Button>
                             <p className="trust-note">
                                 Receipt and live tracking link will be sent to {user?.email || 'your email'}

@@ -110,7 +110,7 @@ export const createOrderSchema = z.object({
 });
 
 export const statusSchema = z.object({
-    status: z.enum(['pending_payment', 'paid', 'en_route', 'completed', 'cancelled'])
+    status: z.enum(['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled'])
 });
 
 /** Rulează validarea și răspunde cu 400 dacă datele nu sunt bune. */

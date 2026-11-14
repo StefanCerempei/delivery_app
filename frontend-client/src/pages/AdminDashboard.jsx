@@ -7,16 +7,17 @@ import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
 
 export const STATUS_LABELS = {
-    pending_payment: 'Awaiting payment',
+    pending_payment: 'New',
+    confirmed: 'Confirmed',
     paid: 'Paid',
     en_route: 'En route',
     completed: 'Completed',
     cancelled: 'Cancelled'
 };
 
-const STATUS_ORDER = ['pending_payment', 'paid', 'en_route', 'completed', 'cancelled'];
+const STATUS_ORDER = ['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled'];
 // Comenzile care contează ca venit confirmat (nu cele neplătite sau anulate).
-const REVENUE_STATUSES = ['paid', 'en_route', 'completed'];
+const REVENUE_STATUSES = ['confirmed', 'paid', 'en_route', 'completed'];
 
 const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const fmtDateTime = (iso) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -121,6 +122,26 @@ const AdminDashboard = () => {
 
     const openOrder = (id) => navigate(`/admin/order/${id}`);
 
+    const exportCsv = () => {
+        const cols = ['Order', 'Status', 'Customer', 'Email', 'Phone', 'Vehicle', 'Pickup', 'Drop-off', 'Schedule', 'Distance (mi)', 'Total', 'Created'];
+        const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const lines = [cols.join(',')];
+        for (const o of filteredOrders) {
+            lines.push([
+                o.id, STATUS_LABELS[o.status] || o.status, o.customer?.fullName, o.customer?.email, o.customer?.phone,
+                o.vehicle?.name, o.pickup?.address, o.dropoff?.address, o.scheduleText, o.routeInfo?.distanceMiles,
+                o.totalAmount, new Date(o.createdAt).toISOString()
+            ].map(cell).join(','));
+        }
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reloq-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     const NAV = [
         { id: 'overview', label: 'Overview', icon: '▚' },
         { id: 'orders', label: 'Orders', icon: '☰' },
@@ -130,7 +151,7 @@ const AdminDashboard = () => {
     const KPIS = [
         { label: 'Total orders', value: counts.all, tone: '' },
         { label: 'Awaiting payment', value: counts.pending_payment, tone: 'pending_payment' },
-        { label: 'Active jobs', value: (counts.paid || 0) + (counts.en_route || 0), tone: 'en_route' },
+        { label: 'Active jobs', value: (counts.confirmed || 0) + (counts.paid || 0) + (counts.en_route || 0), tone: 'en_route' },
         { label: 'Completed', value: counts.completed, tone: 'completed' },
         { label: 'Booked revenue', value: formatPrice(revenue), tone: 'accent' }
     ];
@@ -215,17 +236,22 @@ const AdminDashboard = () => {
                     {/* ---------- ORDERS ---------- */}
                     {view === 'orders' && (
                         <>
-                            <div className="filter-chips">
-                                {['all', ...STATUS_ORDER].map((s) => (
-                                    <button
-                                        key={s}
-                                        className={`filter-chip ${statusFilter === s ? 'active' : ''}`}
-                                        onClick={() => setStatusFilter(s)}
-                                    >
-                                        {s === 'all' ? 'All' : STATUS_LABELS[s]}
-                                        <span className="filter-count">{counts[s] || 0}</span>
-                                    </button>
-                                ))}
+                            <div className="orders-toolbar">
+                                <div className="filter-chips">
+                                    {['all', ...STATUS_ORDER].map((s) => (
+                                        <button
+                                            key={s}
+                                            className={`filter-chip ${statusFilter === s ? 'active' : ''}`}
+                                            onClick={() => setStatusFilter(s)}
+                                        >
+                                            {s === 'all' ? 'All' : STATUS_LABELS[s]}
+                                            <span className="filter-count">{counts[s] || 0}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <button className="crm-export" onClick={exportCsv} disabled={filteredOrders.length === 0}>
+                                    ↓ Export CSV
+                                </button>
                             </div>
                             <OrdersTable orders={filteredOrders} loading={loading} onOpen={openOrder} full />
                         </>

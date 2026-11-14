@@ -641,3 +641,31 @@
     .crm-search { width: 180px; }
     .record-grid { grid-template-columns: 1fr; }
 }
+
+/* status „confirmed” + toolbar comenzi + export */
+.status-badge.confirmed { background-color: rgba(96, 165, 250, 0.14); color: #7fb2ff; }
+.status-action.confirmed.current { border-color: #7fb2ff; background-color: rgba(96, 165, 250, 0.14); color: #7fb2ff; }
+
+.orders-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.orders-toolbar .filter-chips { margin-bottom: 0; }
+
+.crm-export {
+    padding: 8px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    background-color: var(--surface);
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.crm-export:hover:not(:disabled) { border-color: var(--accent-ring); color: var(--text); }
+.crm-export:disabled { opacity: 0.5; cursor: default; }

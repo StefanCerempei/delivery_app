@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { STATUS_LABELS } from './AdminDashboard';
 import './Admin.css';
 
-const STATUS_ACTIONS = ['paid', 'en_route', 'completed', 'cancelled'];
+const STATUS_ACTIONS = ['confirmed', 'en_route', 'completed', 'cancelled'];
 
 const Row = ({ label, children }) => (
     <div className="record-row">

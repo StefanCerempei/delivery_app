@@ -32,7 +32,7 @@ const PrivacyPolicy = () => (
             <p>
                 The service at {COMPANY.website} is operated by <CompanyName />
                 {COMPANY.registrationNumber ? ` (registration no. ${COMPANY.registrationNumber})` : ''}, located at{' '}
-                <Field value={COMPANY.address} label="Registered address" /> (“Reloq”, “we”, “us”). We are the
+                <Field value={COMPANY.address} label="Registered address" /> (“RELOQ”, “we”, “us”). We are the
                 controller of the personal information described in this policy.
             </p>
         </section>
@@ -64,7 +64,7 @@ const PrivacyPolicy = () => (
             <h3>Payment information</h3>
             <p>
                 Card payments are processed by Stripe. Your card number, expiry date and security code are entered
-                directly into Stripe’s secure form and are never sent to or stored on Reloq’s servers. We receive and
+                directly into Stripe’s secure form and are never sent to or stored on RELOQ’s servers. We receive and
                 keep only the payment status, a payment reference and the last four digits of the card, so we can show
                 you and our dispatchers which card was used.
             </p>

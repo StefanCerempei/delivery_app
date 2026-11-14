@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id                       CHAR(36)     NOT NULL,
     code                     VARCHAR(16)  NOT NULL,
     user_id                  INT UNSIGNED NOT NULL,
-    status                   ENUM('pending_payment', 'paid', 'en_route', 'completed', 'cancelled')
+    status                   ENUM('pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled')
                              NOT NULL DEFAULT 'pending_payment',
 
     pickup_address           VARCHAR(500) NOT NULL,

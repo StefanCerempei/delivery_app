@@ -115,7 +115,7 @@ const Step4Items = () => {
                 <p className="trust-note">
                     {totalCount > 0
                         ? `${totalCount} item${totalCount > 1 ? 's' : ''} selected`
-                        : 'Every Reloq truck comes with shrink wrap, straps & moving blankets'}
+                        : 'Every RELOQ truck comes with shrink wrap, straps & moving blankets'}
                 </p>
             </div>
         </div>

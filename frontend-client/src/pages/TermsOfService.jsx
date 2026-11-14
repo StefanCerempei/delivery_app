@@ -33,7 +33,7 @@ const TermsOfService = () => (
         <section id="agreement">
             <h2>1. Agreement to these terms</h2>
             <p>
-                These Terms of Service (“Terms”) are an agreement between you and <CompanyName /> (“Reloq”, “we”, “us”).
+                These Terms of Service (“Terms”) are an agreement between you and <CompanyName /> (“RELOQ”, “we”, “us”).
                 By creating an account or making a booking on {COMPANY.website}, you agree to these Terms and to our{' '}
                 <Link to="/privacy">Privacy Policy</Link>. If you do not agree, please do not use the service.
             </p>
@@ -42,7 +42,7 @@ const TermsOfService = () => (
         <section id="service">
             <h2>2. Our service</h2>
             <p>
-                Reloq provides on-demand moving and delivery services: picking up items at one address, transporting
+                RELOQ provides on-demand moving and delivery services: picking up items at one address, transporting
                 them and delivering them to another, with loading and unloading by our own crews. We are a licensed,
                 bonded and insured mover ({LICENSE_LINE}) and currently operate in{' '}
                 <Field value={COMPANY.serviceArea} label="Service area" />. Vehicle types, crew sizes and the items each
@@ -230,7 +230,7 @@ const TermsOfService = () => (
         <section id="ip">
             <h2>13. Intellectual property</h2>
             <p>
-                The Reloq name, logo, website and its content belong to us or our licensors. You may use the website
+                The RELOQ name, logo, website and its content belong to us or our licensors. You may use the website
                 only to book and manage your moves. Map data © OpenStreetMap contributors.
             </p>
         </section>

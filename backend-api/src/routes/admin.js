@@ -3,7 +3,7 @@ import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { statusSchema, parseBody } from '../validation.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
-import { notifyStatusChange } from '../emails.js';
+import { notifyStatusChange, notifyOrderConfirmed } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 
 const router = Router();
@@ -45,7 +45,11 @@ router.patch('/orders/:code/status', async (req, res) => {
     const order = toOrderDto(rows[0], { includeCustomer: true });
 
     // Emailul pleacă doar la o schimbare reală (nu dacă dispecerul apasă de două ori același buton)
-    if (before[0].status !== data.status) await waitForMail(notifyStatusChange(order));
+    if (before[0].status !== data.status) {
+        // Când dispecerul acceptă comanda („confirmed”), clientul primește emailul de confirmare.
+        const mail = data.status === 'confirmed' ? notifyOrderConfirmed(order) : notifyStatusChange(order);
+        await waitForMail(mail);
+    }
 
     res.json({ order });
 });

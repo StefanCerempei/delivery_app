@@ -16,7 +16,7 @@ const BookingSuccess = () => {
                 <span className="order-code-pill">ORDER #{completedOrder.id}</span>
                 <h1>Booking confirmed!</h1>
                 <p className="subtitle" style={{ marginBottom: 0 }}>
-                    Your Reloq account is active. We sent the confirmation to{' '}
+                    Your RELOQ account is active. We sent the confirmation to{' '}
                     <strong>{completedOrder.customer?.email}</strong>.
                 </p>
             </div>
@@ -65,7 +65,7 @@ const BookingSuccess = () => {
                     View my orders
                 </Link>
                 <Button variant="secondary" onClick={resetBooking}>
-                    + Book another Reloq
+                    + Book another RELOQ
                 </Button>
             </div>
         </div>

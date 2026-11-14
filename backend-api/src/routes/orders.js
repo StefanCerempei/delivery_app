@@ -9,7 +9,7 @@ import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js'
 import { stripe } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
-import { notifyNewOrder } from '../emails.js';
+import { notifyNewOrder, notifyOrderConfirmed, notifyDispatcherNewOrder } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 
 const MAX_DAYS_AHEAD = 30;
@@ -127,7 +127,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
             currency: config.currency,
             automatic_payment_methods: { enabled: true },
             receipt_email: req.user.email,
-            description: `Reloq ${VEHICLES[data.vehicle].name} — ${code}`,
+            description: `RELOQ ${VEHICLES[data.vehicle].name} — ${code}`,
             metadata: { order_code: code, order_id: id, user_id: String(req.user.id) }
         });
         await pool.query('UPDATE orders SET stripe_payment_intent_id = ? WHERE id = ?', [intent.id, id]);
@@ -175,7 +175,11 @@ router.post('/orders/:code/confirm-payment', requireAuth, async (req, res) => {
     }
 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [row.id]);
-    if (justPaid) await waitForMail(notifyNewOrder(toOrderDto(rows[0], { includeCustomer: true })));
+    if (justPaid) {
+        const paidOrder = toOrderDto(rows[0], { includeCustomer: true });
+        // Plata online = comandă confirmată: confirmare către client + alertă către dispecer.
+        await waitForMail(Promise.all([notifyOrderConfirmed(paidOrder), notifyDispatcherNewOrder(paidOrder)]));
+    }
     res.json({ order: toOrderDto(rows[0]), paymentStatus: intent.status });
 });
 

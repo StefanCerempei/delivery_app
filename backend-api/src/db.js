@@ -33,7 +33,21 @@ export async function migrate() {
     await addColumnIfMissing('users', 'password_changed_at', 'DATETIME NULL AFTER email_verified_at');
     await addColumnIfMissing('users', 'session_version', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER password_changed_at');
     await addColumnIfMissing('users', 'deleted_at', 'DATETIME NULL AFTER session_version');
+    await ensureStatusEnum();
     await ensureAdmin();
+}
+
+/** Adaugă statusul 'confirmed' în ENUM-ul comenzilor, dacă lipsește (baze create înainte). */
+async function ensureStatusEnum() {
+    const [rows] = await pool.query(
+        "SELECT COLUMN_TYPE AS t FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'status'"
+    );
+    if (rows[0] && !/'confirmed'/.test(rows[0].t)) {
+        await pool.query(
+            "ALTER TABLE orders MODIFY status ENUM('pending_payment','confirmed','paid','en_route','completed','cancelled') NOT NULL DEFAULT 'pending_payment'"
+        );
+        console.log('[reloq] Status „confirmed” adăugat în comenzi.');
+    }
 }
 
 /** Migrare simplă pentru baze create înainte de o coloană nouă. */
@@ -64,7 +78,7 @@ async function ensureAdmin() {
     const hash = await bcrypt.hash(config.adminPassword, 12);
     await pool.query(
         `INSERT INTO users (email, password_hash, full_name, role)
-         VALUES (?, ?, 'Reloq Dispatcher', 'admin')
+         VALUES (?, ?, 'RELOQ Dispatcher', 'admin')
          ON DUPLICATE KEY UPDATE role = 'admin', password_hash = VALUES(password_hash)`,
         [config.adminEmail, hash]
     );
