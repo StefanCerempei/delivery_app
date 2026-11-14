@@ -9,26 +9,38 @@ const BookingSuccess = () => {
 
     if (!completedOrder) return null;
 
+    // Plata online (sau o comandă deja acceptată) înseamnă confirmat; altfel doar trimis.
+    const confirmed = completedOrder.status === 'paid' || completedOrder.status === 'confirmed';
+
     return (
         <div className="step-container success-view">
             <div className="success-hero">
                 <div className="success-badge-icon">✓</div>
                 <span className="order-code-pill">ORDER #{completedOrder.id}</span>
-                <h1>Booking confirmed!</h1>
+                <h1>{confirmed ? 'Booking confirmed!' : 'Order submitted successfully!'}</h1>
                 <p className="subtitle" style={{ marginBottom: 0 }}>
-                    Your RELOQ account is active. We sent the confirmation to{' '}
-                    <strong>{completedOrder.customer?.email}</strong>.
+                    {confirmed ? (
+                        <>Your RELOQ account is active. We sent the confirmation to <strong>{completedOrder.customer?.email}</strong>.</>
+                    ) : (
+                        <>Your RELOQ account is active. We emailed <strong>{completedOrder.customer?.email}</strong> to confirm we received your request — we'll email you again as soon as it's confirmed.</>
+                    )}
                 </p>
             </div>
 
-            {/* Live crew status */}
+            {/* Status */}
             <div className="live-status-card">
                 <div className="status-step active">
                     <span className="status-pulse" />
                     <div>
-                        <strong>You're booked for {completedOrder.scheduleText}</strong>
+                        <strong>
+                            {confirmed
+                                ? `You're booked for ${completedOrder.scheduleText}`
+                                : `Request received for ${completedOrder.scheduleText}`}
+                        </strong>
                         <small>
-                            We'll text {completedOrder.customer?.phone} the day before and when your crew is on the way
+                            {confirmed
+                                ? "We'll let you know when your crew is on the way."
+                                : "In a short time we'll confirm your order. You can follow its status anytime in My orders."}
                         </small>
                     </div>
                 </div>
@@ -37,7 +49,7 @@ const BookingSuccess = () => {
             {/* Order details */}
             <div className="success-details-card">
                 <div className="detail-line">
-                    <span>Vehicle & crew</span>
+                    <span>Vehicle &amp; crew</span>
                     <strong>
                         {completedOrder.vehicle?.name} ({completedOrder.vehicle?.crewLabel})
                     </strong>

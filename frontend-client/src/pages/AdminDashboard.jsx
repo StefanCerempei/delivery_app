@@ -314,7 +314,7 @@ const OrdersTable = ({ orders, loading, onOpen, full }) => (
                 <tr>
                     <th>Order</th>
                     <th>Customer</th>
-                    {full && <th>Route</th>}
+                    {full && <th className="col-route">Route</th>}
                     <th>Vehicle</th>
                     <th>Schedule</th>
                     <th>Total</th>
@@ -338,7 +338,7 @@ const OrdersTable = ({ orders, loading, onOpen, full }) => (
                                 </div>
                             </td>
                             {full && (
-                                <td>
+                                <td className="col-route">
                                     <div className="client-info route-cell">
                                         <span>{order.pickup?.address}</span>
                                         <small>→ {order.dropoff?.address}</small>

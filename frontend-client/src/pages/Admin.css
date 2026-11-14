@@ -623,23 +623,40 @@
 @media (max-width: 900px) {
     .crm-shell { flex-direction: column; }
     .crm-sidebar {
-        position: static;
+        position: sticky;
+        top: 0;
+        z-index: 6;
         height: auto;
         width: 100%;
         flex: none;
-        flex-direction: row;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "brand foot" "nav nav";
         align-items: center;
-        gap: 10px;
+        gap: 10px 8px;
+        padding: 12px 16px;
         border-right: none;
         border-bottom: 1px solid var(--line);
     }
-    .crm-brand { padding: 0 8px 0 2px; }
-    .crm-nav { flex-direction: row; flex-wrap: wrap; flex: 1; }
-    .crm-sidebar-foot { margin-top: 0; flex-direction: row; align-items: center; gap: 10px; padding-top: 0; border-top: none; }
-    .crm-user-meta { display: none; }
-    .crm-search { width: 180px; }
+    .crm-brand { grid-area: brand; padding: 0; }
+    .crm-sidebar-foot { grid-area: foot; flex-direction: row; align-items: center; gap: 8px; margin: 0; padding: 0; border-top: none; }
+    .crm-user { display: none; }
+    .crm-logout { padding: 7px 12px; }
+    .crm-nav { grid-area: nav; flex-direction: row; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .crm-nav-item { flex: 0 0 auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; }
+    .crm-nav-item.active { border-color: var(--accent); }
+    .crm-topbar { padding: 12px 16px; gap: 10px; }
+    .crm-topbar h1 { font-size: 18px; }
+    .crm-search { width: auto; flex: 1; max-width: none; }
+    .crm-body { padding: 16px 16px 40px; }
+    .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .record-grid { grid-template-columns: 1fr; }
+    .crm-record { padding: 20px 16px 48px; }
+}
+
+@media (max-width: 700px) {
+    .col-route { display: none; }
+    .admin-table th, .admin-table td { padding: 12px 12px; }
 }
 
 /* status „confirmed” + toolbar comenzi + export */

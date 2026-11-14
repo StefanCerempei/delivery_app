@@ -7,7 +7,7 @@ import { formatPrice } from '../utils/formatters';
 import { CUSTOMER_STATUS_LABELS } from '../utils/orderStatus';
 import './Account.css';
 
-const ACTIVE = ['pending_payment', 'paid', 'en_route'];
+const ACTIVE = ['pending_payment', 'confirmed', 'paid', 'en_route'];
 
 const AccountPage = () => {
     const navigate = useNavigate();
