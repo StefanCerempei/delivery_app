@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useBooking } from '../../context/BookingContext';
 import PhotoUploader from '../../components/PhotoUploader';
 import Button from '../../components/Button';
-import { ITEM_CATALOG, itemsToText } from '../../data/itemCatalog';
+import { ALL_ITEMS, itemsToText } from '../../data/itemCatalog';
 
-/** Combină obiectele alese din catalog cu notele scrise, pentru câmpul itemsDescription al comenzii. */
+/** Combină obiectele alese cu notele scrise, pentru câmpul itemsDescription al comenzii. */
 function buildDescription(items, notes) {
     const list = itemsToText(items);
     const extra = notes.trim();
@@ -12,11 +12,22 @@ function buildDescription(items, notes) {
     return list || extra;
 }
 
+/** Amestec stabil (Fisher–Yates) — obiectele apar în ordine aleatorie, dar fixă per vizită. */
+function shuffled(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
 const Step4Items = () => {
     const { bookingData, updateBookingData, nextStep } = useBooking();
     const [items, setItems] = useState(bookingData.items || []);
     const [notes, setNotes] = useState(bookingData.itemsNotes || '');
     const [photos, setPhotos] = useState(bookingData.photos || []);
+    const deck = useMemo(() => shuffled(ALL_ITEMS), []);
 
     const qtyOf = (id) => items.find((it) => it.id === id)?.qty || 0;
     const totalCount = items.reduce((n, it) => n + it.qty, 0);
@@ -38,7 +49,6 @@ const Step4Items = () => {
             itemsNotes: notes.trim(),
             itemsDescription: buildDescription(items, notes),
             photos,
-            // dacă obiectele s-au schimbat, resetăm vehiculul ca să se recalculeze recomandarea
             vehicle: null,
             priceEstimate: null
         });
@@ -49,52 +59,43 @@ const Step4Items = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>What are we moving?</h1>
-                <p className="subtitle">
-                    Pick your items and we'll recommend the right vehicle. Swipe each row sideways to see more.
-                </p>
+                <p className="subtitle">Tap your items — we'll recommend the right vehicle. Swipe sideways for more.</p>
             </div>
 
-            <div className="catalog">
-                {ITEM_CATALOG.map((group) => (
-                    <div key={group.category} className="catalog-category">
-                        <span className="picker-section-label">{group.category}</span>
-                        <div className="catalog-row">
-                            {group.items.map((item) => {
-                                const qty = qtyOf(item.id);
-                                return (
-                                    <div key={item.id} className={`catalog-card ${qty > 0 ? 'active' : ''}`}>
-                                        <button
-                                            type="button"
-                                            className="catalog-card-body"
-                                            onClick={() => changeQty(item, 1)}
-                                            aria-label={`Add ${item.label}`}
-                                        >
-                                            <span className="catalog-emoji" aria-hidden="true">{item.emoji}</span>
-                                            <span className="catalog-label">{item.label}</span>
-                                        </button>
-                                        {qty > 0 ? (
-                                            <div className="catalog-stepper">
-                                                <button type="button" onClick={() => changeQty(item, -1)} aria-label={`Remove one ${item.label}`}>−</button>
-                                                <span className="catalog-qty">{qty}</span>
-                                                <button type="button" onClick={() => changeQty(item, 1)} aria-label={`Add one ${item.label}`}>+</button>
-                                            </div>
-                                        ) : (
-                                            <button type="button" className="catalog-add" onClick={() => changeQty(item, 1)}>
-                                                + Add
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            })}
+            <div className="item-grid">
+                {deck.map((item) => {
+                    const qty = qtyOf(item.id);
+                    return (
+                        <div
+                            key={item.id}
+                            className={`item-chip ${qty > 0 ? 'active' : ''}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => changeQty(item, 1)}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && changeQty(item, 1)}
+                        >
+                            <span className="chip-emoji" aria-hidden="true">{item.emoji}</span>
+                            <span className="chip-label">{item.label}</span>
+                            {qty > 0 && (
+                                <span className="chip-controls">
+                                    <button
+                                        type="button"
+                                        className="chip-minus"
+                                        onClick={(e) => { e.stopPropagation(); changeQty(item, -1); }}
+                                        aria-label={`Remove one ${item.label}`}
+                                    >
+                                        −
+                                    </button>
+                                    <span className="chip-qty">{qty}</span>
+                                </span>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <div className="items-textarea-group">
-                <label htmlFor="items-notes" className="picker-section-label">
-                    ACCESS NOTES (OPTIONAL)
-                </label>
+                <label htmlFor="items-notes" className="picker-section-label">ACCESS NOTES (OPTIONAL)</label>
                 <textarea
                     id="items-notes"
                     className="items-textarea"
@@ -114,7 +115,7 @@ const Step4Items = () => {
                 <p className="trust-note">
                     {totalCount > 0
                         ? `${totalCount} item${totalCount > 1 ? 's' : ''} selected`
-                        : 'Every Reloq truck comes equipped with shrink wrap, straps & moving blankets'}
+                        : 'Every Reloq truck comes with shrink wrap, straps & moving blankets'}
                 </p>
             </div>
         </div>

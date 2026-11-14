@@ -1,10 +1,14 @@
 // Prețul se calculează DOAR aici, pe server. Ce trimite browserul nu contează.
 
+// Cele 5 opțiuni din specificația RELOQ. `perMile` = tarifele din PDF.
+// base / perMin / minTotal sunt PLACEHOLDER în modelul actual simplu — de confirmat cu RELOQ
+// odată cu modelul complet (taxă rezervare + taxă fixă $29 + manoperă). Id-urile = frontend/vehicles.js.
 export const VEHICLES = {
-    courier: { name: 'Reloq Courier', crewLabel: '1 mover', base: 29, perMile: 1.75, perMin: 0.45, minTotal: 35 },
-    lite: { name: 'Reloq Lite', crewLabel: '1 mover', base: 45, perMile: 2.25, perMin: 0.6, minTotal: 55 },
-    pickup: { name: 'Reloq Pickup', crewLabel: '2 movers', base: 69, perMile: 2.85, perMin: 0.85, minTotal: 79 },
-    van: { name: 'Reloq Van', crewLabel: '2 movers', base: 95, perMile: 3.5, perMin: 1.1, minTotal: 109 }
+    courier: { name: 'Courier', crewLabel: '1 mover + standard vehicle', base: 29, perMile: 1.9, perMin: 0.45, minTotal: 39 },
+    van_solo: { name: 'Van – Solo', crewLabel: '1 mover + van', base: 39, perMile: 2.2, perMin: 0.55, minTotal: 49 },
+    van_team: { name: 'Van – Team', crewLabel: '2 movers + van', base: 59, perMile: 2.8, perMin: 0.8, minTotal: 69 },
+    truck: { name: 'Moving Truck', crewLabel: '2 movers + box truck', base: 89, perMile: 3.4, perMin: 1.05, minTotal: 99 },
+    large_truck: { name: 'Large Moving Truck', crewLabel: '3 movers + 26 ft truck', base: 129, perMile: 4.8, perMin: 1.4, minTotal: 149 }
 };
 
 export const MAX_DISTANCE_MILES = 300;

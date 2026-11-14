@@ -74,8 +74,11 @@ export const ITEM_CATALOG = [
     }
 ];
 
+// Toate obiectele într-o singură listă (pentru grila compactă).
+export const ALL_ITEMS = ITEM_CATALOG.flatMap((c) => c.items);
+
 // Căutare rapidă id → obiect din catalog.
-const BY_ID = Object.fromEntries(ITEM_CATALOG.flatMap((c) => c.items.map((it) => [it.id, it])));
+const BY_ID = Object.fromEntries(ALL_ITEMS.map((it) => [it.id, it]));
 
 /** Volumul total estimat (unități) pentru lista de obiecte selectate [{ id, qty }]. */
 export function totalSize(items = []) {
@@ -86,9 +89,10 @@ export function totalSize(items = []) {
 // Placeholder — de confirmat cu RELOQ.
 const VEHICLE_CAPACITY = [
     { id: 'courier', maxSize: 4 },
-    { id: 'lite', maxSize: 10 },
-    { id: 'pickup', maxSize: 22 },
-    { id: 'van', maxSize: Infinity }
+    { id: 'van_solo', maxSize: 9 },
+    { id: 'van_team', maxSize: 18 },
+    { id: 'truck', maxSize: 35 },
+    { id: 'large_truck', maxSize: Infinity }
 ];
 
 /** Recomandă id-ul de vehicul potrivit pentru volumul total al obiectelor. */
