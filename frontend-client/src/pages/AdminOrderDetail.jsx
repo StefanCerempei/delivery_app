@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatPrice } from '../utils/formatters';
-import Button from '../components/Button';
 import { api } from '../api/client';
 import { STATUS_LABELS } from './AdminDashboard';
 import './Admin.css';
 
 const STATUS_ACTIONS = ['paid', 'en_route', 'completed', 'cancelled'];
+
+const Row = ({ label, children }) => (
+    <div className="record-row">
+        <span className="record-label">{label}</span>
+        <span className="record-value">{children}</span>
+    </div>
+);
 
 const AdminOrderDetail = () => {
     const { id } = useParams();
@@ -39,86 +45,92 @@ const AdminOrderDetail = () => {
 
     if (error && !order) {
         return (
-            <div className="admin-layout">
-                <main className="admin-content">
-                    <Link to="/admin/dashboard" className="back-btn">← Back to dashboard</Link>
-                    <p className="form-inline-error">{error}</p>
-                </main>
+            <div className="crm-record">
+                <Link to="/admin/dashboard" className="crm-back">← Back to dispatch</Link>
+                <p className="form-inline-error">{error}</p>
             </div>
         );
     }
 
-    if (!order) return <div className="admin-layout"><main className="admin-content">Loading…</main></div>;
+    if (!order) return <div className="crm-record"><p className="empty-state">Loading…</p></div>;
+
+    const payment = order.cardLast4
+        ? `Paid online · card •••• ${order.cardLast4}`
+        : order.status === 'pending_payment'
+          ? 'Unpaid'
+          : 'Collected on delivery / manually';
 
     return (
-        <div className="admin-layout">
-            <header className="admin-header">
-                <Link to="/admin/dashboard" className="back-btn">← Back to dashboard</Link>
-                <div className="admin-brand">
-                    <h2>Order #{order.id}</h2>
-                    <span className={`status-badge ${order.status}`}>{STATUS_LABELS[order.status] || order.status}</span>
+        <div className="crm-record">
+            <Link to="/admin/dashboard" className="crm-back">← Back to dispatch</Link>
+
+            <div className="record-header">
+                <div>
+                    <h1>{order.id}</h1>
+                    <span className="record-sub">Created {new Date(order.createdAt).toLocaleString('en-US')}</span>
                 </div>
-            </header>
+                <span className={`status-badge ${order.status}`}>{STATUS_LABELS[order.status] || order.status}</span>
+            </div>
 
-            <main className="admin-content detail-grid">
-                <div className="detail-column">
-                    <div className="admin-card">
-                        <h3>Update status</h3>
-                        <div className="status-actions">
-                            {STATUS_ACTIONS.map((status) => (
-                                <Button
-                                    key={status}
-                                    variant={order.status === status ? 'primary' : 'secondary'}
-                                    disabled={saving !== null}
-                                    onClick={() => handleStatusChange(status)}
-                                >
-                                    {saving === status ? 'Saving…' : STATUS_LABELS[status]}
-                                </Button>
-                            ))}
-                        </div>
-                        {error && <p className="form-inline-error">{error}</p>}
-                    </div>
+            <div className="record-actions">
+                <span className="record-actions-label">Set status</span>
+                <div className="record-actions-row">
+                    {STATUS_ACTIONS.map((status) => (
+                        <button
+                            key={status}
+                            className={`status-action ${order.status === status ? 'current' : ''} ${status}`}
+                            disabled={saving !== null}
+                            onClick={() => handleStatusChange(status)}
+                        >
+                            {saving === status ? 'Saving…' : STATUS_LABELS[status]}
+                        </button>
+                    ))}
+                </div>
+                {error && <p className="form-inline-error">{error}</p>}
+            </div>
 
-                    <div className="admin-card">
-                        <h3>Customer</h3>
-                        <p><strong>Name:</strong> {order.customer?.fullName}</p>
-                        <p><strong>Email:</strong> {order.customer?.email}</p>
-                        <p><strong>Phone:</strong> {order.customer?.phone || '—'}</p>
-                    </div>
+            <div className="record-grid">
+                <div className="admin-card">
+                    <h3>Customer</h3>
+                    <Row label="Name">{order.customer?.fullName || '—'}</Row>
+                    <Row label="Email">{order.customer?.email || '—'}</Row>
+                    <Row label="Phone">{order.customer?.phone || '—'}</Row>
                 </div>
 
-                <div className="detail-column">
-                    <div className="admin-card">
-                        <h3>Route</h3>
-                        <div className="route-timeline admin-timeline">
-                            <p><strong>From:</strong> {order.pickup?.address}</p>
-                            <p><strong>To:</strong> {order.dropoff?.address}</p>
-                        </div>
-                        <p>
-                            <strong>Distance:</strong> {order.routeInfo?.distanceMiles} mi • ~{order.routeInfo?.durationMins} min
-                        </p>
-                        <p><strong>Schedule:</strong> {order.scheduleText}</p>
-                    </div>
+                <div className="admin-card">
+                    <h3>Schedule</h3>
+                    <Row label="Window">{order.scheduleText}</Row>
+                    <Row label="Distance">{order.routeInfo?.distanceMiles} mi · ~{order.routeInfo?.durationMins} min</Row>
+                    <Row label="Updated">{new Date(order.updatedAt).toLocaleString('en-US')}</Row>
+                </div>
 
-                    <div className="admin-card">
-                        <h3>Vehicle & items</h3>
-                        <p><strong>Vehicle:</strong> {order.vehicle?.name} ({order.vehicle?.crewLabel})</p>
-                        <p><strong>Items:</strong> {order.itemsDescription}</p>
-                        <p><strong>Photos:</strong> {order.photosCount}</p>
-                        <p>
-                            <strong>Payment:</strong>{' '}
-                            {order.cardLast4
-                                ? `paid online (card •••• ${order.cardLast4})`
-                                : order.status === 'pending_payment'
-                                  ? 'unpaid'
-                                  : 'collected on delivery / manually'}
-                        </p>
-                        <p className="total-amount">
-                            <strong>Total:</strong> {formatPrice(order.totalAmount)}
-                        </p>
+                <div className="admin-card">
+                    <h3>Route</h3>
+                    <div className="record-route">
+                        <div className="route-point pickup"><span />{order.pickup?.address}</div>
+                        <div className="route-point dropoff"><span />{order.dropoff?.address}</div>
                     </div>
                 </div>
-            </main>
+
+                <div className="admin-card">
+                    <h3>Vehicle &amp; items</h3>
+                    <Row label="Vehicle">{order.vehicle?.name} ({order.vehicle?.crewLabel})</Row>
+                    <Row label="Items">{order.itemsDescription || '—'}</Row>
+                    <Row label="Photos">{order.photosCount}</Row>
+                    <Row label="Payment">{payment}</Row>
+                </div>
+
+                <div className="admin-card record-total-card">
+                    <h3>Charge</h3>
+                    <Row label="Base fare">{formatPrice(order.price?.baseFare)}</Row>
+                    <Row label="Distance">{formatPrice(order.price?.distanceCost)}</Row>
+                    <Row label="Time">{formatPrice(order.price?.timeCost)}</Row>
+                    <div className="record-total">
+                        <span>Total</span>
+                        <strong>{formatPrice(order.totalAmount)}</strong>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
