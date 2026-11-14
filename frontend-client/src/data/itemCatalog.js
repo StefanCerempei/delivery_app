@@ -11,10 +11,10 @@ export const ITEM_CATALOG = [
         items: [
             { id: 'sofa3', label: '3-seat sofa', emoji: '🛋️', size: 8 },
             { id: 'loveseat', label: 'Loveseat', emoji: '🛋️', size: 6 },
-            { id: 'armchair', label: 'Armchair', emoji: '🪑', size: 3 },
-            { id: 'coffee_table', label: 'Coffee table', emoji: '🪵', size: 2 },
+            { id: 'armchair', label: 'Armchair', emoji: '💺', size: 3 },
+            { id: 'coffee_table', label: 'Coffee table', emoji: '☕', size: 2 },
             { id: 'tv_large', label: 'Large TV', emoji: '📺', size: 2 },
-            { id: 'tv_stand', label: 'TV stand', emoji: '🗄️', size: 2 },
+            { id: 'tv_stand', label: 'TV stand', emoji: '📺', size: 2 },
             { id: 'bookshelf', label: 'Bookshelf', emoji: '📚', size: 4 }
         ]
     },
@@ -25,8 +25,8 @@ export const ITEM_CATALOG = [
             { id: 'mattress_k', label: 'King mattress', emoji: '🛏️', size: 5 },
             { id: 'bed_frame', label: 'Bed frame', emoji: '🛏️', size: 4 },
             { id: 'dresser', label: 'Dresser', emoji: '🗄️', size: 5 },
-            { id: 'nightstand', label: 'Nightstand', emoji: '🗄️', size: 2 },
-            { id: 'wardrobe', label: 'Wardrobe', emoji: '🚪', size: 7 },
+            { id: 'nightstand', label: 'Nightstand', emoji: '🪔', size: 2 },
+            { id: 'wardrobe', label: 'Wardrobe', emoji: '🧥', size: 7 },
             { id: 'mirror', label: 'Mirror', emoji: '🪞', size: 1 }
         ]
     },
@@ -34,10 +34,10 @@ export const ITEM_CATALOG = [
         category: 'Appliances',
         items: [
             { id: 'fridge', label: 'Refrigerator', emoji: '🧊', size: 8 },
-            { id: 'washer', label: 'Washer', emoji: '🌀', size: 5 },
-            { id: 'dryer', label: 'Dryer', emoji: '🔥', size: 5 },
+            { id: 'washer', label: 'Washer', emoji: '🧺', size: 5 },
+            { id: 'dryer', label: 'Dryer', emoji: '🌬️', size: 5 },
             { id: 'dishwasher', label: 'Dishwasher', emoji: '🍽️', size: 4 },
-            { id: 'microwave', label: 'Microwave', emoji: '📦', size: 1 },
+            { id: 'microwave', label: 'Microwave', emoji: '🍲', size: 1 },
             { id: 'stove', label: 'Stove / oven', emoji: '🍳', size: 5 }
         ]
     },
@@ -46,16 +46,16 @@ export const ITEM_CATALOG = [
         items: [
             { id: 'dining_table', label: 'Dining table', emoji: '🍽️', size: 6 },
             { id: 'dining_chair', label: 'Dining chair', emoji: '🪑', size: 1 },
-            { id: 'bar_stool', label: 'Bar stool', emoji: '🪑', size: 1 },
+            { id: 'bar_stool', label: 'Bar stool', emoji: '🍸', size: 1 },
             { id: 'cabinet', label: 'Cabinet', emoji: '🗄️', size: 5 }
         ]
     },
     {
         category: 'Office',
         items: [
-            { id: 'desk', label: 'Office desk', emoji: '🪵', size: 4 },
-            { id: 'office_chair', label: 'Office chair', emoji: '🪑', size: 2 },
-            { id: 'filing_cabinet', label: 'Filing cabinet', emoji: '🗄️', size: 3 },
+            { id: 'desk', label: 'Office desk', emoji: '💼', size: 4 },
+            { id: 'office_chair', label: 'Office chair', emoji: '💺', size: 2 },
+            { id: 'filing_cabinet', label: 'Filing cabinet', emoji: '🗃️', size: 3 },
             { id: 'monitor', label: 'Monitor', emoji: '🖥️', size: 1 }
         ]
     },
@@ -67,7 +67,7 @@ export const ITEM_CATALOG = [
             { id: 'box_l', label: 'Large box', emoji: '📦', size: 2 },
             { id: 'suitcase', label: 'Suitcase', emoji: '🧳', size: 1.5 },
             { id: 'bicycle', label: 'Bicycle', emoji: '🚲', size: 3 },
-            { id: 'rug', label: 'Rug', emoji: '🧶', size: 1.5 },
+            { id: 'rug', label: 'Rug', emoji: '🪮', size: 1.5 },
             { id: 'lamp', label: 'Lamp', emoji: '💡', size: 1 },
             { id: 'plant', label: 'Large plant', emoji: '🪴', size: 1.5 }
         ]

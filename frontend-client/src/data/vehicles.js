@@ -1,7 +1,7 @@
 import courierIcon from '../assets/icons/courier.svg';
-import liteIcon from '../assets/icons/lite.svg';
-import pickupIcon from '../assets/icons/pickup.svg';
 import vanIcon from '../assets/icons/van.svg';
+import boxTruckIcon from '../assets/icons/box-truck.svg';
+import largeTruckIcon from '../assets/icons/large-truck.svg';
 
 // Cele 5 opțiuni din specificația RELOQ. Id-urile trebuie să fie identice
 // cu cheile din backend-api/src/pricing.js (altfel estimarea de preț nu se potrivește).
@@ -24,7 +24,7 @@ export const VEHICLES = [
         badge: null,
         dimensions: 'Cargo van',
         description: 'A few medium items moved with a van and one mover.',
-        icon: liteIcon
+        icon: vanIcon
     },
     {
         id: 'van_team',
@@ -44,7 +44,7 @@ export const VEHICLES = [
         badge: null,
         dimensions: '12–20 ft box truck',
         description: '1–2 bedroom moves with a box truck.',
-        icon: pickupIcon
+        icon: boxTruckIcon
     },
     {
         id: 'large_truck',
@@ -54,6 +54,6 @@ export const VEHICLES = [
         badge: 'Max',
         dimensions: '26 ft truck',
         description: 'Large homes and full moves with a 3-person crew.',
-        icon: vanIcon
+        icon: largeTruckIcon
     }
 ];
