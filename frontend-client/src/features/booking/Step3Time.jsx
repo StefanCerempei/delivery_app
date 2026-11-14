@@ -13,19 +13,13 @@ const BOOKING_WINDOW_DAYS = 14;
 // nu după fusul orar al browserului. Serverul verifică aceeași regulă.
 const BUSINESS_TZ = 'America/New_York';
 
+// Ferestre de sosire de 2 ore. Echipa sună clientul cu ~45 min înainte de sosire.
 export const TIME_SLOTS = [
-    { id: '08:00', label: '8:00 AM – 9:00 AM' },
-    { id: '09:00', label: '9:00 AM – 10:00 AM' },
-    { id: '10:00', label: '10:00 AM – 11:00 AM' },
-    { id: '11:00', label: '11:00 AM – 12:00 PM' },
-    { id: '12:00', label: '12:00 PM – 1:00 PM' },
-    { id: '13:00', label: '1:00 PM – 2:00 PM' },
-    { id: '14:00', label: '2:00 PM – 3:00 PM' },
-    { id: '15:00', label: '3:00 PM – 4:00 PM' },
-    { id: '16:00', label: '4:00 PM – 5:00 PM' },
-    { id: '17:00', label: '5:00 PM – 6:00 PM' },
-    { id: '18:00', label: '6:00 PM – 7:00 PM' },
-    { id: '19:00', label: '7:00 PM – 8:00 PM' }
+    { id: '07:00', label: '7:00 AM – 9:00 AM' },
+    { id: '09:00', label: '9:00 AM – 11:00 AM' },
+    { id: '11:00', label: '11:00 AM – 1:00 PM' },
+    { id: '13:00', label: '1:00 PM – 3:00 PM' },
+    { id: '15:00', label: '3:00 PM – 5:00 PM' }
 ];
 
 /** Data de azi (an, lună, zi) în fusul orar al firmei. */
@@ -64,9 +58,10 @@ const Step3Time = () => {
     const saved =
         bookingData.scheduledTime && typeof bookingData.scheduledTime === 'object' ? bookingData.scheduledTime : null;
     const savedValid = saved && upcomingDays.some((d) => d.dateStr === saved.dateStr);
+    const savedSlotValid = savedValid && TIME_SLOTS.some((s) => s.id === saved.slotId);
 
     const [selectedDate, setSelectedDate] = useState(savedValid ? saved.dateStr : upcomingDays[0].dateStr);
-    const [selectedSlot, setSelectedSlot] = useState(savedValid ? saved.slotId : null);
+    const [selectedSlot, setSelectedSlot] = useState(savedSlotValid ? saved.slotId : null);
 
     const handleContinue = () => {
         const dayObj = upcomingDays.find((d) => d.dateStr === selectedDate);
@@ -90,7 +85,7 @@ const Step3Time = () => {
             <div className="step-heading">
                 <h1>When should we arrive?</h1>
                 <p className="subtitle">
-                    Pick a date and a 1-hour arrival window. Bookings open from tomorrow onward.
+                    Pick a date and a 2-hour arrival window. Bookings open from tomorrow onward.
                 </p>
             </div>
 
@@ -132,8 +127,11 @@ const Step3Time = () => {
 
             <div className="step-footer">
                 <Button onClick={handleContinue} disabled={!selectedSlot}>
-                    {selectedSlot ? 'Continue to item details →' : 'Pick an arrival window'}
+                    {selectedSlot ? 'Continue to payment →' : 'Pick an arrival window'}
                 </Button>
+                <p className="trust-note">
+                    Our crew calls you about 45 minutes before arrival
+                </p>
                 <p className="trust-note">
                     Free cancellation up to {COMPANY.freeCancellationHours} hours before your arrival window
                 </p>

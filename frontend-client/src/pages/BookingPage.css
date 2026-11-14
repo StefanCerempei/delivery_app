@@ -1617,3 +1617,147 @@
     line-height: 1.45;
     color: var(--muted);
 }
+
+/* ================= CATALOG OBIECTE (pasul 2) — rânduri cu scroll orizontal ================= */
+.catalog {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.catalog-category {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.catalog-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 2px 2px 10px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* bară de scroll discretă pe desktop */
+.catalog-row::-webkit-scrollbar {
+    height: 6px;
+}
+.catalog-row::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 999px;
+}
+
+.catalog-card {
+    flex: 0 0 auto;
+    width: 118px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background-color: var(--surface);
+    scroll-snap-align: start;
+    transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+
+.catalog-card:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-1px);
+}
+
+.catalog-card.active {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+.catalog-card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: var(--text);
+}
+
+.catalog-emoji {
+    font-size: 30px;
+    line-height: 1;
+}
+
+.catalog-label {
+    font-size: 12.5px;
+    font-weight: 500;
+    text-align: center;
+    color: var(--text-2);
+    line-height: 1.25;
+}
+
+.catalog-add {
+    border: 1px solid var(--line-strong);
+    background-color: var(--surface-2);
+    color: var(--text-2);
+    border-radius: var(--r-sm);
+    padding: 6px 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.catalog-add:hover {
+    border-color: var(--accent-ring);
+    color: var(--text);
+}
+
+.catalog-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.catalog-stepper button {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--accent-ring);
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.catalog-stepper button:hover {
+    background-color: var(--accent);
+    color: var(--accent-ink);
+}
+
+.catalog-qty {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 18px;
+    text-align: center;
+}
+
+/* vehicul recomandat (pasul 3) */
+.vehicle-card.recommended {
+    border-color: var(--accent-ring);
+}
+
+.vehicle-badge.rec {
+    background-color: var(--accent);
+    color: var(--accent-ink);
+}

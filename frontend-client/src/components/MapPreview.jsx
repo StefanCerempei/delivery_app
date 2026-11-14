@@ -7,7 +7,7 @@ import Logo from './Logo';
 import { Link } from 'react-router-dom';
 import { useAuth, initials } from '../context/AuthContext';
 
-const DEFAULT_CENTER = [37.7749, -122.4194]; // San Francisco
+const DEFAULT_CENTER = [42.3601, -71.0589]; // Boston, MA (zona de operare)
 
 const pickupIcon = L.divIcon({
     className: 'custom-map-pin',
@@ -112,7 +112,7 @@ const MapPreview = () => {
 
             <MapContainer
                 center={DEFAULT_CENTER}
-                zoom={13}
+                zoom={11}
                 style={{ width: '100%', height: '100%', backgroundColor: '#0b111b' }}
                 zoomControl={false}
             >

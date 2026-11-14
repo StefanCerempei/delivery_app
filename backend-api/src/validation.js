@@ -3,7 +3,8 @@ import { VEHICLES } from './pricing.js';
 import { parseDateOnly, ageOn } from './time.js';
 
 export const MIN_AGE = 18;
-export const ALLOWED_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+// Ferestre de sosire de 2 ore (ora de start). Echipa anunță clientul cu ~45 min înainte de sosire.
+export const ALLOWED_SLOTS = ['07:00', '09:00', '11:00', '13:00', '15:00'];
 
 export const locationSchema = z.object({
     address: z.string().trim().min(3).max(500),

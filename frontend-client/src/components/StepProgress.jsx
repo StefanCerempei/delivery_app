@@ -2,7 +2,7 @@ import React from 'react';
 import { useBooking } from '../context/BookingContext';
 import Logo from './Logo';
 
-const STEP_LABELS = ['Route', 'Vehicle', 'Schedule', 'Items', 'Payment'];
+const STEP_LABELS = ['Route', 'Items', 'Vehicle', 'Schedule', 'Payment'];
 
 const StepProgress = () => {
     const { currentStep, prevStep } = useBooking();

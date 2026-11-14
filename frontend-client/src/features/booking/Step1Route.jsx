@@ -86,7 +86,7 @@ const Step1Route = () => {
 
             <div className="step-footer">
                 <Button onClick={nextStep} disabled={!isReady}>
-                    Choose vehicle →
+                    Choose your items →
                 </Button>
                 <p className="trust-note">
                     Background-checked movers • Loading & unloading included

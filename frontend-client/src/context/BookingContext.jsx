@@ -11,6 +11,8 @@ const EMPTY_BOOKING = {
     routeInfo: null, // { distanceMiles, durationMins }
     vehicle: null, // 'courier' | 'lite' | 'pickup' | 'van'
     priceEstimate: null, // estimarea de la server pentru vehiculul ales
+    items: [], // [{ id, label, size, qty }] alese din catalog
+    itemsNotes: '', // note de acces opționale
     scheduledTime: null, // { dateStr, slotId, dateLabel, slotLabel } — doar programat, de mâine încolo
     itemsDescription: '',
     photos: []

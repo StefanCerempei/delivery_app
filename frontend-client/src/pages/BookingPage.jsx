@@ -22,11 +22,11 @@ const BookingPage = () => {
             case 1:
                 return <Step1Route />;
             case 2:
-                return <Step2Vehicle />;
-            case 3:
-                return <Step3Time />;
-            case 4:
                 return <Step4Items />;
+            case 3:
+                return <Step2Vehicle />;
+            case 4:
+                return <Step3Time />;
             case 5:
                 return <Step5Pay />;
             default:

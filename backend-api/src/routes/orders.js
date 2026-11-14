@@ -53,7 +53,7 @@ const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
 /** „Sat, Nov 14 • 10:00 AM – 11:00 AM” */
 function scheduleLabel(day, slot) {
     const h = Number(slot.slice(0, 2));
-    return `${WEEKDAYS[day.getUTCDay()]}, ${MONTHS[day.getUTCMonth()]} ${day.getUTCDate()} • ${hourLabel(h)} – ${hourLabel(h + 1)}`;
+    return `${WEEKDAYS[day.getUTCDay()]}, ${MONTHS[day.getUTCMonth()]} ${day.getUTCDate()} • ${hourLabel(h)} – ${hourLabel(h + 2)}`;
 }
 
 /** Programarea e valabilă doar de mâine (ora din Massachusetts) până la MAX_DAYS_AHEAD zile. */
