@@ -38,20 +38,7 @@ const newPasswordField = z.string().min(8, 'Password must be at least 8 characte
 export const registerSchema = z.object({
     fullName: fullNameField,
     phone: phoneField,
-    dateOfBirth: z
-        .string({ error: 'Please enter your date of birth.' })
-        .superRefine((value, ctx) => {
-            const birth = parseDateOnly(value);
-            const age = birth ? ageOn(birth) : null;
-            if (age === null || age > 120) {
-                ctx.addIssue({ code: 'custom', message: 'Please enter a valid date of birth.' });
-            } else if (age < MIN_AGE) {
-                ctx.addIssue({
-                    code: 'custom',
-                    message: `You must be at least ${MIN_AGE} years old to create a RELOQ account.`
-                });
-            }
-        }),
+    ageConfirmed: z.literal(true, { error: `You must confirm you are at least ${MIN_AGE} years old to book with RELOQ.` }),
     email: z.string().trim().toLowerCase().pipe(z.email('Please enter a valid email address.')).pipe(z.string().max(255)),
     password: z.string().min(8, 'Password must be at least 8 characters.').max(200)
 });

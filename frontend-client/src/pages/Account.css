@@ -626,3 +626,25 @@ input[type='date'].reloq-input {
     margin-top: 2px;
     accent-color: var(--accent);
 }
+
+/* Confirmare 18+ (Yes/No) — înlocuiește câmpul de dată a nașterii */
+.age-toggle {
+    display: flex;
+    gap: 10px;
+}
+.age-btn {
+    flex: 1;
+    padding: 13px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    background-color: var(--surface);
+    color: var(--text-2);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+.age-btn:hover { color: var(--text); }
+.age-btn.active { border-color: var(--accent); background-color: var(--accent-soft); color: var(--accent); }
+.age-btn.no.active { border-color: var(--danger); background-color: var(--danger-soft); color: var(--danger); }
+.auth-hint.error, .field-hint.error { color: var(--danger); }

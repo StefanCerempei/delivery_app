@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useBooking } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
-import { isValidEmail, isValidPhone, formatUsPhone, birthDateError, maxBirthDate } from '../../utils/validators';
+import { isValidEmail, isValidPhone, formatUsPhone } from '../../utils/validators';
 import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
@@ -98,7 +98,7 @@ const Step5Pay = () => {
     const [authMode, setAuthMode] = useState('register');
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [ageConfirmed, setAgeConfirmed] = useState(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
@@ -138,10 +138,7 @@ const Step5Pay = () => {
         if (authMode === 'register' && fullName.trim().length < 2) return setAuthError('Please enter your full name.');
         if (authMode === 'register' && !isValidPhone(phone))
             return setAuthError('Please enter a valid US mobile number, e.g. (508) 555-0192.');
-        if (authMode === 'register') {
-            const dobError = birthDateError(dateOfBirth);
-            if (dobError) return setAuthError(dobError);
-        }
+        if (authMode === 'register' && ageConfirmed !== true) return setAuthError('Please confirm you are 18 or older to book with RELOQ.');
         if (!isValidEmail(email)) return setAuthError('Please enter a valid email address.');
         if (authMode === 'register' && password.length < 8)
             return setAuthError('Password must be at least 8 characters.');
@@ -150,7 +147,7 @@ const Step5Pay = () => {
         setAuthBusy(true);
         try {
             if (authMode === 'register') {
-                await registerUser({ fullName: fullName.trim(), phone: phone.trim(), dateOfBirth, email: email.trim(), password });
+                await registerUser({ fullName: fullName.trim(), phone: phone.trim(), ageConfirmed: true, email: email.trim(), password });
             } else {
                 await loginUser(email.trim(), password);
             }
@@ -283,20 +280,14 @@ const Step5Pay = () => {
                                     value={phone}
                                     onChange={(e) => setPhone(formatUsPhone(e.target.value))}
                                 />
-                                <label className="dob-field">
-                                    <span>Date of birth (you must be 18+)</span>
-                                    <input
-                                        id="checkout-dateOfBirth"
-                                        name="dateOfBirth"
-                                        type="date"
-                                        className="reloq-input"
-                                        autoComplete="bday"
-                                        max={maxBirthDate()}
-                                        min="1900-01-01"
-                                        value={dateOfBirth}
-                                        onChange={(e) => setDateOfBirth(e.target.value)}
-                                    />
-                                </label>
+                                <div className="dob-field">
+                                    <span>Are you 18 or older?</span>
+                                    <div className="age-toggle" role="group" aria-label="Are you 18 or older?">
+                                        <button type="button" className={`age-btn ${ageConfirmed === true ? 'active' : ''}`} onClick={() => setAgeConfirmed(true)}>Yes</button>
+                                        <button type="button" className={`age-btn no ${ageConfirmed === false ? 'active' : ''}`} onClick={() => setAgeConfirmed(false)}>No</button>
+                                    </div>
+                                    {ageConfirmed === false && <small className="field-hint error">You must be at least 18 to book with RELOQ.</small>}
+                                </div>
                             </>
                         )}
                         <input
