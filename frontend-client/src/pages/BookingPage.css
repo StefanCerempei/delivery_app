@@ -1117,6 +1117,22 @@
     font-size: 22px;
     font-weight: 500;
     letter-spacing: -0.02em;
+    text-align: right;
+}
+
+/* „transport” sub preț: suma online nu include încărcarea/descărcarea */
+.recap-price-note {
+    display: block;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.labor-note {
+    margin: 4px 0 0;
+    text-align: center;
 }
 
 .recap-addresses {

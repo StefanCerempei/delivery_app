@@ -9,8 +9,9 @@ const BookingSuccess = () => {
 
     if (!completedOrder) return null;
 
-    // Plata online (sau o comandă deja acceptată) înseamnă confirmat; altfel doar trimis.
-    const confirmed = completedOrder.status === 'paid' || completedOrder.status === 'confirmed';
+    // Confirmat doar după ce dispecerul acceptă comanda; plata online înseamnă doar „trimis + plătit”.
+    const confirmed = completedOrder.status === 'confirmed';
+    const paid = Boolean(completedOrder.paidOnline);
 
     return (
         <div className="step-container success-view">
@@ -22,7 +23,10 @@ const BookingSuccess = () => {
                     {confirmed ? (
                         <>Your RELOQ account is active. We sent the confirmation to <strong>{completedOrder.customer?.email}</strong>.</>
                     ) : (
-                        <>Your RELOQ account is active. We emailed <strong>{completedOrder.customer?.email}</strong> to confirm we received your request — we'll email you again as soon as it's confirmed.</>
+                        <>
+                            {paid ? 'Payment received. ' : ''}We emailed <strong>{completedOrder.customer?.email}</strong> to confirm we received your
+                            request — we'll email you again as soon as our team confirms it.
+                        </>
                     )}
                 </p>
             </div>
@@ -64,13 +68,17 @@ const BookingSuccess = () => {
                 </div>
                 <div className="detail-line total">
                     <span>
-                        {completedOrder.status === 'paid'
-                            ? `Paid${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
+                        {paid
+                            ? `Transport paid${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
                             : 'Pay after the job'}
                     </span>
                     <strong className="paid-sum">{formatPrice(completedOrder.totalAmount)}</strong>
                 </div>
             </div>
+
+            <p className="trust-note labor-note">
+                Loading and unloading time is not included in this amount — it is paid to the crew on site.
+            </p>
 
             <div className="step-footer">
                 <Link to="/account" className="lugg-btn lugg-btn-primary" onClick={resetBooking}>

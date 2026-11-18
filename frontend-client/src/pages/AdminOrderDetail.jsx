@@ -54,8 +54,9 @@ const AdminOrderDetail = () => {
 
     if (!order) return <div className="crm-record"><p className="empty-state">Loading…</p></div>;
 
-    const payment = order.cardLast4
-        ? `Paid online · card •••• ${order.cardLast4}`
+    // Online se plătește doar transportul; încărcarea/descărcarea se încasează la fața locului.
+    const payment = order.paidOnline
+        ? `Transport paid online${order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''} · labor collected on site`
         : order.status === 'pending_payment'
           ? 'Unpaid'
           : 'Collected on delivery / manually';

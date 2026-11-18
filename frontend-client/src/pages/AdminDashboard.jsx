@@ -8,14 +8,15 @@ import './Admin.css';
 
 export const STATUS_LABELS = {
     pending_payment: 'New',
+    paid: 'Paid • to confirm',
     confirmed: 'Confirmed',
-    paid: 'Paid',
     en_route: 'En route',
     completed: 'Completed',
     cancelled: 'Cancelled'
 };
 
-const STATUS_ORDER = ['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled'];
+// „paid” = transportul plătit online, așteaptă confirmarea dispecerului.
+const STATUS_ORDER = ['pending_payment', 'paid', 'confirmed', 'en_route', 'completed', 'cancelled'];
 // Comenzile care contează ca venit confirmat (nu cele neplătite sau anulate).
 const REVENUE_STATUSES = ['confirmed', 'paid', 'en_route', 'completed'];
 
@@ -150,8 +151,8 @@ const AdminDashboard = () => {
 
     const KPIS = [
         { label: 'Total orders', value: counts.all, tone: '' },
-        { label: 'Awaiting payment', value: counts.pending_payment, tone: 'pending_payment' },
-        { label: 'Active jobs', value: (counts.confirmed || 0) + (counts.paid || 0) + (counts.en_route || 0), tone: 'en_route' },
+        { label: 'To confirm', value: (counts.pending_payment || 0) + (counts.paid || 0), tone: 'pending_payment' },
+        { label: 'Active jobs', value: (counts.confirmed || 0) + (counts.en_route || 0), tone: 'en_route' },
         { label: 'Completed', value: counts.completed, tone: 'completed' },
         { label: 'Booked revenue', value: formatPrice(revenue), tone: 'accent' }
     ];

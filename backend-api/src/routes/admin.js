@@ -8,17 +8,22 @@ import { waitForMail } from '../mailer.js';
 
 const router = Router();
 
+const UNPAID_ONLINE_HIDDEN = "NOT (o.status = 'pending_payment' AND o.stripe_payment_intent_id IS NOT NULL)";
+
 // Toate rutele de aici cer cont de dispecer, verificat pe server.
 router.use(requireAdmin);
 
 router.get('/orders', async (req, res) => {
     const status = typeof req.query.status === 'string' ? req.query.status : null;
+    // Comenzile cu plată online începută dar neterminată (coș abandonat) nu ajung la dispecer:
+    // o comandă apare în dispecerat abia după ce transportul e plătit.
+    const conditions = [UNPAID_ONLINE_HIDDEN];
     const params = [];
-    let where = '';
     if (status) {
-        where = 'WHERE o.status = ?';
+        conditions.push('o.status = ?');
         params.push(status);
     }
+    const where = `WHERE ${conditions.join(' AND ')}`;
     const [rows] = await pool.query(
         `${ORDER_WITH_CUSTOMER_SQL} ${where} ORDER BY o.created_at DESC LIMIT 200`,
         params
@@ -36,8 +41,13 @@ router.patch('/orders/:code/status', async (req, res) => {
     const data = parseBody(statusSchema, req, res);
     if (!data) return;
 
-    const [before] = await pool.query('SELECT status FROM orders WHERE code = ?', [req.params.code]);
+    const [before] = await pool.query('SELECT status, stripe_payment_intent_id FROM orders WHERE code = ?', [req.params.code]);
     if (!before[0]) return res.status(404).json({ error: 'Order not found.' });
+
+    // O comandă cu plată online se confirmă doar după ce transportul a fost plătit.
+    if (data.status === 'confirmed' && before[0].status === 'pending_payment' && before[0].stripe_payment_intent_id) {
+        return res.status(409).json({ error: 'This order has not been paid yet. It can be confirmed after the online payment goes through.' });
+    }
 
     await pool.query('UPDATE orders SET status = ? WHERE code = ?', [data.status, req.params.code]);
 

@@ -45,6 +45,8 @@ export const config = {
 
     // Opțional: dacă lipsesc, comenzile se salvează ca „pending_payment” fără plată online.
     stripeSecretKey: process.env.STRIPE_SECRET_KEY || null,
+    // Signing secret-ul endpoint-ului de webhook (whsec_…), din Stripe → Developers → Webhooks.
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() || null,
     currency: (process.env.CURRENCY || 'usd').toLowerCase(),
 
     // Doar dacă frontend-ul stă pe alt domeniu decât API-ul (altfel lasă gol).

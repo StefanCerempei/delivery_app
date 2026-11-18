@@ -17,6 +17,7 @@ import authRoutes from './src/routes/auth.js';
 import orderRoutes from './src/routes/orders.js';
 import adminRoutes from './src/routes/admin.js';
 import accountRoutes from './src/routes/account.js';
+import stripeWebhookRoutes from './src/routes/stripeWebhook.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../frontend-client/dist');
@@ -64,6 +65,9 @@ if (config.corsOrigin) {
     });
 }
 
+// Webhook-ul Stripe are nevoie de corpul brut (verificarea semnăturii), deci e înainte de express.json().
+app.use('/api/stripe/webhook', stripeWebhookRoutes);
+
 app.use(express.json({ limit: '50kb' }));
 app.use(cookieParser());
 app.use('/api', loadUser);
@@ -77,7 +81,7 @@ app.get('/api/health', async (_req, res) => {
     try {
         await pool.query('SELECT 1');
         dbError = null;
-        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), email: mailEnabled });
+        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), webhook: Boolean(stripe && config.stripeWebhookSecret), email: mailEnabled });
     } catch (err) {
         dbError = err.code || 'UNKNOWN';
         // Adresa serverului de bază de date apare doar în log-uri, nu în răspunsul public.

@@ -86,6 +86,9 @@ const StripePaymentForm = ({ order, onPaid }) => {
                 <Button type="submit" disabled={!stripe || isPaying}>
                     {isPaying ? 'Processing payment…' : `Pay ${formatPrice(order.totalAmount)}`}
                 </Button>
+                <p className="trust-note">
+                    This payment covers transport only (RELOQ garage → pickup → drop-off). Loading and unloading time is paid to the crew on site.
+                </p>
                 <p className="trust-note">Card details are handled securely by Stripe and never touch RELOQ servers.</p>
             </div>
         </form>
@@ -212,7 +215,10 @@ const Step5Pay = () => {
                         <span className="recap-vehicle">{selectedVehicle?.name || 'RELOQ'}</span>
                         <span className="recap-sub">{scheduleText}</span>
                     </div>
-                    <span className="recap-price">{formatPrice(totalAmount)}</span>
+                    <span className="recap-price">
+                        {formatPrice(totalAmount)}
+                        <small className="recap-price-note">transport</small>
+                    </span>
                 </div>
                 <div className="recap-addresses">
                     <div className="recap-addr-line">
@@ -387,6 +393,11 @@ const Step5Pay = () => {
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`
                                       : `Book RELOQ • ${formatPrice(totalAmount)}`}
                             </Button>
+                            <p className="trust-note">
+                                {paymentsEnabled
+                                    ? 'You pay online for transport (RELOQ garage → pickup → drop-off). Loading and unloading time is paid to the crew on site.'
+                                    : 'Loading and unloading time is paid to the crew on site.'}
+                            </p>
                             <p className="trust-note">
                                 Receipt and live tracking link will be sent to {user?.email || 'your email'}
                             </p>

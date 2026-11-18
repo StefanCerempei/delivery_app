@@ -9,7 +9,8 @@ import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js'
 import { stripe } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
-import { notifyNewOrder, notifyOrderConfirmed, notifyDispatcherNewOrder } from '../emails.js';
+import { notifyNewOrder } from '../emails.js';
+import { syncOrderPayment } from '../payments.js';
 import { waitForMail } from '../mailer.js';
 
 const MAX_DAYS_AHEAD = 30;
@@ -137,7 +138,8 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [id]);
     const created = toOrderDto(rows[0], { includeCustomer: true });
 
-    // Cu plata online, confirmarea pleacă după ce plata e verificată; altfel imediat.
+    // Cu plata online, emailurile „submitted” + alerta dispecerului pleacă abia după plată
+    // (syncOrderPayment); fără Stripe, imediat.
     // Pe Hostinger emailul trebuie trimis înainte de răspuns (altfel dă ETIMEDOUT)
     if (!stripe) await waitForMail(notifyNewOrder(created));
 
@@ -163,30 +165,18 @@ router.post('/orders/:code/confirm-payment', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Online payment is not enabled for this order.' });
     }
 
-    const intent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id, {
-        expand: ['latest_charge']
-    });
-
-    const paid = intent.status === 'succeeded' && intent.amount_received === row.total_cents;
-    const justPaid = paid && row.status === 'pending_payment';
-    if (justPaid) {
-        const last4 = intent.latest_charge?.payment_method_details?.card?.last4 || null;
-        await pool.query("UPDATE orders SET status = 'paid', card_last4 = ? WHERE id = ?", [last4, row.id]);
-    }
-
-    const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [row.id]);
-    if (justPaid) {
-        const paidOrder = toOrderDto(rows[0], { includeCustomer: true });
-        // Plata online = comandă confirmată: confirmare către client + alertă către dispecer.
-        await waitForMail(Promise.all([notifyOrderConfirmed(paidOrder), notifyDispatcherNewOrder(paidOrder)]));
-    }
-    res.json({ order: toOrderDto(rows[0]), paymentStatus: intent.status });
+    // Verificarea și emailurile sunt comune cu webhook-ul Stripe (src/payments.js).
+    const { order, paymentStatus } = await syncOrderPayment(row.stripe_payment_intent_id);
+    res.json({ order, paymentStatus });
 });
 
 /** GET /api/orders/mine — istoricul clientului. */
 router.get('/orders/mine', requireAuth, async (req, res) => {
     const [rows] = await pool.query(
-        `${ORDER_WITH_CUSTOMER_SQL} WHERE o.user_id = ? ORDER BY o.created_at DESC LIMIT 50`,
+        // Plățile online neterminate nu apar în istoric (nu sunt comenzi trimise).
+        `${ORDER_WITH_CUSTOMER_SQL} WHERE o.user_id = ?
+           AND NOT (o.status = 'pending_payment' AND o.stripe_payment_intent_id IS NOT NULL)
+         ORDER BY o.created_at DESC LIMIT 50`,
         [req.user.id]
     );
     res.json({ orders: rows.map((r) => toOrderDto(r)) });

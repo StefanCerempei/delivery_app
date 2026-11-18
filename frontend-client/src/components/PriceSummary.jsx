@@ -13,7 +13,7 @@ const PriceSummary = ({ vehicle, estimate, routeInfo }) => {
 
             <div className="price-rows">
                 <div className="price-row">
-                    <span>Base fare & loading</span>
+                    <span>Base fare</span>
                     <span>{formatPrice(estimate.baseFare)}</span>
                 </div>
                 <div className="price-row">
@@ -24,8 +24,8 @@ const PriceSummary = ({ vehicle, estimate, routeInfo }) => {
 
             <div className="price-total-row">
                 <div>
-                    <strong>Estimated total</strong>
-                    <small>No hidden fees</small>
+                    <strong>Transport total</strong>
+                    <small>Loading &amp; unloading time paid on site</small>
                 </div>
                 <span className="total-amount">{formatPrice(estimate.total)}</span>
             </div>
