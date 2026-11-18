@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS orders (
     time_cost_cents          INT UNSIGNED NOT NULL,
     total_cents              INT UNSIGNED NOT NULL,
     currency                 CHAR(3)      NOT NULL,
+    -- 1 = model vechi (bază + distanță + timp); 2 = specificația RELOQ: base_fare = Service fee,
+    -- distance_cost = Transportation, time_cost = Reservation fee (+ manopera facturată după job)
+    pricing_version          TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    outbound_mins            INT UNSIGNED NULL,
+    return_mins              INT UNSIGNED NULL,
+    labor_cents_per_min      INT UNSIGNED NULL,
 
     stripe_payment_intent_id VARCHAR(255) NULL,
     card_last4               CHAR(4)      NULL,

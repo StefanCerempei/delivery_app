@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { formatPrice } from '../utils/formatters';
+import { formatMoney } from '../utils/formatters';
 import { api } from '../api/client';
 import { STATUS_LABELS } from './AdminDashboard';
 import './Admin.css';
@@ -56,7 +56,7 @@ const AdminOrderDetail = () => {
 
     // Online se plătește doar transportul; încărcarea/descărcarea se încasează la fața locului.
     const payment = order.paidOnline
-        ? `Transport paid online${order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''} · labor collected on site`
+        ? `Paid online${order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''} · labor collected after the job`
         : order.status === 'pending_payment'
           ? 'Unpaid'
           : 'Collected on delivery / manually';
@@ -123,13 +123,22 @@ const AdminOrderDetail = () => {
 
                 <div className="admin-card record-total-card">
                     <h3>Charge</h3>
-                    <Row label="Base fare">{formatPrice(order.price?.baseFare)}</Row>
-                    <Row label="Distance">{formatPrice(order.price?.distanceCost)}</Row>
-                    <Row label="Time">{formatPrice(order.price?.timeCost)}</Row>
+                    {(order.price?.lines || []).map((line) => (
+                        <Row key={line.key} label={line.label}>
+                            {formatMoney(line.amount)}
+                            {line.detail && <small className="record-line-detail">{line.detail}</small>}
+                        </Row>
+                    ))}
                     <div className="record-total">
-                        <span>Total</span>
-                        <strong>{formatPrice(order.totalAmount)}</strong>
+                        <span>Paid at booking</span>
+                        <strong>{formatMoney(order.totalAmount)}</strong>
                     </div>
+                    {order.price?.labor && (
+                        <Row label="Labor (after job)">
+                            {order.price.labor.label}
+                            <small className="record-line-detail">Actual time from crew arrival at pickup to completion — collect on site.</small>
+                        </Row>
+                    )}
                 </div>
             </div>
         </div>

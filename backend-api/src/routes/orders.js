@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { requireAuth, requireVerifiedEmail } from '../auth.js';
-import { getRoute, allPrices, priceFor, MAX_DISTANCE_MILES, VEHICLES } from '../pricing.js';
+import { getTrip, allPrices, priceFor, priceLines, MAX_DISTANCE_MILES, VEHICLES } from '../pricing.js';
 import { estimateSchema, createOrderSchema, parseBody } from '../validation.js';
 import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
 import { stripe } from '../stripe.js';
@@ -21,27 +21,26 @@ const router = Router();
 const estimateLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
 const createLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
 
-const toDollars = (p) => ({
-    vehicleId: p.vehicleId,
-    baseFare: p.baseFareCents / 100,
-    distanceCost: p.distanceCostCents / 100,
-    timeCost: p.timeCostCents / 100,
-    total: p.totalCents / 100
-});
+const toDollars = (p) => ({ vehicleId: p.vehicleId, ...priceLines(p) });
 
 /** POST /api/estimate — traseul și prețurile pentru toate vehiculele. */
 router.post('/estimate', estimateLimiter, async (req, res) => {
     const data = parseBody(estimateSchema, req, res);
     if (!data) return;
 
-    const route = await getRoute(data.pickup, data.dropoff);
+    const route = await getTrip(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
     }
 
     const prices = allPrices(route);
     res.json({
-        routeInfo: { distanceMiles: route.distanceMiles, durationMins: route.durationMins },
+        routeInfo: {
+            distanceMiles: route.distanceMiles,
+            durationMins: route.durationMins,
+            outboundMins: route.outboundMins,
+            returnMins: route.returnMins
+        },
         estimates: Object.fromEntries(Object.entries(prices).map(([id, p]) => [id, toDollars(p)])),
         currency: config.currency
     });
@@ -81,7 +80,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         return res.status(400).json({ error: 'Bookings are available from tomorrow onward. Please pick another date.' });
     }
 
-    const route = await getRoute(data.pickup, data.dropoff);
+    const route = await getTrip(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
     }
@@ -98,8 +97,9 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                     pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
                     distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
                     items_description, photos_count,
-                    base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency
-                ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
+                    pricing_version, outbound_mins, return_mins, labor_cents_per_min
+                ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?)`,
                 [
                     id, code, req.user.id,
                     data.pickup.address, data.pickup.lat, data.pickup.lng,
@@ -107,8 +107,11 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                     route.distanceMiles, route.durationMins, data.vehicle,
                     schedule.type, schedule.scheduledFor, schedule.label,
                     data.itemsDescription, data.photosCount,
-                    price.baseFareCents, price.distanceCostCents, price.timeCostCents, price.totalCents,
-                    config.currency
+                    // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
+                    // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
+                    price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
+                    config.currency,
+                    price.outboundMins, price.returnMins, price.laborCentsPerMin
                 ]
             );
             break;

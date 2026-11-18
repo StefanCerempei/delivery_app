@@ -686,3 +686,12 @@
 }
 .crm-export:hover:not(:disabled) { border-color: var(--accent-ring); color: var(--text); }
 .crm-export:disabled { opacity: 0.5; cursor: default; }
+
+/* Explicația liniilor de preț în pagina comenzii */
+.record-line-detail {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--muted);
+}

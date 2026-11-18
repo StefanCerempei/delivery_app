@@ -21,10 +21,13 @@ const esc = (v) =>
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 
-// Plata online acoperă doar transportul; timpul de încărcare/descărcare se plătește la fața locului.
-const LABOR_NOTE =
-    'Your online payment covers transport only: from the RELOQ garage to your pickup address and on to your drop-off. Loading and unloading time is paid to the crew on site.';
+// La rezervare se plătesc Reservation fee + Service fee + Transportation; manopera se facturează după job.
+function laborNote(order) {
+    const rate = order.price?.labor ? ` at ${order.price.labor.label}` : '';
+    return `Labor is not included in the amount paid at booking. It is billed after the job${rate}, based on the actual time from the crew's arrival at pickup to completion at the destination.`;
+}
 
+const money2 = (n) => `$${Number(n || 0).toFixed(2)}`;
 const money = (n) => `$${Number(n || 0).toFixed(Number(n) % 1 === 0 ? 0 : 2)}`;
 const link = (path) => (mailSettings.appUrl ? `${mailSettings.appUrl}${path}` : null);
 
@@ -85,10 +88,11 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ['Drop-off', order.dropoff?.address],
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
+        ...(order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]),
         order.paidOnline
-            ? ['Transport', `${money(order.totalAmount)} (paid online${order.cardLast4 ? `, card •••• ${order.cardLast4}` : ''})`]
-            : ['Transport', `${money(order.totalAmount)} (pay after the job)`],
-        ['Loading & unloading', 'Paid on site, based on time']
+            ? ['Paid at booking', `${money2(order.totalAmount)} (card${order.cardLast4 ? ` •••• ${order.cardLast4}` : ''})`]
+            : ['Due', `${money2(order.totalAmount)} (pay after the job)`],
+        ['Labor (after the job)', order.price?.labor ? order.price.labor.label : 'Billed after the job, based on time']
     ];
     if (forDispatcher) {
         rows.splice(1, 0, ['Customer', order.customer?.fullName], ['Phone', order.customer?.phone], ['Email', order.customer?.email]);
@@ -116,9 +120,9 @@ export function notifyOrderReceived(order) {
             title: 'Order submitted successfully',
             intro: `Hi ${esc(firstName)}, thanks for choosing RELOQ! We've received your request and our team is reviewing it. In a short time we'll confirm your order — you'll get a confirmation email as soon as it's accepted.`,
             body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}
-<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${order.paidOnline ? `We've received your payment of ${money(order.totalAmount)}. ` : 'No payment is due yet. '}${esc(LABOR_NOTE)}</p>`
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${order.paidOnline ? `We've received your payment of ${money(order.totalAmount)}. ` : 'No payment is due yet. '}${esc(laborNote(order))}</p>`
         }),
-        text: `Order submitted successfully. We received your RELOQ request and will confirm it shortly.\n\n${orderText(order, rows)}\n\n${LABOR_NOTE}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
+        text: `Order submitted successfully. We received your RELOQ request and will confirm it shortly.\n\n${orderText(order, rows)}\n\n${laborNote(order)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
     });
 }
 
@@ -135,10 +139,10 @@ export function notifyOrderConfirmed(order) {
             title: 'Your order was booked and confirmed',
             intro: `Hi ${esc(firstName)}, good news — your RELOQ booking is confirmed! Here are your details. We'll let you know when your crew is on the way.`,
             body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}
-<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${esc(LABOR_NOTE)}</p>
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${esc(laborNote(order))}</p>
 <p style="margin:12px 0 0;font-size:13px;color:${BRAND.gray}">Need to change or cancel? Free cancellation up to 24 hours before your arrival window. Just reply to this email or call us with your order number.</p>`
         }),
-        text: `Your RELOQ move is confirmed.\n\n${orderText(order, rows)}\n\n${LABOR_NOTE}\n\nFree cancellation up to 24 hours before your arrival window. Questions: ${BRAND.phone} / ${BRAND.email}`
+        text: `Your RELOQ move is confirmed.\n\n${orderText(order, rows)}\n\n${laborNote(order)}\n\nFree cancellation up to 24 hours before your arrival window. Questions: ${BRAND.phone} / ${BRAND.email}`
     });
 }
 

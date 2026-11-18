@@ -87,7 +87,8 @@ const StripePaymentForm = ({ order, onPaid }) => {
                     {isPaying ? 'Processing payment…' : `Pay ${formatPrice(order.totalAmount)}`}
                 </Button>
                 <p className="trust-note">
-                    This payment covers transport only (RELOQ garage → pickup → drop-off). Loading and unloading time is paid to the crew on site.
+                    This payment covers the reservation fee, service fee and transportation. Labor is billed after the job
+                    {order?.price?.labor ? ` (${order.price.labor.label})` : ''}, based on actual time from crew arrival to completion.
                 </p>
                 <p className="trust-note">Card details are handled securely by Stripe and never touch RELOQ servers.</p>
             </div>
@@ -217,7 +218,7 @@ const Step5Pay = () => {
                     </div>
                     <span className="recap-price">
                         {formatPrice(totalAmount)}
-                        <small className="recap-price-note">transport</small>
+                        <small className="recap-price-note">due at booking</small>
                     </span>
                 </div>
                 <div className="recap-addresses">
@@ -395,8 +396,11 @@ const Step5Pay = () => {
                             </Button>
                             <p className="trust-note">
                                 {paymentsEnabled
-                                    ? 'You pay online for transport (RELOQ garage → pickup → drop-off). Loading and unloading time is paid to the crew on site.'
-                                    : 'Loading and unloading time is paid to the crew on site.'}
+                                    ? 'You pay the reservation fee, service fee and transportation now. '
+                                    : ''}
+                                Labor is billed after the job
+                                {bookingData.priceEstimate?.labor ? ` (${bookingData.priceEstimate.labor.label})` : ''}, based on actual time from crew
+                                arrival to completion.
                             </p>
                             <p className="trust-note">
                                 Receipt and live tracking link will be sent to {user?.email || 'your email'}

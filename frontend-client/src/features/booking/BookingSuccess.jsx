@@ -69,7 +69,7 @@ const BookingSuccess = () => {
                 <div className="detail-line total">
                     <span>
                         {paid
-                            ? `Transport paid${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
+                            ? `Paid at booking${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
                             : 'Pay after the job'}
                     </span>
                     <strong className="paid-sum">{formatPrice(completedOrder.totalAmount)}</strong>
@@ -77,7 +77,8 @@ const BookingSuccess = () => {
             </div>
 
             <p className="trust-note labor-note">
-                Loading and unloading time is not included in this amount — it is paid to the crew on site.
+                Labor is not included in this amount — it is billed after the job
+                {completedOrder.price?.labor ? ` at ${completedOrder.price.labor.label}` : ''}, based on actual time from crew arrival to completion.
             </p>
 
             <div className="step-footer">

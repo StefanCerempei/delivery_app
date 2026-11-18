@@ -1,8 +1,13 @@
 import React from 'react';
-import { formatPrice, formatDistance } from '../utils/formatters';
+import { formatMoney } from '../utils/formatters';
 
-const PriceSummary = ({ vehicle, estimate, routeInfo }) => {
-    if (!vehicle || !estimate) return null;
+/**
+ * Defalcarea prețului (specificația RELOQ): Reservation fee + Service fee + Transportation,
+ * plătite la rezervare, și tariful de manoperă (Labor), facturat după job.
+ * Liniile vin calculate de server (/api/estimate), deci sunt identice cu cele din emailuri și dispecerat.
+ */
+const PriceSummary = ({ vehicle, estimate }) => {
+    if (!vehicle || !estimate?.lines) return null;
 
     return (
         <div className="price-summary-card">
@@ -12,23 +17,34 @@ const PriceSummary = ({ vehicle, estimate, routeInfo }) => {
             </div>
 
             <div className="price-rows">
-                <div className="price-row">
-                    <span>Base fare</span>
-                    <span>{formatPrice(estimate.baseFare)}</span>
-                </div>
-                <div className="price-row">
-                    <span>Distance & time ({formatDistance(routeInfo?.distanceMiles)})</span>
-                    <span>{formatPrice(estimate.distanceCost + estimate.timeCost)}</span>
-                </div>
+                {estimate.lines.map((line) => (
+                    <div className="price-row" key={line.key}>
+                        <span>
+                            {line.label}
+                            {line.detail && <small className="price-row-detail">{line.detail}</small>}
+                        </span>
+                        <span>{formatMoney(line.amount)}</span>
+                    </div>
+                ))}
             </div>
 
             <div className="price-total-row">
                 <div>
-                    <strong>Transport total</strong>
-                    <small>Loading &amp; unloading time paid on site</small>
+                    <strong>Due at booking</strong>
+                    <small>Reservation, service &amp; transportation</small>
                 </div>
-                <span className="total-amount">{formatPrice(estimate.total)}</span>
+                <span className="total-amount">{formatMoney(estimate.total)}</span>
             </div>
+
+            {estimate.labor && (
+                <div className="price-labor-row">
+                    <div>
+                        <strong>Labor • billed after completion</strong>
+                        <small>{estimate.labor.detail}</small>
+                    </div>
+                    <span>{estimate.labor.label}</span>
+                </div>
+            )}
         </div>
     );
 };

@@ -34,6 +34,10 @@ export async function migrate() {
     await addColumnIfMissing('users', 'session_version', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER password_changed_at');
     await addColumnIfMissing('users', 'deleted_at', 'DATETIME NULL AFTER session_version');
     await addColumnIfMissing('orders', 'paid_at', 'DATETIME NULL AFTER card_last4');
+    await addColumnIfMissing('orders', 'pricing_version', 'TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER currency');
+    await addColumnIfMissing('orders', 'outbound_mins', 'INT UNSIGNED NULL AFTER pricing_version');
+    await addColumnIfMissing('orders', 'return_mins', 'INT UNSIGNED NULL AFTER outbound_mins');
+    await addColumnIfMissing('orders', 'labor_cents_per_min', 'INT UNSIGNED NULL AFTER return_mins');
     await ensureStatusEnum();
     await ensureAdmin();
 }

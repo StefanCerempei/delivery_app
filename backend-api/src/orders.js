@@ -1,6 +1,6 @@
 // Funcții comune pentru comenzi (folosite de rutele client și admin).
 import crypto from 'node:crypto';
-import { VEHICLES } from './pricing.js';
+import { VEHICLES, priceLines } from './pricing.js';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // fără 0/O, 1/I
 
@@ -13,6 +13,33 @@ export function newOrderCode() {
 }
 
 const cents = (v) => Math.round(Number(v)) / 100;
+
+/** Liniile de preț ale unei comenzi salvate (model v2), sau cele vechi pentru comenzile dinainte. */
+function orderPrice(row, vehicle) {
+    if (Number(row.pricing_version) >= 2) {
+        return priceLines({
+            reservationFeeCents: Number(row.time_cost_cents),
+            serviceFeeCents: Number(row.base_fare_cents),
+            transportationCents: Number(row.distance_cost_cents),
+            totalCents: Number(row.total_cents),
+            laborCentsPerMin: Number(row.labor_cents_per_min),
+            crew: vehicle?.crew || 1,
+            perMileCents: vehicle?.perMileCents || 0,
+            outboundMins: Number(row.outbound_mins),
+            returnMins: Number(row.return_mins),
+            distanceMiles: Number(row.distance_miles)
+        });
+    }
+    return {
+        lines: [
+            { key: 'base', label: 'Base fare', detail: '', amount: cents(row.base_fare_cents) },
+            { key: 'distance', label: 'Distance', detail: '', amount: cents(row.distance_cost_cents) },
+            { key: 'time', label: 'Time', detail: '', amount: cents(row.time_cost_cents) }
+        ],
+        total: cents(row.total_cents),
+        labor: null
+    };
+}
 
 /** Transformă un rând din DB în obiectul trimis la frontend. */
 export function toOrderDto(row, { includeCustomer = false } = {}) {
@@ -30,12 +57,7 @@ export function toOrderDto(row, { includeCustomer = false } = {}) {
         scheduleText: row.schedule_label,
         itemsDescription: row.items_description,
         photosCount: row.photos_count,
-        price: {
-            baseFare: cents(row.base_fare_cents),
-            distanceCost: cents(row.distance_cost_cents),
-            timeCost: cents(row.time_cost_cents),
-            total: cents(row.total_cents)
-        },
+        price: orderPrice(row, vehicle),
         totalAmount: cents(row.total_cents),
         currency: row.currency,
         cardLast4: row.card_last4 || null,
