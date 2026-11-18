@@ -69,7 +69,13 @@ const BookingSuccess = () => {
                 <div className="detail-line total">
                     <span>
                         {paid
-                            ? `Paid at booking${completedOrder.cardLast4 ? ` (card •••• ${completedOrder.cardLast4})` : ''}`
+                            ? `Paid at booking${
+                                  completedOrder.paymentMethod === 'paypal'
+                                      ? ' (PayPal)'
+                                      : completedOrder.cardLast4
+                                        ? ` (card •••• ${completedOrder.cardLast4})`
+                                        : ''
+                              }`
                             : 'Pay after the job'}
                     </span>
                     <strong className="paid-sum">{formatPrice(completedOrder.totalAmount)}</strong>

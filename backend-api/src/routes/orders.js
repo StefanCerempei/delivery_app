@@ -10,7 +10,8 @@ import { stripe } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
 import { notifyNewOrder } from '../emails.js';
-import { syncOrderPayment } from '../payments.js';
+import { syncOrderPayment, markOrderPaid } from '../payments.js';
+import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.js';
 import { waitForMail } from '../mailer.js';
 
 const MAX_DAYS_AHEAD = 30;
@@ -171,6 +172,56 @@ router.post('/orders/:code/confirm-payment', requireAuth, async (req, res) => {
     // Verificarea și emailurile sunt comune cu webhook-ul Stripe (src/payments.js).
     const { order, paymentStatus } = await syncOrderPayment(row.stripe_payment_intent_id);
     res.json({ order, paymentStatus });
+});
+
+const paypalLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+
+/** POST /api/orders/:code/paypal/create — comanda PayPal pentru butonul din pasul de plată. */
+router.post('/orders/:code/paypal/create', requireAuth, paypalLimiter, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    if (!paypalEnabled) return res.status(400).json({ error: 'PayPal is not available right now.' });
+    if (row.status !== 'pending_payment') return res.status(409).json({ error: 'This order is already paid.' });
+
+    const paypalOrderId = await createPaypalOrder(row);
+    await pool.query('UPDATE orders SET paypal_order_id = ? WHERE id = ?', [paypalOrderId, row.id]);
+    res.json({ paypalOrderId });
+});
+
+/** POST /api/orders/:code/paypal/capture — încasează după ce clientul a aprobat în PayPal. */
+router.post('/orders/:code/paypal/capture', requireAuth, paypalLimiter, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    const paypalOrderId = typeof req.body?.paypalOrderId === 'string' ? req.body.paypalOrderId : '';
+    // Doar comanda PayPal creată de noi pentru această comandă RELOQ.
+    if (!paypalEnabled || !paypalOrderId || paypalOrderId !== row.paypal_order_id) {
+        return res.status(400).json({ error: 'This PayPal payment does not match your order.' });
+    }
+    if (row.status !== 'pending_payment') {
+        const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.id = ?`, [row.id]);
+        return res.json({ order: toOrderDto(rows[0], { includeCustomer: true }) });
+    }
+
+    const result = await capturePaypalOrder(paypalOrderId, row);
+    if (!result.paid) {
+        const declined = result.reason === 'INSTRUMENT_DECLINED';
+        return res.status(402).json({
+            error: declined
+                ? 'PayPal declined this payment method. Please choose another one in PayPal or pay by card.'
+                : 'Your PayPal payment could not be completed. Please try again or pay by card.',
+            code: result.reason
+        });
+    }
+
+    const { order } = await markOrderPaid(row.id, { method: 'paypal', paypalCaptureId: result.captureId });
+
+    // Plata cu cardul pregătită pentru aceeași comandă nu mai e necesară.
+    if (stripe && row.stripe_payment_intent_id) {
+        await stripe.paymentIntents.cancel(row.stripe_payment_intent_id).catch((err) => {
+            console.warn(`[reloq] Nu am putut anula PaymentIntent ${row.stripe_payment_intent_id}: ${err.message}`);
+        });
+    }
+    res.json({ order });
 });
 
 /** GET /api/orders/mine — istoricul clientului. */

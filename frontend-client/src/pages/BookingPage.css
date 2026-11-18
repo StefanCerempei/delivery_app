@@ -1899,3 +1899,36 @@
     min-width: 12px;
     text-align: center;
 }
+
+/* Butonul PayPal, sub formularul Stripe */
+.paypal-pay {
+    margin-top: 18px;
+}
+
+.paypal-pay.is-busy .paypal-button-slot {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.paypal-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.paypal-divider::before,
+.paypal-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+}
+
+.paypal-button-slot {
+    min-height: 48px;
+}

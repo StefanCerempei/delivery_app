@@ -34,6 +34,9 @@ export async function migrate() {
     await addColumnIfMissing('users', 'session_version', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER password_changed_at');
     await addColumnIfMissing('users', 'deleted_at', 'DATETIME NULL AFTER session_version');
     await addColumnIfMissing('orders', 'paid_at', 'DATETIME NULL AFTER card_last4');
+    await addColumnIfMissing('orders', 'payment_method', 'VARCHAR(20) NULL AFTER paid_at');
+    await addColumnIfMissing('orders', 'paypal_order_id', 'VARCHAR(64) NULL AFTER payment_method');
+    await addColumnIfMissing('orders', 'paypal_capture_id', 'VARCHAR(64) NULL AFTER paypal_order_id');
     await addColumnIfMissing('orders', 'pricing_version', 'TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER currency');
     await addColumnIfMissing('orders', 'outbound_mins', 'INT UNSIGNED NULL AFTER pricing_version');
     await addColumnIfMissing('orders', 'return_mins', 'INT UNSIGNED NULL AFTER outbound_mins');

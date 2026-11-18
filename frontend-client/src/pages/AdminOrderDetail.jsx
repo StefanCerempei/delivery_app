@@ -56,7 +56,9 @@ const AdminOrderDetail = () => {
 
     // Online se plătește doar transportul; încărcarea/descărcarea se încasează la fața locului.
     const payment = order.paidOnline
-        ? `Paid online${order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''} · labor collected after the job`
+        ? `Paid online${
+              order.paymentMethod === 'paypal' ? ' · PayPal' : order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''
+          } · labor collected after the job`
         : order.status === 'pending_payment'
           ? 'Unpaid'
           : 'Collected on delivery / manually';

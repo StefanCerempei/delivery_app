@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { Link } from 'react-router-dom';
-import { useBooking } from '../../context/BookingContext';
+import { useBooking, PAYMENT_RETURN_PARAM } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
 import { isValidEmail, isValidPhone, formatUsPhone } from '../../utils/validators';
 import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
+import PaypalButton from '../../components/PaypalButton';
 import { useAuth } from '../../context/AuthContext';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -59,7 +60,8 @@ const StripePaymentForm = ({ order, onPaid }) => {
         const { error: stripeError } = await stripe.confirmPayment({
             elements,
             redirect: 'if_required',
-            confirmParams: { return_url: window.location.origin }
+            // Metodele cu redirect (Amazon Pay) se întorc aici; BookingContext verifică plata.
+            confirmParams: { return_url: `${window.location.origin}/?${PAYMENT_RETURN_PARAM}=${encodeURIComponent(order.id)}` }
         });
 
         if (stripeError) {
@@ -97,7 +99,8 @@ const StripePaymentForm = ({ order, onPaid }) => {
 };
 
 const Step5Pay = () => {
-    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder } = useBooking();
+    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder, paymentNotice, setPaymentNotice } =
+        useBooking();
 
     const [authMode, setAuthMode] = useState('register');
     const [fullName, setFullName] = useState('');
@@ -109,6 +112,7 @@ const Step5Pay = () => {
     const [authBusy, setAuthBusy] = useState(false);
 
     const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+    const [paypalClientId, setPaypalClientId] = useState(null);
     const [order, setOrder] = useState(null);
     const [clientSecret, setClientSecret] = useState(null);
     const [orderError, setOrderError] = useState('');
@@ -118,7 +122,10 @@ const Step5Pay = () => {
 
     useEffect(() => {
         api.config()
-            .then((cfg) => setPaymentsEnabled(Boolean(cfg.paymentsEnabled)))
+            .then((cfg) => {
+                setPaymentsEnabled(Boolean(cfg.paymentsEnabled));
+                setPaypalClientId(cfg.paypalClientId || null);
+            })
             .catch(() => setPaymentsEnabled(false));
     }, []);
 
@@ -173,6 +180,7 @@ const Step5Pay = () => {
             return setOrderError('Online payments are not fully configured yet. Please try again later.');
 
         setIsCreating(true);
+        setPaymentNotice('');
         try {
             const res = await api.createOrder({
                 pickup: toLocation(bookingData.pickup),
@@ -380,12 +388,15 @@ const Step5Pay = () => {
                 </div>
 
                 {clientSecret && elementsOptions && stripePromise ? (
-                    <Elements stripe={stripePromise} options={elementsOptions}>
-                        <StripePaymentForm order={order} onPaid={setCompletedOrder} />
-                    </Elements>
+                    <>
+                        <Elements stripe={stripePromise} options={elementsOptions}>
+                            <StripePaymentForm order={order} onPaid={setCompletedOrder} />
+                        </Elements>
+                        {paypalClientId && <PaypalButton order={order} clientId={paypalClientId} onPaid={setCompletedOrder} />}
+                    </>
                 ) : (
                     <>
-                        {orderError && <p className="form-inline-error">{orderError}</p>}
+                        {(orderError || paymentNotice) && <p className="form-inline-error">{orderError || paymentNotice}</p>}
                         <div className="step-footer">
                             <Button onClick={handleCreateOrder} disabled={!user || !verified || isCreating || totalAmount == null}>
                                 {isCreating

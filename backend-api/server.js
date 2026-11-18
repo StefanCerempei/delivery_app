@@ -12,6 +12,7 @@ import { config, configOk, configProblems } from './src/config.js';
 import { pool, migrate } from './src/db.js';
 import { loadUser } from './src/auth.js';
 import { stripe } from './src/stripe.js';
+import { paypalEnabled } from './src/paypal.js';
 import { mailEnabled, verifyMailer } from './src/mailer.js';
 import authRoutes from './src/routes/auth.js';
 import orderRoutes from './src/routes/orders.js';
@@ -31,18 +32,27 @@ app.use(
         contentSecurityPolicy: {
             useDefaults: true,
             directives: {
-                'script-src': ["'self'", 'https://js.stripe.com'],
+                'script-src': ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://*.paypal.com'],
                 'style-src': ["'self'", "'unsafe-inline'"],
                 'font-src': ["'self'"], // fonturile sunt găzduite local, nu de pe Google
-                'img-src': ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org'],
+                'img-src': [
+                    "'self'",
+                    'data:',
+                    'blob:',
+                    'https://*.tile.openstreetmap.org',
+                    'https://tile.openstreetmap.org',
+                    'https://*.paypal.com',
+                    'https://*.paypalobjects.com'
+                ],
                 'connect-src': [
                     "'self'",
                     'https://photon.komoot.io',
                     'https://nominatim.openstreetmap.org',
                     'https://router.project-osrm.org',
-                    'https://api.stripe.com'
+                    'https://api.stripe.com',
+                    'https://*.paypal.com'
                 ],
-                'frame-src': ['https://js.stripe.com', 'https://hooks.stripe.com']
+                'frame-src': ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://*.paypal.com']
             }
         },
         crossOriginEmbedderPolicy: false,
@@ -81,7 +91,7 @@ app.get('/api/health', async (_req, res) => {
     try {
         await pool.query('SELECT 1');
         dbError = null;
-        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), webhook: Boolean(stripe && config.stripeWebhookSecret), email: mailEnabled });
+        res.json({ ok: true, db: 'connected', payments: Boolean(stripe), webhook: Boolean(stripe && config.stripeWebhookSecret), paypal: paypalEnabled, email: mailEnabled });
     } catch (err) {
         dbError = err.code || 'UNKNOWN';
         // Adresa serverului de bază de date apare doar în log-uri, nu în răspunsul public.
@@ -97,7 +107,12 @@ app.use('/api', (_req, res, next) => {
 });
 
 app.get('/api/config', (_req, res) => {
-    res.json({ paymentsEnabled: Boolean(stripe), currency: config.currency });
+    res.json({
+        paymentsEnabled: Boolean(stripe),
+        currency: config.currency,
+        // Client ID-ul PayPal e public (îl folosește scriptul PayPal din browser); secretul rămâne pe server.
+        paypalClientId: stripe && paypalEnabled ? config.paypal.clientId : null
+    });
 });
 
 app.use('/api/auth', authRoutes);

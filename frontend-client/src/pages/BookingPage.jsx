@@ -11,9 +11,12 @@ import BookingSuccess from '../features/booking/BookingSuccess';
 import './BookingPage.css';
 
 const BookingPage = () => {
-    const { currentStep, completedOrder } = useBooking();
+    const { currentStep, completedOrder, paymentReturn } = useBooking();
 
     const renderStep = () => {
+        if (paymentReturn === 'checking') {
+            return <div className="account-gate-card is-loading">Confirming your payment…</div>;
+        }
         if (completedOrder) {
             return <BookingSuccess />;
         }

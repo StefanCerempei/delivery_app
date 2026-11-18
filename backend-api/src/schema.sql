@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS orders (
     stripe_payment_intent_id VARCHAR(255) NULL,
     card_last4               CHAR(4)      NULL,
     paid_at                  DATETIME     NULL,
+    payment_method           VARCHAR(20)  NULL,
+    paypal_order_id          VARCHAR(64)  NULL,
+    paypal_capture_id        VARCHAR(64)  NULL,
 
     created_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

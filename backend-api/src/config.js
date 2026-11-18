@@ -49,6 +49,13 @@ export const config = {
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() || null,
     currency: (process.env.CURRENCY || 'usd').toLowerCase(),
 
+    // Opțional: buton PayPal direct (cont PayPal Business → Apps & Credentials → REST app).
+    paypal: {
+        clientId: process.env.PAYPAL_CLIENT_ID?.trim() || null,
+        clientSecret: process.env.PAYPAL_CLIENT_SECRET?.trim() || null,
+        env: (process.env.PAYPAL_ENV || 'sandbox').trim().toLowerCase() === 'live' ? 'live' : 'sandbox'
+    },
+
     // Doar dacă frontend-ul stă pe alt domeniu decât API-ul (altfel lasă gol).
     corsOrigin: process.env.CORS_ORIGIN || null
 };

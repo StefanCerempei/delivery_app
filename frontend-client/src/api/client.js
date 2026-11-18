@@ -55,6 +55,9 @@ export const api = {
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),
     createOrder: (payload) => request('/orders', { method: 'POST', body: payload }),
     confirmPayment: (code) => request(`/orders/${encodeURIComponent(code)}/confirm-payment`, { method: 'POST' }),
+    paypalCreate: (code) => request(`/orders/${encodeURIComponent(code)}/paypal/create`, { method: 'POST' }),
+    paypalCapture: (code, paypalOrderId) =>
+        request(`/orders/${encodeURIComponent(code)}/paypal/capture`, { method: 'POST', body: { paypalOrderId } }),
     myOrders: () => request('/orders/mine'),
 
     adminOrders: () => request('/admin/orders'),

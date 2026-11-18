@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { api } from '../api/client';
+
+// Parametrul pus în return_url când Stripe trimite clientul pe alt site (ex. Amazon Pay).
+// La întoarcere verificăm plata pe server și arătăm pagina de succes.
+export const PAYMENT_RETURN_PARAM = 'payment_return';
 
 const BookingContext = createContext();
 
@@ -65,6 +70,10 @@ export const BookingProvider = ({ children }) => {
     const [currentStep, setCurrentStep] = useState(draft?.step || 1);
     const [completedOrder, setCompletedOrderState] = useState(null);
     const [bookingData, setBookingData] = useState(draft?.data || EMPTY_BOOKING);
+    const [paymentReturn, setPaymentReturn] = useState(() =>
+        new URLSearchParams(window.location.search).get(PAYMENT_RETURN_PARAM) ? 'checking' : null
+    );
+    const [paymentNotice, setPaymentNotice] = useState('');
 
     // Contul vine din AuthContext (global în aplicație)
     const { user, authChecked, registerUser, loginUser, logoutUser } = useAuth();
@@ -84,6 +93,35 @@ export const BookingProvider = ({ children }) => {
         clearDraft();
         setCompletedOrderState(order);
     };
+
+    // Întoarcerea dintr-o plată cu redirect (Amazon Pay): /?payment_return=RLQ-…&redirect_status=…
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get(PAYMENT_RETURN_PARAM);
+        if (!code) return;
+        const redirectStatus = params.get('redirect_status');
+        window.history.replaceState(null, '', window.location.pathname); // fără parametri în adresă
+
+        api.confirmPayment(code)
+            .then(({ order }) => {
+                if (order?.paidOnline) {
+                    setCompletedOrder(order);
+                } else {
+                    setCurrentStep(5);
+                    setPaymentNotice(
+                        redirectStatus === 'failed'
+                            ? 'Your payment was not completed. Please try again or choose another payment method.'
+                            : 'We could not confirm your payment yet. If you were charged, we will email you shortly — otherwise please try again.'
+                    );
+                }
+            })
+            .catch(() => {
+                setCurrentStep(5);
+                setPaymentNotice('We could not check your payment. Please refresh the page or contact us if you were charged.');
+            })
+            .finally(() => setPaymentReturn(null));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const resetBooking = () => {
         bookingData.photos?.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
@@ -109,6 +147,9 @@ export const BookingProvider = ({ children }) => {
                 logoutUser,
                 completedOrder,
                 setCompletedOrder,
+                paymentReturn,
+                paymentNotice,
+                setPaymentNotice,
                 resetBooking
             }}
         >

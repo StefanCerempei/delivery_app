@@ -27,6 +27,8 @@ function laborNote(order) {
     return `Labor is not included in the amount paid at booking. It is billed after the job${rate}, based on the actual time from the crew's arrival at pickup to completion at the destination.`;
 }
 
+/** „PayPal” / „card •••• 4242” / „card”. */
+const paidWith = (o) => (o.paymentMethod === 'paypal' ? 'PayPal' : `card${o.cardLast4 ? ` •••• ${o.cardLast4}` : ''}`);
 const money2 = (n) => `$${Number(n || 0).toFixed(2)}`;
 const money = (n) => `$${Number(n || 0).toFixed(Number(n) % 1 === 0 ? 0 : 2)}`;
 const link = (path) => (mailSettings.appUrl ? `${mailSettings.appUrl}${path}` : null);
@@ -90,7 +92,7 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ['Items', order.itemsDescription],
         ...(order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]),
         order.paidOnline
-            ? ['Paid at booking', `${money2(order.totalAmount)} (card${order.cardLast4 ? ` •••• ${order.cardLast4}` : ''})`]
+            ? ['Paid at booking', `${money2(order.totalAmount)} (${paidWith(order)})`]
             : ['Due', `${money2(order.totalAmount)} (pay after the job)`],
         ['Labor (after the job)', order.price?.labor ? order.price.labor.label : 'Billed after the job, based on time']
     ];

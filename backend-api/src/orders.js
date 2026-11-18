@@ -62,7 +62,8 @@ export function toOrderDto(row, { includeCustomer = false } = {}) {
         currency: row.currency,
         cardLast4: row.card_last4 || null,
         // Plătit online (transportul). Comenzile plătite înainte de coloana paid_at au status 'paid'.
-        paidOnline: Boolean(row.paid_at) || row.status === 'paid'
+        paidOnline: Boolean(row.paid_at) || row.status === 'paid',
+        paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null)
     };
 
     if (includeCustomer || row.customer_email) {
