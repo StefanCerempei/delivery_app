@@ -355,10 +355,9 @@ const Step5Pay = () => {
                         <span className="verified-check">✓</span>
                         <div>
                             <strong>{user.fullName}</strong>
-                            <small>
-                                {user.email}
-                                {user.phone ? ` • ${user.phone}` : ''}
-                            </small>
+                            {/* Emailul și telefonul pe rânduri separate, ca să încapă pe telefon lângă „Switch” */}
+                            <small>{user.email}</small>
+                            {user.phone && <small>{user.phone}</small>}
                         </div>
                     </div>
                     <button type="button" className="change-account-btn" onClick={handleSwitchAccount}>

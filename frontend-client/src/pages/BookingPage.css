@@ -1357,9 +1357,19 @@
 
 .verified-left {
     display: flex;
+    flex: 1 1 auto;
     align-items: center;
     gap: 12px;
+    min-width: 0; /* textul lung se taie cu „…”, nu împinge butonul Switch peste el */
+}
+
+.verified-left > div {
     min-width: 0;
+}
+
+.account-verified-card .change-account-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .verified-check {
@@ -1380,13 +1390,17 @@
     font-size: 14.5px;
 }
 
+.verified-left strong,
 .verified-left small {
     display: block;
-    font-size: 12.5px;
-    color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.verified-left small {
+    font-size: 12.5px;
+    color: var(--muted);
 }
 
 /* ================= SUCCES ================= */
