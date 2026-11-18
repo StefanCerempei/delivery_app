@@ -32,7 +32,7 @@ app.use(
         contentSecurityPolicy: {
             useDefaults: true,
             directives: {
-                'script-src': ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://*.paypal.com'],
+                'script-src': ["'self'", 'https://js.stripe.com', 'https://*.js.stripe.com', 'https://www.paypal.com', 'https://*.paypal.com'],
                 'style-src': ["'self'", "'unsafe-inline'"],
                 'font-src': ["'self'"], // fonturile sunt găzduite local, nu de pe Google
                 'img-src': [
@@ -50,9 +50,11 @@ app.use(
                     'https://nominatim.openstreetmap.org',
                     'https://router.project-osrm.org',
                     'https://api.stripe.com',
+                    'https://*.stripe.com',
                     'https://*.paypal.com'
                 ],
-                'frame-src': ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://*.paypal.com']
+                // Butoanele Apple Pay / Google Pay / Amazon Pay ale Stripe rulează în iframe-uri *.js.stripe.com
+                'frame-src': ['https://js.stripe.com', 'https://*.js.stripe.com', 'https://hooks.stripe.com', 'https://*.paypal.com']
             }
         },
         crossOriginEmbedderPolicy: false,

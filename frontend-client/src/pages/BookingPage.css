@@ -1915,8 +1915,19 @@
 }
 
 /* Butonul PayPal, sub formularul Stripe */
+/* Butoanele rapide (Apple Pay / Google Pay / Amazon Pay + PayPal), deasupra cardului */
+.express-pay {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.express-pay:empty {
+    display: none;
+}
+
 .paypal-pay {
-    margin-top: 18px;
+    margin-top: 0;
 }
 
 .paypal-pay.is-busy .paypal-button-slot {
@@ -1928,7 +1939,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 14px;
+    margin: 16px 0 14px;
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
