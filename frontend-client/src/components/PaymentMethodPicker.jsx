@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     CardCvcElement,
     CardExpiryElement,
@@ -155,10 +155,28 @@ const CardPanel = ({ order, clientSecret, onPaid }) => {
     );
 };
 
+const WALLET_HELP = {
+    applePay: 'Apple Pay works in Safari on an iPhone, iPad or Mac with a card added to Apple Wallet. Please choose Card or another method.',
+    googlePay: 'Google Pay works in Chrome or on Android with a card saved to your Google account. Please choose Card or another method.',
+    amazonPay: 'Amazon Pay couldn’t be loaded right now. Please choose Card or another method.'
+};
+
 /** Butonul Stripe pentru o singură metodă rapidă (Apple Pay, Google Pay sau Amazon Pay). */
 const WalletPanel = ({ method, ...props }) => {
     const { pay, error, isPaying } = useConfirmPayment(props);
-    const [unavailable, setUnavailable] = useState(false);
+    // loading → ready (butonul e afișat) sau unavailable (metoda nu merge pe acest dispozitiv / browser)
+    const [status, setStatus] = useState('loading');
+
+    // Dacă Stripe nu afișează niciun buton (ex. Apple Pay pe Windows), uneori nu vine nici „ready”.
+    useEffect(() => {
+        const timer = setTimeout(() => setStatus((s) => (s === 'loading' ? 'unavailable' : s)), 4000);
+        return () => clearTimeout(timer);
+    }, [method]);
+
+    const handleReady = ({ availablePaymentMethods }) => {
+        const shown = availablePaymentMethods && (method === 'amazonPay' || availablePaymentMethods[method] !== false);
+        setStatus(shown ? 'ready' : 'unavailable');
+    };
 
     const options = useMemo(
         () => ({
@@ -183,12 +201,15 @@ const WalletPanel = ({ method, ...props }) => {
                 key={method}
                 options={options}
                 onConfirm={pay}
-                onReady={({ availablePaymentMethods }) => setUnavailable(!availablePaymentMethods)}
+                onReady={handleReady}
+                onLoadError={() => setStatus('unavailable')}
             />
-            {unavailable && (
-                <p className="trust-note">
-                    {METHOD_LABELS[method]} isn’t available on this device or browser. Please choose another payment method.
-                </p>
+            {status === 'loading' && <p className="trust-note">Loading {METHOD_LABELS[method]}…</p>}
+            {status === 'unavailable' && (
+                <div className="wallet-unavailable">
+                    <strong>{METHOD_LABELS[method]} isn’t available here</strong>
+                    <p>{WALLET_HELP[method]}</p>
+                </div>
             )}
             {isPaying && <p className="trust-note">Completing your payment…</p>}
             {error && <p className="form-inline-error">{error}</p>}

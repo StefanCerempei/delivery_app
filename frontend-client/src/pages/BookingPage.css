@@ -2073,3 +2073,24 @@
 .card-input:has(.StripeElement--invalid) {
     border-color: #ff7a7a;
 }
+
+/* Mesaj când Apple Pay / Google Pay / Amazon Pay nu merg pe dispozitivul curent */
+.wallet-unavailable {
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 14px;
+}
+
+.wallet-unavailable strong {
+    display: block;
+    color: var(--text-1, #f1f4f8);
+    margin-bottom: 4px;
+}
+
+.wallet-unavailable p {
+    margin: 0;
+    color: var(--text-2);
+    line-height: 1.45;
+}
