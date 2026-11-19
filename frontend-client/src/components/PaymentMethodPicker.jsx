@@ -166,14 +166,33 @@ const WalletPanel = ({ method, ...props }) => {
     const { pay, error, isPaying } = useConfirmPayment(props);
     // loading → ready (butonul e afișat) sau unavailable (metoda nu merge pe acest dispozitiv / browser)
     const [status, setStatus] = useState('loading');
+    const [diag, setDiag] = useState({ ready: 'no event yet' });
 
     // Dacă Stripe nu afișează niciun buton (ex. Apple Pay pe Windows), uneori nu vine nici „ready”.
     useEffect(() => {
-        const timer = setTimeout(() => setStatus((s) => (s === 'loading' ? 'unavailable' : s)), 4000);
+        const timer = setTimeout(() => setStatus((s) => (s === 'loading' ? 'unavailable' : s)), 8000);
         return () => clearTimeout(timer);
     }, [method]);
 
+    // Diagnostic: ce spune browserul despre Apple Pay (afișat sub mesajul de indisponibilitate).
+    useEffect(() => {
+        let applePay = 'ApplePaySession missing';
+        try {
+            if (window.ApplePaySession) applePay = `ApplePaySession ok, canMakePayments=${window.ApplePaySession.canMakePayments()}`;
+        } catch (err) {
+            applePay = `ApplePaySession error: ${err.message}`;
+        }
+        const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+        setDiag((d) => ({
+            ...d,
+            applePay,
+            key: key.startsWith('pk_live') ? 'live' : key.startsWith('pk_test') ? 'test' : 'unknown',
+            host: window.location.host
+        }));
+    }, []);
+
     const handleReady = ({ availablePaymentMethods }) => {
+        setDiag((d) => ({ ...d, ready: JSON.stringify(availablePaymentMethods ?? null) }));
         const shown = availablePaymentMethods && (method === 'amazonPay' || availablePaymentMethods[method] !== false);
         setStatus(shown ? 'ready' : 'unavailable');
     };
@@ -202,13 +221,21 @@ const WalletPanel = ({ method, ...props }) => {
                 options={options}
                 onConfirm={pay}
                 onReady={handleReady}
-                onLoadError={() => setStatus('unavailable')}
+                onLoadError={({ error: loadError }) => {
+                    setDiag((d) => ({ ...d, loadError: loadError?.message || 'load error' }));
+                    setStatus('unavailable');
+                }}
             />
             {status === 'loading' && <p className="trust-note">Loading {METHOD_LABELS[method]}…</p>}
             {status === 'unavailable' && (
                 <div className="wallet-unavailable">
                     <strong>{METHOD_LABELS[method]} isn’t available here</strong>
                     <p>{WALLET_HELP[method]}</p>
+                    <small className="wallet-diag">
+                        {Object.entries(diag)
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(' · ')}
+                    </small>
                 </div>
             )}
             {isPaying && <p className="trust-note">Completing your payment…</p>}
