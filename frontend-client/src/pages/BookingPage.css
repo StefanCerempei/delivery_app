@@ -2095,10 +2095,3 @@
     line-height: 1.45;
 }
 
-.wallet-diag {
-    display: block;
-    margin-top: 10px;
-    font-size: 11px;
-    color: var(--text-3, #6b7682);
-    word-break: break-word;
-}

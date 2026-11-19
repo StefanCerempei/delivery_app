@@ -166,7 +166,6 @@ const WalletPanel = ({ method, ...props }) => {
     const { pay, error, isPaying } = useConfirmPayment(props);
     // loading → ready (butonul e afișat) sau unavailable (metoda nu merge pe acest dispozitiv / browser)
     const [status, setStatus] = useState('loading');
-    const [diag, setDiag] = useState({ ready: 'no event yet' });
 
     // Dacă Stripe nu afișează niciun buton (ex. Apple Pay pe Windows), uneori nu vine nici „ready”.
     useEffect(() => {
@@ -174,25 +173,8 @@ const WalletPanel = ({ method, ...props }) => {
         return () => clearTimeout(timer);
     }, [method]);
 
-    // Diagnostic: ce spune browserul despre Apple Pay (afișat sub mesajul de indisponibilitate).
-    useEffect(() => {
-        let applePay = 'ApplePaySession missing';
-        try {
-            if (window.ApplePaySession) applePay = `ApplePaySession ok, canMakePayments=${window.ApplePaySession.canMakePayments()}`;
-        } catch (err) {
-            applePay = `ApplePaySession error: ${err.message}`;
-        }
-        const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
-        setDiag((d) => ({
-            ...d,
-            applePay,
-            key: key.startsWith('pk_live') ? 'live' : key.startsWith('pk_test') ? 'test' : 'unknown',
-            host: window.location.host
-        }));
-    }, []);
 
     const handleReady = ({ availablePaymentMethods }) => {
-        setDiag((d) => ({ ...d, ready: JSON.stringify(availablePaymentMethods ?? null) }));
         const shown = availablePaymentMethods && (method === 'amazonPay' || availablePaymentMethods[method] !== false);
         setStatus(shown ? 'ready' : 'unavailable');
     };
@@ -221,21 +203,13 @@ const WalletPanel = ({ method, ...props }) => {
                 options={options}
                 onConfirm={pay}
                 onReady={handleReady}
-                onLoadError={({ error: loadError }) => {
-                    setDiag((d) => ({ ...d, loadError: loadError?.message || 'load error' }));
-                    setStatus('unavailable');
-                }}
+                onLoadError={() => setStatus('unavailable')}
             />
             {status === 'loading' && <p className="trust-note">Loading {METHOD_LABELS[method]}…</p>}
             {status === 'unavailable' && (
                 <div className="wallet-unavailable">
                     <strong>{METHOD_LABELS[method]} isn’t available here</strong>
                     <p>{WALLET_HELP[method]}</p>
-                    <small className="wallet-diag">
-                        {Object.entries(diag)
-                            .map(([k, v]) => `${k}: ${v}`)
-                            .join(' · ')}
-                    </small>
                 </div>
             )}
             {isPaying && <p className="trust-note">Completing your payment…</p>}
@@ -245,10 +219,29 @@ const WalletPanel = ({ method, ...props }) => {
 };
 
 /**
- * Metodele afișate mereu: Card · Apple Pay · Google Pay · Amazon Pay (+ PayPal dacă e configurat).
- * Dacă Apple Pay / Google Pay nu merg pe dispozitivul respectiv, panoul metodei spune asta.
+ * Metodele afișate: Card · Apple Pay · Google Pay · Amazon Pay (+ PayPal dacă e configurat), după dispozitiv:
+ *   - Apple Pay doar pe dispozitive Apple (iPhone / iPad / Mac) — în altă parte nu poate funcționa;
+ *   - Google Pay nu pe iPhone / iPad — acolo deschide un pop-up pe care Safari îl blochează (OR_BIBED_15).
+ * Dacă metoda tot nu merge pe dispozitiv, panoul ei spune asta.
  */
-const methodsFor = (paypalClientId) => ['card', 'applePay', 'googlePay', 'amazonPay', ...(paypalClientId ? ['paypal'] : [])];
+function deviceKind() {
+    const ua = navigator.userAgent || '';
+    // iPadOS se prezintă ca „Macintosh”, dar are ecran tactil
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const isApple = isIOS || /Macintosh|Mac OS X/.test(ua);
+    return { isIOS, isApple };
+}
+
+const methodsFor = (paypalClientId) => {
+    const { isIOS, isApple } = deviceKind();
+    return [
+        'card',
+        ...(isApple ? ['applePay'] : []),
+        ...(!isIOS ? ['googlePay'] : []),
+        'amazonPay',
+        ...(paypalClientId ? ['paypal'] : [])
+    ];
+};
 
 const MethodIcon = ({ method }) => {
     switch (method) {
@@ -273,7 +266,7 @@ const MethodIcon = ({ method }) => {
 }
 
 const PaymentMethodPicker = ({ stripePromise, appearance, order, clientSecret, paypalClientId, onPaid, returnParam }) => {
-    const methods = methodsFor(paypalClientId);
+    const methods = useMemo(() => methodsFor(paypalClientId), [paypalClientId]);
     const [selected, setSelected] = useState('card');
     const active = methods.includes(selected) ? selected : 'card';
 
