@@ -36,6 +36,8 @@ const AdminDashboard = () => {
     const [view, setView] = useState('overview'); // overview | orders | drivers | customers
     const [statusFilter, setStatusFilter] = useState('all');
     const [search, setSearch] = useState('');
+    // Meniul pe tot ecranul (telefon): se deschide cu butonul hamburger, se închide cu X
+    const [menuOpen, setMenuOpen] = useState(false);
     const navigate = useNavigate();
     const { user, logoutUser } = useAuth();
 
@@ -58,6 +60,25 @@ const AdminDashboard = () => {
         const timer = setInterval(load, 30000);
         return () => clearInterval(timer);
     }, [load]);
+
+    // Cu meniul deschis: pagina de dedesubt nu se derulează, iar Escape îl închide
+    useEffect(() => {
+        if (!menuOpen) return undefined;
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const onKey = (e) => e.key === 'Escape' && setMenuOpen(false);
+        window.addEventListener('keydown', onKey);
+        return () => {
+            document.body.style.overflow = prevOverflow;
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [menuOpen]);
+
+    const selectView = (id) => {
+        setView(id);
+        setMenuOpen(false);
+        window.scrollTo(0, 0);
+    };
 
     const handleLogout = async () => {
         await logoutUser().catch(() => {});
@@ -170,28 +191,59 @@ const AdminDashboard = () => {
                     <span className="crm-brand-tag">Dispatch</span>
                 </div>
 
-                <nav className="crm-nav">
-                    {NAV.map((item) => (
-                        <button
-                            key={item.id}
-                            className={`crm-nav-item ${view === item.id ? 'active' : ''}`}
-                            onClick={() => setView(item.id)}
-                        >
-                            <span className="crm-nav-icon" aria-hidden="true">{item.icon}</span>
-                            {item.label}
-                        </button>
-                    ))}
-                </nav>
+                {/* Doar pe telefon: deschide meniul pe tot ecranul */}
+                <button
+                    type="button"
+                    className="crm-burger"
+                    aria-label="Open menu"
+                    aria-expanded={menuOpen}
+                    aria-controls="crm-menu"
+                    onClick={() => setMenuOpen(true)}
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                </button>
 
-                <div className="crm-sidebar-foot">
-                    <div className="crm-user">
-                        <span className="crm-user-avatar">{initials(user?.fullName || 'Dispatch')}</span>
-                        <div className="crm-user-meta">
-                            <strong>{user?.fullName || 'Dispatcher'}</strong>
-                            <small>{user?.email}</small>
+                <div id="crm-menu" className={`crm-menu ${menuOpen ? 'open' : ''}`} aria-label="Menu">
+                    <div className="crm-menu-head">
+                        <div className="crm-brand">
+                            <Logo height={24} />
+                            <span className="crm-brand-tag">Dispatch</span>
                         </div>
+                        <button type="button" className="crm-burger" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                        </button>
                     </div>
-                    <button onClick={handleLogout} className="crm-logout">Log out</button>
+
+                    <nav className="crm-nav">
+                        {NAV.map((item) => (
+                            <button
+                                key={item.id}
+                                className={`crm-nav-item ${view === item.id ? 'active' : ''}`}
+                                onClick={() => selectView(item.id)}
+                            >
+                                <span className="crm-nav-icon" aria-hidden="true">{item.icon}</span>
+                                {item.label}
+                                {item.id === 'orders' && counts.pending_payment + counts.paid > 0 && (
+                                    <span className="crm-nav-badge">{counts.pending_payment + counts.paid}</span>
+                                )}
+                            </button>
+                        ))}
+                    </nav>
+
+                    <div className="crm-sidebar-foot">
+                        <div className="crm-user">
+                            <span className="crm-user-avatar">{initials(user?.fullName || 'Dispatch')}</span>
+                            <div className="crm-user-meta">
+                                <strong>{user?.fullName || 'Dispatcher'}</strong>
+                                <small>{user?.email}</small>
+                            </div>
+                        </div>
+                        <button onClick={handleLogout} className="crm-logout">Log out</button>
+                    </div>
                 </div>
             </aside>
 
@@ -230,7 +282,7 @@ const AdminDashboard = () => {
 
                             <div className="crm-section-head">
                                 <h2>Recent orders</h2>
-                                <button className="crm-link-btn" onClick={() => setView('orders')}>View all →</button>
+                                <button className="crm-link-btn" onClick={() => selectView('orders')}>View all →</button>
                             </div>
                             <OrdersTable
                                 orders={orders.slice(0, 6)}
