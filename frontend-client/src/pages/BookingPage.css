@@ -1946,3 +1946,93 @@
 .paypal-button-slot {
     min-height: 48px;
 }
+
+/* ===== Metode de plată: rând cu swipe (Card · Apple Pay · Google Pay · Amazon Pay · PayPal) ===== */
+.pm-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pm-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding: 2px 2px 4px;
+    margin: 0 -2px;
+    /* umbră la margine: arată că rândul continuă */
+    mask-image: linear-gradient(to right, #000 85%, transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent);
+}
+
+.pm-row::-webkit-scrollbar {
+    display: none;
+}
+
+.pm-chip {
+    flex: 0 0 auto;
+    min-width: 112px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    background: #141c2a;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.pm-chip:last-child {
+    margin-right: 28px; /* ultimul chip nu rămâne sub umbra de la margine */
+}
+
+.pm-chip svg {
+    width: 22px;
+    height: 22px;
+}
+
+.pm-chip.active {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #fff;
+}
+
+.pm-chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.pm-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 4px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.pm-chip.active .pm-mark {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.wallet-panel.is-busy {
+    opacity: 0.6;
+    pointer-events: none;
+}

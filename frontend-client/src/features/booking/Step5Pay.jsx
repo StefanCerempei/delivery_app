@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { Link } from 'react-router-dom';
 import { useBooking, PAYMENT_RETURN_PARAM } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
@@ -9,7 +8,7 @@ import { isValidEmail, isValidPhone, formatUsPhone } from '../../utils/validator
 import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
-import PaypalButton from '../../components/PaypalButton';
+import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import { useAuth } from '../../context/AuthContext';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -43,67 +42,6 @@ function schedulePayload(scheduledTime) {
         label: `${scheduledTime.dateLabel} • ${scheduledTime.slotLabel}`
     };
 }
-
-/** Formularul de plată Stripe (afișat după ce comanda a fost creată pe server). */
-const StripePaymentForm = ({ order, onPaid, extraButtons }) => {
-    const stripe = useStripe();
-    const elements = useElements();
-    const [error, setError] = useState('');
-    const [isPaying, setIsPaying] = useState(false);
-
-    /** Confirmă plata la Stripe, apoi serverul verifică și marchează comanda (comun card + butoane rapide). */
-    const confirmAndFinish = async () => {
-        const { error: stripeError } = await stripe.confirmPayment({
-            elements,
-            redirect: 'if_required',
-            // Metodele cu redirect (Amazon Pay) se întorc aici; BookingContext verifică plata.
-            confirmParams: { return_url: `${window.location.origin}/?${PAYMENT_RETURN_PARAM}=${encodeURIComponent(order.id)}` }
-        });
-
-        if (stripeError) {
-            setError(stripeError.message || 'Your payment could not be processed.');
-            setIsPaying(false);
-            return;
-        }
-
-        try {
-            // Serverul verifică la Stripe că plata chiar a intrat, abia apoi marchează comanda ca plătită.
-            const { order: updated } = await api.confirmPayment(order.id);
-            onPaid(updated);
-        } catch (err) {
-            setError(err.message);
-            setIsPaying(false);
-        }
-    };
-
-    const handlePay = async (e) => {
-        e.preventDefault();
-        if (!stripe || !elements) return;
-        setError('');
-        setIsPaying(true);
-        await confirmAndFinish();
-    };
-
-    return (
-        <form onSubmit={handlePay}>
-            {/* Toate metodele Stripe pe același rând de tab-uri: Card, Apple Pay, Google Pay, Amazon Pay.
-                Apple Pay apare doar în Safari / pe dispozitive Apple; Google Pay în Chrome / Android. */}
-            <PaymentElement options={{ layout: { type: 'tabs', defaultCollapsed: false } }} />
-            {error && <p className="form-inline-error">{error}</p>}
-            <div className="step-footer">
-                <Button type="submit" disabled={!stripe || isPaying}>
-                    {isPaying ? 'Processing payment…' : `Pay ${formatPrice(order.totalAmount)}`}
-                </Button>
-                <p className="trust-note">
-                    This payment covers the reservation fee, service fee and transportation. Labor is billed after the job
-                    {order?.price?.labor ? ` (${order.price.labor.label})` : ''}, based on actual time from crew arrival to completion.
-                </p>
-                <p className="trust-note">Card details are handled securely by Stripe and never touch RELOQ servers.</p>
-            </div>
-            {extraButtons}
-        </form>
-    );
-};
 
 const Step5Pay = () => {
     const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder, paymentNotice, setPaymentNotice } =
@@ -143,11 +81,6 @@ const Step5Pay = () => {
         bookingData.scheduledTime && typeof bookingData.scheduledTime === 'object'
             ? `${bookingData.scheduledTime.dateLabel} • ${bookingData.scheduledTime.slotLabel}`
             : 'Arrival window not selected';
-
-    const elementsOptions = useMemo(
-        () => (clientSecret ? { clientSecret, appearance: stripeAppearance } : null),
-        [clientSecret]
-    );
 
     const handleAccountSubmit = async (e) => {
         e.preventDefault();
@@ -393,19 +326,22 @@ const Step5Pay = () => {
                     </div>
                 </div>
 
-                {clientSecret && elementsOptions && stripePromise ? (
+                {clientSecret && stripePromise ? (
                     <>
-                        <Elements stripe={stripePromise} options={elementsOptions}>
-                            <StripePaymentForm
-                                order={order}
-                                onPaid={setCompletedOrder}
-                                extraButtons={
-                                    paypalClientId ? (
-                                        <PaypalButton order={order} clientId={paypalClientId} onPaid={setCompletedOrder} />
-                                    ) : null
-                                }
-                            />
-                        </Elements>
+                        <PaymentMethodPicker
+                            stripePromise={stripePromise}
+                            appearance={stripeAppearance}
+                            order={order}
+                            clientSecret={clientSecret}
+                            paypalClientId={paypalClientId}
+                            onPaid={setCompletedOrder}
+                            returnParam={PAYMENT_RETURN_PARAM}
+                        />
+                        <p className="trust-note">
+                            This payment covers the reservation fee, service fee and transportation. Labor is billed after the job
+                            {order?.price?.labor ? ` (${order.price.labor.label})` : ''}, based on actual time from crew arrival to completion.
+                        </p>
+                        <p className="trust-note">Payments are processed securely by Stripe and PayPal — card details never touch RELOQ servers.</p>
                     </>
                 ) : (
                     <>

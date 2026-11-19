@@ -84,9 +84,6 @@ const PaypalButton = ({ order, clientId, onPaid, disabled }) => {
 
     return (
         <div className={`paypal-pay ${disabled || busy ? 'is-busy' : ''}`}>
-            <div className="paypal-divider">
-                <span>or pay with PayPal</span>
-            </div>
             <div ref={containerRef} className="paypal-button-slot" />
             {busy && <p className="trust-note">Completing your PayPal payment…</p>}
             {error && <p className="form-inline-error">{error}</p>}
