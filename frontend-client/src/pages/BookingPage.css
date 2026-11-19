@@ -2180,3 +2180,78 @@
 
 .dropdown-approx { font-size: 11.5px; color: #facc15; }
 .recap-addr-details { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+/* ===== Marcarea exactă pe hartă ===== */
+.pin-banner {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    z-index: 950;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    padding: 10px 10px 10px 16px;
+    border: 1px solid var(--accent-ring);
+    border-radius: 14px;
+    background: rgba(14, 21, 33, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6);
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.4;
+}
+.pin-banner button {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-ink, #fff);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.map-container .leaflet-marker-draggable { cursor: grab; }
+
+.pin-control { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; }
+.pin-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.pin-btn:hover { color: var(--text); border-color: var(--accent-ring); }
+.pin-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.pin-warn { font-size: 12px; color: #facc15; }
+.pin-hint { font-size: 12px; color: var(--muted); }
+
+.address-dropdown li.address-use-typed { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; }
+.address-use-typed .dropdown-pin { font-size: 14px; }
+.address-use-typed-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-ring);
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .pin-banner { bottom: 34px; font-size: 12.5px; }
+}

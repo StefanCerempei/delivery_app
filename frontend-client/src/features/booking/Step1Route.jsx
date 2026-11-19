@@ -7,8 +7,39 @@ import LocationDetails, { detailsComplete } from '../../components/LocationDetai
 import Button from '../../components/Button';
 
 const Step1Route = () => {
-    const { bookingData, updateBookingData, nextStep } = useBooking();
-    const addressesReady = Boolean(bookingData.pickup?.lat && bookingData.dropoff?.lat);
+    const { bookingData, updateBookingData, nextStep, pinMode, setPinMode } = useBooking();
+    // O adresă folosită „cum a fost scrisă” trebuie marcată pe hartă înainte de a continua
+    const needsPin = (loc) => Boolean(loc?.needsPin && !loc?.pinned);
+    const addressesReady =
+        Boolean(bookingData.pickup?.lat && bookingData.dropoff?.lat) && !needsPin(bookingData.pickup) && !needsPin(bookingData.dropoff);
+
+    const startPin = (kind) => {
+        setPinMode(kind);
+        // pe telefon harta e sus
+        if (window.matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const selectAddress = (kind, loc) => {
+        updateBookingData({ [kind]: loc });
+        if (loc?.needsPin) startPin(kind);
+        else if (pinMode === kind) setPinMode(null);
+    };
+
+    /** „Adjust pin on map” sub fiecare adresă aleasă. */
+    const PinControl = ({ kind }) => {
+        const loc = bookingData[kind];
+        if (!loc?.lat) return null;
+        const active = pinMode === kind;
+        return (
+            <div className="pin-control">
+                <button type="button" className={`pin-btn ${active ? 'active' : ''}`} onClick={() => (active ? setPinMode(null) : startPin(kind))}>
+                    {active ? '✓ Done marking' : loc.pinned ? '📍 Pin set — adjust' : '📍 Adjust pin on map'}
+                </button>
+                {needsPin(loc) && !active && <span className="pin-warn">Mark the exact spot on the map to continue</span>}
+                {active && <span className="pin-hint">Drag the pin or tap the map on the exact building</span>}
+            </div>
+        );
+    };
     // Etajul (și liftul, dacă nu e parter / casă) e obligatoriu la ambele adrese
     const detailsReady = detailsComplete(bookingData.pickupDetails) && detailsComplete(bookingData.dropoffDetails);
     const isReady = addressesReady && detailsReady;
@@ -46,8 +77,9 @@ const Step1Route = () => {
                             label="Pickup address"
                             placeholder="Pickup address..."
                             value={bookingData.pickup}
-                            onSelect={(loc) => updateBookingData({ pickup: loc })}
+                            onSelect={(loc) => selectAddress('pickup', loc)}
                         />
+                        <PinControl kind="pickup" />
                         {bookingData.pickup?.lat && (
                             <LocationDetails
                                 prefix="pickup"
@@ -66,8 +98,9 @@ const Step1Route = () => {
                             label="Drop-off address"
                             placeholder="Where are we delivering?"
                             value={bookingData.dropoff}
-                            onSelect={(loc) => updateBookingData({ dropoff: loc })}
+                            onSelect={(loc) => selectAddress('dropoff', loc)}
                         />
+                        <PinControl kind="dropoff" />
                         {bookingData.dropoff?.lat && (
                             <LocationDetails
                                 prefix="dropoff"
@@ -106,7 +139,11 @@ const Step1Route = () => {
 
             <div className="step-footer">
                 <Button onClick={nextStep} disabled={!isReady}>
-                    {addressesReady && !detailsReady ? 'Add floor & elevator info' : 'Choose your items →'}
+                    {needsPin(bookingData.pickup) || needsPin(bookingData.dropoff)
+                        ? 'Mark the address on the map'
+                        : addressesReady && !detailsReady
+                          ? 'Add floor & elevator info'
+                          : 'Choose your items →'}
                 </Button>
                 <p className="trust-note">
                     Background-checked movers • Loading & unloading included

@@ -77,6 +77,8 @@ export const BookingProvider = ({ children }) => {
         new URLSearchParams(window.location.search).get(PAYMENT_RETURN_PARAM) ? 'checking' : null
     );
     const [paymentNotice, setPaymentNotice] = useState('');
+    // Marcarea exactă pe hartă: 'pickup' | 'dropoff' | null (pinul se poate trage / harta atinsă)
+    const [pinMode, setPinMode] = useState(null);
 
     // Contul vine din AuthContext (global în aplicație)
     const { user, authChecked, registerUser, loginUser, logoutUser } = useAuth();
@@ -89,7 +91,10 @@ export const BookingProvider = ({ children }) => {
         setBookingData((prev) => ({ ...prev, ...newData }));
     }, []);
 
-    const nextStep = () => setCurrentStep((p) => Math.min(p + 1, 5));
+    const nextStep = () => {
+        setPinMode(null);
+        setCurrentStep((p) => Math.min(p + 1, 5));
+    };
     const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 1));
 
     const setCompletedOrder = (order) => {
@@ -139,6 +144,8 @@ export const BookingProvider = ({ children }) => {
             value={{
                 currentStep,
                 setCurrentStep,
+                pinMode,
+                setPinMode,
                 nextStep,
                 prevStep,
                 bookingData,

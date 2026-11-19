@@ -133,6 +133,18 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
         onSelect(selectedLocation);
     };
 
+    // Adresa nu apare în sugestii: o folosim exact cum a fost scrisă, iar clientul o marchează pe hartă.
+    // Pinul pornește din cea mai apropiată sugestie (de obicei strada sau orașul), altfel din zona noastră.
+    const handleUseTyped = () => {
+        const typed = query.trim();
+        const guess = suggestions[0] || { lat: BIAS.lat, lng: BIAS.lon };
+        skipNextSearch.current = true;
+        setSuggestions([]);
+        setIsOpen(false);
+        onSelect({ address: typed, lat: guess.lat, lng: guess.lng, needsPin: true });
+    };
+    const canUseTyped = query.trim().length >= 6;
+
     const handleClear = () => {
         skipNextSearch.current = true;
         setQuery('');
@@ -170,6 +182,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
 
             {isOpen && suggestions.length > 0 && (
                 <ul className="address-dropdown">
+                    {/* opțiunea „cum am scris” e la final, după sugestii */}
                     {suggestions.map((item) => (
                         <li key={item.id} onClick={() => handleSelectSuggestion(item)}>
                             <span className="dropdown-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg></span>
@@ -180,12 +193,26 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                             </div>
                         </li>
                     ))}
+                    {canUseTyped && (
+                        <li className="address-use-typed" onClick={handleUseTyped}>
+                            <span className="dropdown-pin">📍</span>
+                            <div className="dropdown-text">
+                                <strong>Not in the list? Use “{query.trim()}”</strong>
+                                <span>You’ll mark the exact spot on the map</span>
+                            </div>
+                        </li>
+                    )}
                 </ul>
             )}
 
             {isOpen && !loading && suggestions.length === 0 && (searched || searchError) && (
                 <div className="address-dropdown address-dropdown-empty" role="status">
                     {searchError || 'No matching address. Try the house number, street and town, e.g. “98 Mountain Gate Rd, Ashland, MA”.'}
+                    {canUseTyped && (
+                        <button type="button" className="address-use-typed-btn" onClick={handleUseTyped}>
+                            📍 Use “{query.trim()}” and mark it on the map
+                        </button>
+                    )}
                 </div>
             )}
         </div>
