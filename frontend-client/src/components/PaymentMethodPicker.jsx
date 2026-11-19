@@ -130,7 +130,7 @@ const CardPanel = ({ order, clientSecret, onPaid }) => {
             <label className="card-field card-field-full">
                 <span>Card number</span>
                 <div className="card-input">
-                    <CardNumberElement options={{ ...CARD_FIELD_OPTIONS, showIcon: true, placeholder: '1234 1234 1234 1234' }} />
+                    <CardNumberElement options={{ ...CARD_FIELD_OPTIONS, showIcon: true, disableLink: true, placeholder: '1234 1234 1234 1234' }} />
                 </div>
             </label>
             <label className="card-field">
@@ -209,7 +209,7 @@ const WalletPanel = ({ method, ...props }) => {
             },
             buttonType: { applePay: 'book', googlePay: 'book' },
             buttonHeight: 50,
-            layout: { maxColumns: 1, maxRows: 1, overflow: 'never' }
+            layout: { maxColumns: 1, maxRows: 1, overflow: 'auto' }
         }),
         [method]
     );
