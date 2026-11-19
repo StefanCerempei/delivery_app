@@ -275,7 +275,7 @@ textarea {
 /* ================= Leaflet ================= */
 .leaflet-container {
     font-family: var(--font-body);
-    background: #0b111b !important;
+    background: #131b28 !important;
 }
 
 .leaflet-control-attribution {
@@ -290,9 +290,9 @@ textarea {
     color: var(--muted) !important;
 }
 
-/* Hartă închisă, rece, cu contrast bun pentru traseul roșu */
+/* Hartă închisă, rece, cu contrast bun pentru traseul roșu (un pic mai deschisă: străzile se văd mai bine) */
 .leaflet-tile-pane {
-    filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%) saturate(35%);
+    filter: invert(100%) hue-rotate(180deg) brightness(125%) contrast(85%) saturate(40%);
 }
 
 .custom-map-pin {
