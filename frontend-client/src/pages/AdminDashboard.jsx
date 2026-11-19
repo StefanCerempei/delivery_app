@@ -198,6 +198,7 @@ const AdminDashboard = () => {
                             <span aria-hidden="true">⌕</span>
                             <input
                                 type="search"
+                                name="orderSearch"
                                 placeholder="Search orders, customers, addresses…"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
