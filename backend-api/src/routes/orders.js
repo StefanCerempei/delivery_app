@@ -13,6 +13,7 @@ import { notifyNewOrder } from '../emails.js';
 import { syncOrderPayment, markOrderPaid } from '../payments.js';
 import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.js';
 import { waitForMail } from '../mailer.js';
+import { takenSlots, withSlot } from '../slots.js';
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -87,6 +88,22 @@ async function createPaymentIntent(params) {
     }
 }
 
+/**
+ * GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD — ferestrele deja rezervate,
+ * ca să nu mai poată fi alese de alți clienți. Nu conține nimic despre cine a rezervat.
+ */
+router.get('/availability', estimateLimiter, async (req, res) => {
+    const from = parseDateOnly(req.query.from);
+    const to = parseDateOnly(req.query.to);
+    if (!from || !to || to < from || (to - from) / DAY_MS > MAX_DAYS_AHEAD + 1) {
+        return res.status(400).json({ error: 'Invalid date range.' });
+    }
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const taken = await takenSlots(iso(from), iso(to), { exceptUserId: req.user?.id || null });
+    res.set('Cache-Control', 'no-store');
+    res.json({ taken });
+});
+
 /** POST /api/orders — creează comanda; prețul e recalculat aici. */
 router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => {
     const data = parseBody(createOrderSchema, req, res);
@@ -106,39 +123,48 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
     const id = crypto.randomUUID();
     let code = newOrderCode();
 
-    for (let attempt = 0; ; attempt++) {
-        try {
-            await pool.query(
-                `INSERT INTO orders (
-                    id, code, user_id, status,
-                    pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
-                    distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
-                    items_description, photos_count,
-                    base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
-                    pricing_version, outbound_mins, return_mins, labor_cents_per_min
-                ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?)`,
-                [
-                    id, code, req.user.id,
-                    data.pickup.address, data.pickup.lat, data.pickup.lng,
-                    data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
-                    route.distanceMiles, route.durationMins, data.vehicle,
-                    schedule.type, schedule.scheduledFor, schedule.label,
-                    data.itemsDescription, data.photosCount,
-                    // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
-                    // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
-                    price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
-                    config.currency,
-                    price.outboundMins, price.returnMins, price.laborCentsPerMin
-                ]
-            );
-            break;
-        } catch (err) {
-            if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
-                code = newOrderCode();
-                continue;
+    // O singură comandă pe fereastră: verificarea și salvarea se fac cu ora blocată.
+    const booked = await withSlot(schedule.scheduledFor, req.user.id, async (conn) => {
+        for (let attempt = 0; ; attempt++) {
+            try {
+                await conn.query(
+                    `INSERT INTO orders (
+                        id, code, user_id, status,
+                        pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
+                        distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
+                        items_description, photos_count,
+                        base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
+                        pricing_version, outbound_mins, return_mins, labor_cents_per_min
+                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?)`,
+                    [
+                        id, code, req.user.id,
+                        data.pickup.address, data.pickup.lat, data.pickup.lng,
+                        data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
+                        route.distanceMiles, route.durationMins, data.vehicle,
+                        schedule.type, schedule.scheduledFor, schedule.label,
+                        data.itemsDescription, data.photosCount,
+                        // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
+                        // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
+                        price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
+                        config.currency,
+                        price.outboundMins, price.returnMins, price.laborCentsPerMin
+                    ]
+                );
+                break;
+            } catch (err) {
+                if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
+                    code = newOrderCode();
+                    continue;
+                }
+                throw err;
             }
-            throw err;
         }
+    });
+    if (!booked) {
+        return res.status(409).json({
+            error: 'Sorry, this arrival window was just booked by someone else. Please pick another time.',
+            code: 'SLOT_TAKEN'
+        });
     }
 
     let clientSecret = null;

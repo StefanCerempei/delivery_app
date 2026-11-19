@@ -52,6 +52,7 @@ export const api = {
     sendVerificationCode: () => request('/auth/verify-email/send', { method: 'POST' }),
     confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 
+    availability: (from, to) => request(`/availability?from=${from}&to=${to}`),
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),
     createOrder: (payload) => request('/orders', { method: 'POST', body: payload }),
     confirmPayment: (code) => request(`/orders/${encodeURIComponent(code)}/confirm-payment`, { method: 'POST' }),

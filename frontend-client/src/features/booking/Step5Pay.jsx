@@ -44,10 +44,12 @@ function schedulePayload(scheduledTime) {
 }
 
 const Step5Pay = () => {
-    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder, paymentNotice, setPaymentNotice } =
+    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder, paymentNotice, setPaymentNotice, setCurrentStep } =
         useBooking();
 
     const [authMode, setAuthMode] = useState('register');
+    // Ora aleasă a fost rezervată între timp de alt client → buton înapoi la alegerea orei
+    const [slotTaken, setSlotTaken] = useState(false);
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [ageConfirmed, setAgeConfirmed] = useState(null);
@@ -121,6 +123,7 @@ const Step5Pay = () => {
 
         setIsCreating(true);
         setPaymentNotice('');
+        setSlotTaken(false);
         try {
             const res = await api.createOrder({
                 pickup: toLocation(bookingData.pickup),
@@ -138,6 +141,7 @@ const Step5Pay = () => {
             }
         } catch (err) {
             if (err.data?.code === 'EMAIL_NOT_VERIFIED') refresh();
+            if (err.data?.code === 'SLOT_TAKEN') setSlotTaken(true);
             setOrderError(err.message);
         } finally {
             setIsCreating(false);
@@ -346,6 +350,11 @@ const Step5Pay = () => {
                 ) : (
                     <>
                         {(orderError || paymentNotice) && <p className="form-inline-error">{orderError || paymentNotice}</p>}
+                        {slotTaken && (
+                            <button type="button" className="slot-taken-back" onClick={() => setCurrentStep(4)}>
+                                ← Pick another arrival window
+                            </button>
+                        )}
                         <div className="step-footer">
                             <Button onClick={handleCreateOrder} disabled={!user || !verified || isCreating || totalAmount == null}>
                                 {isCreating

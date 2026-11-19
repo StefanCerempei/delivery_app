@@ -5,6 +5,7 @@ import { statusSchema, driverSchema, assignDriverSchema, parseBody } from '../va
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
 import { notifyStatusChange, notifyOrderConfirmed, notifyDriverAssigned, notifyDriverRemoved } from '../emails.js';
 import { waitForMail } from '../mailer.js';
+import { slotTakenByOther } from '../slots.js';
 
 const router = Router();
 
@@ -91,12 +92,20 @@ router.patch('/orders/:code/status', async (req, res) => {
     const data = parseBody(statusSchema, req, res);
     if (!data) return;
 
-    const [raw] = await pool.query('SELECT status, stripe_payment_intent_id FROM orders WHERE code = ?', [req.params.code]);
+    const [raw] = await pool.query('SELECT id, status, scheduled_for, stripe_payment_intent_id FROM orders WHERE code = ?', [
+        req.params.code
+    ]);
     if (!raw[0]) return res.status(404).json({ error: 'Order not found.' });
 
     // O comandă cu plată online se confirmă doar după ce transportul a fost plătit.
     if (data.status === 'confirmed' && raw[0].status === 'pending_payment' && raw[0].stripe_payment_intent_id) {
         return res.status(409).json({ error: 'This order has not been paid yet. It can be confirmed after the online payment goes through.' });
+    }
+
+    // Reactivarea unei comenzi anulate: doar dacă ora ei nu a fost luată între timp de altă comandă.
+    if (raw[0].status === 'cancelled' && data.status !== 'cancelled') {
+        const other = await slotTakenByOther(raw[0].id, raw[0].scheduled_for);
+        if (other) return res.status(409).json({ error: `This arrival window is now booked by order ${other}.` });
     }
 
     const problem = await driverProblem(data.driverId);

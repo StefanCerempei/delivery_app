@@ -941,6 +941,23 @@
     color: var(--accent);
 }
 
+/* Zile fără ferestre libere */
+.day-chip.full,
+.day-chip:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.slots-empty {
+    margin: 4px 0 0;
+    padding: 14px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-sm);
+    color: var(--text-2);
+    font-size: 14px;
+    text-align: center;
+}
+
 /* ================= PASUL 4: OBIECTE ================= */
 .quick-chips-wrap {
     display: flex;
@@ -2095,3 +2112,17 @@
     line-height: 1.45;
 }
 
+
+.slot-taken-back {
+    align-self: flex-start;
+    margin: 4px 0 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
