@@ -56,6 +56,10 @@ export const config = {
         env: (process.env.PAYPAL_ENV || 'sandbox').trim().toLowerCase() === 'live' ? 'live' : 'sandbox'
     },
 
+    // Opțional: cheia pentru Cron Job-ul din hPanel care trimite seara reamintirile șoferilor
+    // (minim 16 caractere). Fără ea, URL-ul de cron e dezactivat.
+    cronSecret: process.env.CRON_SECRET?.trim() || null,
+
     // Doar dacă frontend-ul stă pe alt domeniu decât API-ul (altfel lasă gol).
     corsOrigin: process.env.CORS_ORIGIN || null
 };

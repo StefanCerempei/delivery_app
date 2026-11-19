@@ -43,6 +43,15 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'labor_cents_per_min', 'INT UNSIGNED NULL AFTER return_mins');
     await addColumnIfMissing('orders', 'driver_id', 'INT UNSIGNED NULL AFTER labor_cents_per_min');
     await addColumnIfMissing('orders', 'driver_notified_at', 'DATETIME NULL AFTER driver_id');
+    // Linkul de job al șoferului (fără cont) și momentele raportate de el
+    await addColumnIfMissing('orders', 'driver_token', 'CHAR(43) NULL AFTER driver_notified_at');
+    await addColumnIfMissing('orders', 'en_route_at', 'DATETIME NULL AFTER driver_token');
+    await addColumnIfMissing('orders', 'arrived_at', 'DATETIME NULL AFTER en_route_at');
+    await addColumnIfMissing('orders', 'completed_at', 'DATETIME NULL AFTER arrived_at');
+    // Note interne ale dispecerului (apar și în emailul șoferului)
+    await addColumnIfMissing('orders', 'dispatch_notes', 'TEXT NULL AFTER completed_at');
+    await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
+    await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();
     await ensureAdmin();
 }
@@ -69,6 +78,17 @@ async function addColumnIfMissing(table, column, definition) {
     if (rows.length === 0) {
         await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
         console.log(`[reloq] Coloană adăugată: ${table}.${column}`);
+    }
+}
+
+async function addIndexIfMissing(table, index, definition) {
+    const [rows] = await pool.query(
+        'SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
+        [table, index]
+    );
+    if (rows.length === 0) {
+        await pool.query(`ALTER TABLE \`${table}\` ADD ${definition}`);
+        console.log(`[reloq] Index adăugat: ${table}.${index}`);
     }
 }
 

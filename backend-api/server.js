@@ -19,6 +19,7 @@ import orderRoutes from './src/routes/orders.js';
 import adminRoutes from './src/routes/admin.js';
 import accountRoutes from './src/routes/account.js';
 import stripeWebhookRoutes from './src/routes/stripeWebhook.js';
+import driverJobRoutes from './src/routes/driverJob.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../frontend-client/dist');
@@ -120,6 +121,7 @@ app.get('/api/config', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api', orderRoutes);
+app.use('/api', driverJobRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'API route not found.' }));

@@ -6,6 +6,8 @@ import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
 import { notifyStatusChange, notifyOrderConfirmed, notifyDriverAssigned, notifyDriverRemoved } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 import { slotTakenByOther } from '../slots.js';
+import { ensureDriverToken, jobUrl, stampStatus, sendDriverReminders, tomorrowDate } from '../jobs.js';
+import { parseDateOnly } from '../time.js';
 
 const router = Router();
 
@@ -78,9 +80,10 @@ async function sendDriverEmails(before, after, { resend = false } = {}) {
     const shouldNotify =
         newDriver && DRIVER_NOTIFY_STATUSES.includes(after.status) && (changed || resend || !newDriver.notifiedAt);
     if (shouldNotify) {
+        after.jobUrl = jobUrl(await ensureDriverToken(after.id));
         mails.push(
             notifyDriverAssigned(after).then(async (sent) => {
-                if (sent) await pool.query('UPDATE orders SET driver_notified_at = NOW() WHERE code = ?', [after.id]);
+                if (sent) await pool.query('UPDATE orders SET driver_notified_at = UTC_TIMESTAMP() WHERE code = ?', [after.id]);
                 return sent;
             })
         );
@@ -114,7 +117,8 @@ router.patch('/orders/:code/status', async (req, res) => {
     const before = await loadOrder(req.params.code);
 
     if (data.driverId !== undefined && data.driverId !== (before.driver?.id ?? null)) {
-        await pool.query('UPDATE orders SET status = ?, driver_id = ?, driver_notified_at = NULL WHERE code = ?', [
+        // Alt șofer → link de job nou (cel vechi nu mai merge)
+        await pool.query('UPDATE orders SET status = ?, driver_id = ?, driver_notified_at = NULL, driver_token = NULL WHERE code = ?', [
             data.status,
             data.driverId,
             req.params.code
@@ -122,6 +126,7 @@ router.patch('/orders/:code/status', async (req, res) => {
     } else {
         await pool.query('UPDATE orders SET status = ? WHERE code = ?', [data.status, req.params.code]);
     }
+    await stampStatus(req.params.code, data.status);
 
     let order = await loadOrder(req.params.code);
     const mails = [];
@@ -153,7 +158,10 @@ router.patch('/orders/:code/driver', async (req, res) => {
     if (problem) return res.status(409).json({ error: problem });
 
     if (data.driverId !== (before.driver?.id ?? null)) {
-        await pool.query('UPDATE orders SET driver_id = ?, driver_notified_at = NULL WHERE code = ?', [data.driverId, req.params.code]);
+        await pool.query('UPDATE orders SET driver_id = ?, driver_notified_at = NULL, driver_token = NULL WHERE code = ?', [
+            data.driverId,
+            req.params.code
+        ]);
     }
 
     let order = await loadOrder(req.params.code);
@@ -164,7 +172,44 @@ router.patch('/orders/:code/driver', async (req, res) => {
     res.json({ order });
 });
 
+/** Notele interne ale dispecerului (apar și în emailurile către șofer). */
+router.patch('/orders/:code/notes', async (req, res) => {
+    const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim().slice(0, 2000) : null;
+    if (notes === null) return res.status(400).json({ error: 'Notes must be text.' });
+    const [result] = await pool.query('UPDATE orders SET dispatch_notes = ? WHERE code = ?', [notes || null, req.params.code]);
+    if (!result.affectedRows) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ order: await loadOrder(req.params.code) });
+});
+
+/**
+ * GET /admin/schedule?from=YYYY-MM-DD&to=YYYY-MM-DD — comenzile programate în interval (calendarul).
+ * Fără coșurile abandonate; cu cele anulate (calendarul le poate arăta tăiate).
+ */
+router.get('/schedule', async (req, res) => {
+    const from = parseDateOnly(req.query.from);
+    const to = parseDateOnly(req.query.to);
+    if (!from || !to || to < from || (to - from) / 864e5 > 62) {
+        return res.status(400).json({ error: 'Invalid date range.' });
+    }
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const [rows] = await pool.query(
+        `${ORDER_WITH_CUSTOMER_SQL}
+         WHERE o.scheduled_for BETWEEN ? AND ? AND ${UNPAID_ONLINE_HIDDEN}
+         ORDER BY o.scheduled_for ASC`,
+        [`${iso(from)} 00:00:00`, `${iso(to)} 23:59:59`]
+    );
+    res.json({ orders: rows.map((r) => toOrderDto(r, { includeCustomer: true, includeDriver: true })) });
+});
+
 /* ---------------------------------- Șoferi ---------------------------------- */
+
+/** Trimite acum reamintirile pentru o zi (implicit mâine), chiar dacă au mai fost trimise. */
+router.post('/drivers/reminders', async (req, res) => {
+    const date = req.body?.date ? parseDateOnly(req.body.date) : null;
+    if (req.body?.date && !date) return res.status(400).json({ error: 'Invalid date.' });
+    const result = await sendDriverReminders({ date: date ? date.toISOString().slice(0, 10) : tomorrowDate(), force: true });
+    res.json(result);
+});
 
 const toDriverDto = (r) => ({
     id: r.id,

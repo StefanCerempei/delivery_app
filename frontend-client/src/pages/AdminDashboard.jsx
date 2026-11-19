@@ -4,6 +4,7 @@ import { formatPrice } from '../utils/formatters';
 import { api } from '../api/client';
 import Logo from '../components/Logo';
 import AdminDrivers from './AdminDrivers';
+import AdminSchedule from './AdminSchedule';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
 
@@ -33,6 +34,8 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [drivers, setDrivers] = useState([]);
+    // Crește la fiecare reîncărcare, ca și calendarul să se reîmprospăteze
+    const [refreshKey, setRefreshKey] = useState(0);
     const [view, setView] = useState('overview'); // overview | orders | drivers | customers
     const [statusFilter, setStatusFilter] = useState('all');
     const [search, setSearch] = useState('');
@@ -47,6 +50,7 @@ const AdminDashboard = () => {
             const [{ orders }, { drivers }] = await Promise.all([api.adminOrders(), api.adminDrivers()]);
             setOrders(orders);
             setDrivers(drivers);
+            setRefreshKey((k) => k + 1);
         } catch (err) {
             if (err.status === 401 || err.status === 403) return navigate('/admin/login', { replace: true });
             setError(err.message);
@@ -170,6 +174,7 @@ const AdminDashboard = () => {
 
     const NAV = [
         { id: 'overview', label: 'Overview', icon: '▚' },
+        { id: 'schedule', label: 'Schedule', icon: '▦' },
         { id: 'orders', label: 'Orders', icon: '☰' },
         { id: 'drivers', label: 'Drivers', icon: '⛟' },
         { id: 'customers', label: 'Customers', icon: '◎' }
@@ -315,6 +320,9 @@ const AdminDashboard = () => {
                             <OrdersTable orders={filteredOrders} loading={loading} onOpen={openOrder} full />
                         </>
                     )}
+
+                    {/* ---------- SCHEDULE ---------- */}
+                    {view === 'schedule' && <AdminSchedule drivers={drivers} onOpen={openOrder} refreshKey={refreshKey} />}
 
                     {/* ---------- DRIVERS ---------- */}
                     {view === 'drivers' && (

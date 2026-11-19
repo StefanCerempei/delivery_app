@@ -110,3 +110,11 @@ CREATE TABLE IF NOT EXISTS drivers (
     PRIMARY KEY (id),
     UNIQUE KEY uq_drivers_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Reamintirile trimise șoferilor (un email pe șofer pe zi, chiar dacă cron-ul rulează de mai multe ori).
+CREATE TABLE IF NOT EXISTS driver_reminders (
+    driver_id   INT UNSIGNED NOT NULL,
+    job_date    DATE         NOT NULL,
+    sent_at     DATETIME     NOT NULL,
+    PRIMARY KEY (driver_id, job_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

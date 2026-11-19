@@ -50,9 +50,39 @@ const AdminOrderDetail = () => {
     const [driverChoice, setDriverChoice] = useState('');
     const [driverMsg, setDriverMsg] = useState('');
 
-    const applyOrder = (updated) => {
+    // Note interne
+    const [notes, setNotes] = useState('');
+    const [notesMsg, setNotesMsg] = useState('');
+
+    const applyOrder = (updated, { keepNotes = false } = {}) => {
         setOrder(updated);
         setDriverChoice(updated.driver ? String(updated.driver.id) : '');
+        if (!keepNotes) setNotes(updated.dispatchNotes || '');
+    };
+
+    const saveNotes = async () => {
+        setError('');
+        setNotesMsg('');
+        setSaving('notes');
+        try {
+            const { order: updated } = await api.adminSaveNotes(order.id, notes);
+            applyOrder(updated);
+            setNotesMsg(updated.driver ? 'Saved. The driver sees them in their job page and reminder email.' : 'Saved.');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(null);
+        }
+    };
+
+    const copyJobLink = async () => {
+        const url = `${window.location.origin}${order.driver.jobPath}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setDriverMsg('Job link copied — you can text it to the driver.');
+        } catch {
+            window.prompt('Copy the job link:', url);
+        }
     };
 
     useEffect(() => {
@@ -73,7 +103,7 @@ const AdminOrderDetail = () => {
         setSaving(newStatus);
         try {
             const { order: updated } = await api.adminSetStatus(order.id, newStatus, driverId);
-            applyOrder(updated);
+            applyOrder(updated, { keepNotes: true });
             setConfirming(false);
             if (updated.driver && DRIVER_NOTIFY_STATUSES.includes(updated.status) && driverId !== undefined) {
                 setDriverMsg(
@@ -106,7 +136,7 @@ const AdminOrderDetail = () => {
         try {
             const driverId = driverChoice ? Number(driverChoice) : null;
             const { order: updated } = await api.adminAssignDriver(order.id, driverId, { resend });
-            applyOrder(updated);
+            applyOrder(updated, { keepNotes: true });
             if (!updated.driver) setDriverMsg('Driver removed from this order.');
             else if (!DRIVER_NOTIFY_STATUSES.includes(updated.status))
                 setDriverMsg(`${updated.driver.fullName} will be emailed when the order is confirmed.`);
@@ -250,7 +280,63 @@ const AdminOrderDetail = () => {
                             </div>
                         </div>
                     )}
+                    {order.driver?.jobPath && (
+                        <div className="record-actions-row">
+                            <a className="crm-ghost-btn" href={order.driver.jobPath} target="_blank" rel="noreferrer">
+                                Open driver’s job page ↗
+                            </a>
+                            <button className="crm-ghost-btn" onClick={copyJobLink}>
+                                Copy job link
+                            </button>
+                        </div>
+                    )}
                     {driverMsg && <p className="driver-msg">{driverMsg}</p>}
+                </div>
+
+                <div className="admin-card">
+                    <h3>Job progress</h3>
+                    <Row label="On the way">{order.timeline?.enRouteAt ? fmtWhen(order.timeline.enRouteAt) : '—'}</Row>
+                    <Row label="Arrived at pickup">{order.timeline?.arrivedAt ? fmtWhen(order.timeline.arrivedAt) : '—'}</Row>
+                    <Row label="Completed">{order.timeline?.completedAt ? fmtWhen(order.timeline.completedAt) : '—'}</Row>
+                    <Row label="Labor time">
+                        {order.laborActual ? `${order.laborActual.minutes} min` : order.timeline?.arrivedAt ? 'In progress…' : '—'}
+                    </Row>
+                    {order.laborActual && (
+                        <div className="record-total">
+                            <span>Labor due</span>
+                            <strong>{formatMoney(order.laborActual.amount)}</strong>
+                        </div>
+                    )}
+                    <p className="record-sub job-progress-note">
+                        The driver taps On my way / Arrived / Completed on their job page. Labor = Arrived → Completed
+                        {order.price?.labor ? ` at ${order.price.labor.label}` : ''}.
+                    </p>
+                </div>
+
+                <div className="admin-card">
+                    <h3>Dispatch notes</h3>
+                    <textarea
+                        className="crm-textarea"
+                        name="dispatchNotes"
+                        rows={5}
+                        maxLength={2000}
+                        placeholder="Gate code, narrow stairs, call before arriving… Visible to dispatch and the assigned driver, never to the customer."
+                        value={notes}
+                        onChange={(e) => {
+                            setNotes(e.target.value);
+                            setNotesMsg('');
+                        }}
+                    />
+                    <div className="record-actions-row">
+                        <button
+                            className="crm-primary-btn"
+                            disabled={saving !== null || notes.trim() === (order.dispatchNotes || '').trim()}
+                            onClick={saveNotes}
+                        >
+                            {saving === 'notes' ? 'Saving…' : 'Save notes'}
+                        </button>
+                    </div>
+                    {notesMsg && <p className="driver-msg">{notesMsg}</p>}
                 </div>
 
                 <div className="admin-card">

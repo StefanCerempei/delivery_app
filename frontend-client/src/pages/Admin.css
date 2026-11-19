@@ -832,3 +832,70 @@
 @media (max-width: 720px) {
     .driver-form-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== Calendar (Schedule) ===== */
+.schedule-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.schedule-nav { display: flex; align-items: center; gap: 6px; }
+.schedule-range { margin-left: 8px; font-size: 15px; }
+.schedule-filters { display: flex; align-items: center; gap: 10px; }
+.schedule-filters .crm-select { width: auto; min-width: 180px; }
+.schedule-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.schedule-stats { display: flex; gap: 16px; margin-bottom: 14px; font-size: 13px; color: var(--muted); }
+.schedule-stats strong { color: var(--text); }
+.schedule-warn strong { color: #facc15; }
+
+.schedule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.schedule-grid.is-loading { opacity: 0.6; }
+.schedule-day { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.schedule-day.today { border-color: var(--accent-ring); }
+.schedule-day.past { opacity: 0.6; }
+.schedule-day header { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.schedule-day header span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.schedule-day.today header span { color: var(--accent); }
+.schedule-slot { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
+.schedule-time { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+.schedule-free { padding: 7px 10px; border: 1px dashed var(--line); border-radius: 10px; font-size: 12px; color: var(--faint); }
+.schedule-job {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-left: 3px solid #7fb2ff;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.schedule-job:hover { border-color: var(--accent-ring); }
+.schedule-job strong { font-size: 13px; }
+.schedule-job small { font-size: 11.5px; color: var(--muted); }
+.schedule-job.paid { border-left-color: var(--accent); }
+.schedule-job.en_route { border-left-color: #b4a3ff; }
+.schedule-job.completed { border-left-color: var(--go); }
+.schedule-job.cancelled { border-left-color: var(--danger); opacity: 0.55; text-decoration: line-through; }
+.schedule-job.no-driver .schedule-driver { color: #facc15; }
+
+/* Note interne + progres + reamintiri */
+.crm-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background-color: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    margin-bottom: 10px;
+}
+.crm-textarea:focus { border-color: var(--accent); }
+.job-progress-note { display: block; margin-top: 10px; font-size: 12px; line-height: 1.45; }
+.driver-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.reminder-msg { margin: -6px 0 12px; }
+a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: none; }

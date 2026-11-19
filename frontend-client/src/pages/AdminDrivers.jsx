@@ -72,6 +72,29 @@ const DriverForm = ({ initial, onSaved, onCancel }) => {
 const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
     const [editing, setEditing] = useState(null); // null | 'new' | driver
     const [busyId, setBusyId] = useState(null);
+    const [reminding, setReminding] = useState(false);
+    const [reminderMsg, setReminderMsg] = useState('');
+
+    // Trimite acum emailul „jobs for tomorrow” fiecărui șofer cu joburi mâine
+    const sendReminders = async () => {
+        onError('');
+        setReminderMsg('');
+        setReminding(true);
+        try {
+            const r = await api.adminSendReminders();
+            setReminderMsg(
+                r.jobs === 0
+                    ? `No assigned jobs for tomorrow (${r.date}).`
+                    : `Sent to ${r.drivers} driver${r.drivers === 1 ? '' : 's'} (${r.jobs} job${r.jobs === 1 ? '' : 's'} on ${r.date})${
+                          r.failed ? ` · ${r.failed} failed — check the email settings` : ''
+                      }.`
+            );
+        } catch (err) {
+            onError(err.message);
+        } finally {
+            setReminding(false);
+        }
+    };
 
     const upsert = (driver) => {
         setDrivers((list) => {
@@ -119,12 +142,18 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                 <h2>
                     Drivers &amp; crew <span className="filter-count">{drivers.filter((d) => d.active).length} active</span>
                 </h2>
-                {editing === null && (
-                    <button className="crm-primary-btn" onClick={() => setEditing('new')}>
-                        + Add driver
+                <div className="driver-head-actions">
+                    <button className="crm-ghost-btn" onClick={sendReminders} disabled={reminding}>
+                        {reminding ? 'Sending…' : 'Email tomorrow’s jobs'}
                     </button>
-                )}
+                    {editing === null && (
+                        <button className="crm-primary-btn" onClick={() => setEditing('new')}>
+                            + Add driver
+                        </button>
+                    )}
+                </div>
             </div>
+            {reminderMsg && <p className="driver-msg reminder-msg">{reminderMsg}</p>}
 
             {editing !== null && (
                 <DriverForm

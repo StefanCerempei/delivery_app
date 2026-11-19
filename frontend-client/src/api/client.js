@@ -72,6 +72,15 @@ export const api = {
     adminAssignDriver: (code, driverId, { resend = false } = {}) =>
         request(`/admin/orders/${encodeURIComponent(code)}/driver`, { method: 'PATCH', body: { driverId, resend } }),
 
+    adminSchedule: (from, to) => request(`/admin/schedule?from=${from}&to=${to}`),
+    adminSaveNotes: (code, notes) =>
+        request(`/admin/orders/${encodeURIComponent(code)}/notes`, { method: 'PATCH', body: { notes } }),
+    adminSendReminders: (date) => request('/admin/drivers/reminders', { method: 'POST', body: date ? { date } : {} }),
+
+    // Pagina de job a șoferului (fără cont, cu tokenul din link)
+    job: (token) => request(`/job/${encodeURIComponent(token)}`),
+    jobAction: (token, action) => request(`/job/${encodeURIComponent(token)}/${action}`, { method: 'POST' }),
+
     adminDrivers: () => request('/admin/drivers'),
     adminCreateDriver: (payload) => request('/admin/drivers', { method: 'POST', body: payload }),
     adminUpdateDriver: (id, payload) => request(`/admin/drivers/${id}`, { method: 'PATCH', body: payload }),

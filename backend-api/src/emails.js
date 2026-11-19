@@ -285,7 +285,8 @@ function driverRows(order) {
         ['Drop-off', order.dropoff?.address],
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
-        ['Labor rate', order.price?.labor ? `${order.price.labor.label} — from arrival at pickup to completion` : null]
+        ['Labor rate', order.price?.labor ? `${order.price.labor.label} — from arrival at pickup to completion` : null],
+        ['Dispatch notes', order.dispatchNotes || null]
     ];
 }
 
@@ -302,10 +303,11 @@ export function notifyDriverAssigned(order) {
             preheader: `You're scheduled for ${order.scheduleText}.`,
             title: 'You have a new job',
             intro: `Hi ${esc(firstName)}, dispatch assigned you to the job below for <strong>${esc(order.scheduleText)}</strong>. Please call the customer about 45 minutes before you arrive.`,
-            body: `${detailsTable(rows)}${button(directionsUrl(order), 'Open route in Google Maps')}
+            body: `${detailsTable(rows)}${button(order.jobUrl, 'Open job page')}${button(directionsUrl(order), 'Open route in Google Maps')}
+${order.jobUrl ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">On the job page, tap <strong>On my way</strong> when you leave, <strong>Arrived</strong> at pickup and <strong>Completed</strong> at the destination — labor time is calculated from Arrived to Completed.</p>` : ''}
 <p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Reply to this email or call dispatch at ${BRAND.phone} as soon as possible.</p>`
         }),
-        text: `You have a new RELOQ job for ${order.scheduleText}.\n\n${orderText(order, rows)}\n\nRoute: ${directionsUrl(order)}\n\nPlease call the customer about 45 minutes before you arrive. Can't make it? Call dispatch at ${BRAND.phone}.`
+        text: `You have a new RELOQ job for ${order.scheduleText}.\n\n${orderText(order, rows)}\n\n${order.jobUrl ? `Job page (tap On my way / Arrived / Completed): ${order.jobUrl}\n` : ''}Route: ${directionsUrl(order)}\n\nPlease call the customer about 45 minutes before you arrive. Can't make it? Call dispatch at ${BRAND.phone}.`
     });
 }
 
@@ -327,5 +329,33 @@ export function notifyDriverRemoved(order, driver, { cancelled = false } = {}) {
 <p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Questions? Call dispatch at ${BRAND.phone}.</p>`
         }),
         text: `${title}: ${why}. You no longer need to go to it.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone}`
+    });
+}
+
+/** Reamintirea de seară: joburile șoferului de mâine, în ordinea orelor. */
+export function notifyDriverReminder(driver, orders, date) {
+    if (!driver?.email || !orders.length) return Promise.resolve(false);
+    const firstName = driver.fullName?.split(' ')[0] || 'there';
+    const dayLabel = orders[0].scheduleText?.split(' • ')[0] || date;
+    const blocks = orders
+        .map(
+            (o, i) => `<h2 style="margin:24px 0 0;font-size:16px;color:#111827">${i + 1}. ${esc(o.scheduleText?.split(' • ')[1] || o.scheduleText)}</h2>
+${detailsTable(driverRows(o).filter(([k]) => k !== 'Arrival window'))}${button(o.jobUrl, 'Open job page')}`
+        )
+        .join('\n');
+    const text = orders
+        .map((o, i) => `${i + 1}. ${o.scheduleText}\n${orderText(o, driverRows(o))}${o.jobUrl ? `\nJob page: ${o.jobUrl}` : ''}\nRoute: ${directionsUrl(o)}`)
+        .join('\n\n');
+    return sendMailInBackground({
+        to: driver.email,
+        subject: `Tomorrow: ${orders.length} job${orders.length > 1 ? 's' : ''} — ${dayLabel}`,
+        html: layout({
+            preheader: `Your RELOQ schedule for ${dayLabel}.`,
+            title: `Your jobs for ${dayLabel}`,
+            intro: `Hi ${esc(firstName)}, here's your schedule for tomorrow (${orders.length} job${orders.length > 1 ? 's' : ''}). Please call each customer about 45 minutes before you arrive.`,
+            body: `${blocks}
+<p style="margin:20px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Call dispatch at ${BRAND.phone} as soon as possible.</p>`
+        }),
+        text: `Your RELOQ jobs for ${dayLabel}:\n\n${text}\n\nCan't make it? Call dispatch at ${BRAND.phone}.`
     });
 }

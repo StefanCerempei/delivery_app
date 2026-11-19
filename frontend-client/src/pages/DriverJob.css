@@ -1,0 +1,96 @@
+/* Pagina de job a șoferului (/job/<token>) — gândită pentru telefon */
+.job-page {
+    min-height: 100vh;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 0 16px 40px;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.job-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+}
+.job-code { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.job-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg, 16px);
+    background: var(--surface);
+}
+.job-card strong { font-size: 16px; line-height: 1.35; }
+.job-when strong { font-size: 20px; }
+.job-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint, var(--muted));
+}
+.job-muted { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.job-text { margin: 0 0 6px; font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+.job-notes { padding: 10px 12px; border-radius: 10px; background: rgba(250, 204, 21, 0.08); color: #fde68a; }
+.job-error { margin: 0; color: var(--danger); font-size: 14px; }
+
+.job-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 46px;
+    padding: 10px 16px;
+    border: 1px solid var(--line-strong, var(--line));
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+.job-btn.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink, #fff); }
+.job-btn.big { min-height: 64px; font-size: 20px; }
+.job-btn:disabled { opacity: 0.6; cursor: default; }
+.job-action { border-color: var(--accent-ring); }
+.job-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.job-confirm-q { margin: 0; font-size: 18px; font-weight: 700; text-align: center; }
+.job-timer { margin: 4px 0 0; font-family: var(--font-mono); font-size: 14px; color: var(--go); text-align: center; }
+
+.job-banner { margin: 6px 0 0; padding: 10px 12px; border-radius: 10px; font-size: 14px; font-weight: 600; }
+.job-banner.cancelled { background: var(--danger-soft); color: var(--danger); }
+.job-banner.done { background: var(--go-soft, rgba(45, 212, 167, 0.12)); color: var(--go); }
+
+.job-stop { display: flex; gap: 12px; align-items: flex-start; }
+.job-stop > div { display: flex; flex-direction: column; gap: 2px; }
+.job-dot { flex-shrink: 0; width: 12px; height: 12px; margin-top: 4px; }
+.job-dot.pickup { border-radius: 50%; background: var(--accent); }
+.job-dot.dropoff { border-radius: 3px; background: var(--go); }
+
+.job-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.job-timeline li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 14px;
+}
+.job-timeline li.done { color: var(--text); }
+.job-timeline li.done::before { content: '✓'; margin-right: 8px; color: var(--go); }
+.job-timeline li span { margin-left: auto; font-family: var(--font-mono); }
+.job-footer { margin: 8px 0 0; text-align: center; font-size: 13px; color: var(--muted); }

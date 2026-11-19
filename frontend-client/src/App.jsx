@@ -3,6 +3,7 @@ import BookingPage from './pages/BookingPage';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrderDetail from './pages/AdminOrderDetail';
+import DriverJobPage from './pages/DriverJobPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import { BookingProvider } from './context/BookingContext';
@@ -41,6 +42,7 @@ function App() {
                 <Route path="/terms" element={<TermsOfService />} />
 
                 {/* Zona de Administrare */}
+                <Route path="/job/:token" element={<DriverJobPage />} />
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />

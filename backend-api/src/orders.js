@@ -41,6 +41,15 @@ function orderPrice(row, vehicle) {
     };
 }
 
+/** Manopera reală: de la sosirea la pickup până la finalizare, rotunjită în sus la minut. */
+export function laborActual(row) {
+    if (!row.arrived_at || !row.completed_at || !row.labor_cents_per_min) return null;
+    const ms = new Date(row.completed_at) - new Date(row.arrived_at);
+    if (!(ms > 0)) return null;
+    const minutes = Math.ceil(ms / 60000);
+    return { minutes, amount: cents(minutes * Number(row.labor_cents_per_min)) };
+}
+
 /** Transformă un rând din DB în obiectul trimis la frontend. */
 export function toOrderDto(row, { includeCustomer = false, includeDriver = false } = {}) {
     const vehicle = VEHICLES[row.vehicle];
@@ -66,15 +75,23 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
         paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null)
     };
 
-    // Șoferul alocat: doar în dispecerat (și în emailurile trimise de acolo).
+    // Momentele jobului (raportate de șofer sau de dispecer) și manopera calculată din ele
+    const iso = (v) => (v ? new Date(v).toISOString() : null);
+    dto.timeline = { enRouteAt: iso(row.en_route_at), arrivedAt: iso(row.arrived_at), completedAt: iso(row.completed_at) };
+    dto.laborActual = laborActual(row);
+
+    // Șoferul alocat și notele interne: doar în dispecerat (și în emailurile trimise de acolo).
     if (includeDriver) {
+        dto.dispatchNotes = row.dispatch_notes || '';
         dto.driver = row.driver_id
             ? {
                   id: row.driver_id,
                   fullName: row.driver_name ?? null,
                   email: row.driver_email ?? null,
                   phone: row.driver_phone ?? null,
-                  notifiedAt: row.driver_notified_at ? new Date(row.driver_notified_at).toISOString() : null
+                  notifiedAt: row.driver_notified_at ? new Date(row.driver_notified_at).toISOString() : null,
+                  // Linkul paginii de job a șoferului (dispecerul îl poate copia / deschide)
+                  jobPath: row.driver_token ? `/job/${row.driver_token}` : null
               }
             : null;
     }
