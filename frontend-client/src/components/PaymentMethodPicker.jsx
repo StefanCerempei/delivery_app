@@ -173,7 +173,6 @@ const WalletPanel = ({ method, ...props }) => {
         return () => clearTimeout(timer);
     }, [method]);
 
-
     const handleReady = ({ availablePaymentMethods }) => {
         const shown = availablePaymentMethods && (method === 'amazonPay' || availablePaymentMethods[method] !== false);
         setStatus(shown ? 'ready' : 'unavailable');
@@ -220,7 +219,7 @@ const WalletPanel = ({ method, ...props }) => {
 
 /**
  * Metodele afișate: Card · Apple Pay · Google Pay · Amazon Pay (+ PayPal dacă e configurat), după dispozitiv:
- *   - Apple Pay doar pe dispozitive Apple (iPhone / iPad / Mac) — în altă parte nu poate funcționa;
+ *   - Apple Pay doar unde browserul îl are (window.ApplePaySession: Safari / iPhone / iPad / Mac);
  *   - Google Pay nu pe iPhone / iPad — acolo deschide un pop-up pe care Safari îl blochează (OR_BIBED_15).
  * Dacă metoda tot nu merge pe dispozitiv, panoul ei spune asta.
  */
@@ -228,15 +227,14 @@ function deviceKind() {
     const ua = navigator.userAgent || '';
     // iPadOS se prezintă ca „Macintosh”, dar are ecran tactil
     const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    const isApple = isIOS || /Macintosh|Mac OS X/.test(ua);
-    return { isIOS, isApple };
+    return { isIOS, hasApplePay: typeof window !== 'undefined' && Boolean(window.ApplePaySession) };
 }
 
 const methodsFor = (paypalClientId) => {
-    const { isIOS, isApple } = deviceKind();
+    const { isIOS, hasApplePay } = deviceKind();
     return [
         'card',
-        ...(isApple ? ['applePay'] : []),
+        ...(hasApplePay ? ['applePay'] : []),
         ...(!isIOS ? ['googlePay'] : []),
         'amazonPay',
         ...(paypalClientId ? ['paypal'] : [])
