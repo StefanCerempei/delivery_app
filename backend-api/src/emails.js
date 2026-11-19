@@ -1,5 +1,6 @@
 // Șabloanele emailurilor. Tot textul introdus de clienți e escapat (fără HTML injectat în emailuri).
 import { mailSettings, sendMailInBackground, sendMailNow } from './mailer.js';
+import { describeLocation } from './orders.js';
 
 const BRAND = {
     name: 'RELOQ Moving Services',
@@ -81,6 +82,18 @@ function layout({ preheader, title, intro, body }) {
 </body></html>`;
 }
 
+/** Rândurile cu detaliile unei locații (etaj, lift, acces), doar dacă au fost completate. */
+function stopRows(order) {
+    const rows = [];
+    for (const [key, label] of [['pickup', 'Pickup'], ['dropoff', 'Drop-off']]) {
+        const d = order[key]?.details;
+        if (!d) continue;
+        rows.push([`${label} details`, describeLocation(d)]);
+        if (d.notes) rows.push([`${label} access notes`, d.notes]);
+    }
+    return rows;
+}
+
 function orderRows(order, { forDispatcher = false } = {}) {
     const rows = [
         ['Order', `#${order.id}`],
@@ -88,6 +101,7 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ['Vehicle', `${order.vehicle?.name}${order.vehicle?.crewLabel ? ` (${order.vehicle.crewLabel})` : ''}`],
         ['Pickup', order.pickup?.address],
         ['Drop-off', order.dropoff?.address],
+        ...stopRows(order),
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
         ...(order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]),
@@ -283,6 +297,7 @@ function driverRows(order) {
         ['Customer phone', order.customer?.phone],
         ['Pickup', order.pickup?.address],
         ['Drop-off', order.dropoff?.address],
+        ...stopRows(order),
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
         ['Labor rate', order.price?.labor ? `${order.price.labor.label} — from arrival at pickup to completion` : null],

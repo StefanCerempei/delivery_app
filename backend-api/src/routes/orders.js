@@ -14,6 +14,7 @@ import { syncOrderPayment, markOrderPaid } from '../payments.js';
 import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.js';
 import { waitForMail } from '../mailer.js';
 import { takenSlots, withSlot } from '../slots.js';
+import { searchAddresses } from '../geocode.js';
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -88,6 +89,20 @@ async function createPaymentIntent(params) {
     }
 }
 
+const geocodeLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60, standardHeaders: 'draft-7', legacyHeaders: false });
+
+/** GET /api/geocode?q=… — sugestii de adrese (registrul oficial al SUA + OpenStreetMap). */
+router.get('/geocode', geocodeLimiter, async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
+    if (q.length < 3) return res.json({ results: [] });
+    try {
+        res.json({ results: await searchAddresses(q) });
+    } catch (err) {
+        console.warn(`[reloq] Căutarea de adrese a eșuat: ${err.message}`);
+        res.status(503).json({ error: 'Address search is unavailable right now. Please try again.' });
+    }
+});
+
 /**
  * GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD — ferestrele deja rezervate,
  * ca să nu mai poată fi alese de alți clienți. Nu conține nimic despre cine a rezervat.
@@ -134,8 +149,9 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
                         items_description, photos_count,
                         base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
-                        pricing_version, outbound_mins, return_mins, labor_cents_per_min
-                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?)`,
+                        pricing_version, outbound_mins, return_mins, labor_cents_per_min,
+                        pickup_details, dropoff_details
+                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?)`,
                     [
                         id, code, req.user.id,
                         data.pickup.address, data.pickup.lat, data.pickup.lng,
@@ -147,7 +163,9 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
                         price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
                         config.currency,
-                        price.outboundMins, price.returnMins, price.laborCentsPerMin
+                        price.outboundMins, price.returnMins, price.laborCentsPerMin,
+                        data.pickupDetails ? JSON.stringify(data.pickupDetails) : null,
+                        data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null
                     ]
                 );
                 break;

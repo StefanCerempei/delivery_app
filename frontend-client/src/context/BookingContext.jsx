@@ -18,6 +18,9 @@ const EMPTY_BOOKING = {
     priceEstimate: null, // estimarea de la server pentru vehiculul ales
     items: [], // [{ id, label, size, qty }] alese din catalog
     itemsNotes: '', // note de acces opționale
+    // Etaj, lift, apartament, note de acces — pentru fiecare adresă
+    pickupDetails: { unit: '', floor: '', elevator: null, notes: '' },
+    dropoffDetails: { unit: '', floor: '', elevator: null, notes: '' },
     scheduledTime: null, // { dateStr, slotId, dateLabel, slotLabel } — doar programat, de mâine încolo
     itemsDescription: '',
     photos: []

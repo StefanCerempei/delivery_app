@@ -50,6 +50,9 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'completed_at', 'DATETIME NULL AFTER arrived_at');
     // Note interne ale dispecerului (apar și în emailul șoferului)
     await addColumnIfMissing('orders', 'dispatch_notes', 'TEXT NULL AFTER completed_at');
+    // Detaliile locațiilor (apartament, etaj, lift, acces), JSON
+    await addColumnIfMissing('orders', 'pickup_details', 'TEXT NULL AFTER pickup_lng');
+    await addColumnIfMissing('orders', 'dropoff_details', 'TEXT NULL AFTER dropoff_lng');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

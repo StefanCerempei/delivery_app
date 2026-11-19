@@ -78,9 +78,27 @@ export const estimateSchema = z.object({
     dropoff: locationSchema
 });
 
+// Etajul la adresă: parter / casă, subsol sau etajul 2…10+ (cum se spune în SUA: „2nd floor”)
+export const FLOORS = ['ground', 'basement', '2', '3', '4', '5', '6', '7', '8', '9', '10+'];
+
+/** Detalii despre locație: apartament / unitate, etaj, lift, note de acces. */
+export const locationDetailsSchema = z
+    .object({
+        unit: z.string().trim().max(40).optional().default(''),
+        floor: z.enum(FLOORS, { error: 'Please choose the floor.' }),
+        // obligatoriu când nu e parter / casă
+        elevator: z.enum(['yes', 'no']).nullable().optional().default(null),
+        notes: z.string().trim().max(300).optional().default('')
+    })
+    .refine((d) => d.floor === 'ground' || d.elevator, { error: 'Please tell us if there is an elevator.', path: ['elevator'] })
+    .transform((d) => ({ ...d, elevator: d.floor === 'ground' ? null : d.elevator }));
+
 export const createOrderSchema = z.object({
     pickup: locationSchema,
     dropoff: locationSchema,
+    // Opționale pentru compatibilitate cu paginile deja deschise înainte de actualizare
+    pickupDetails: locationDetailsSchema.optional(),
+    dropoffDetails: locationDetailsSchema.optional(),
     vehicle: z.enum(Object.keys(VEHICLES)),
     // Doar rezervări programate (opțiunea „Now / ASAP” a fost scoasă)
     schedule: z.object(

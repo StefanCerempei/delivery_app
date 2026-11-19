@@ -140,6 +140,8 @@ const DriverJobPage = () => {
                     <div>
                         <span className="job-label">Pickup</span>
                         <strong>{job.pickup.address}</strong>
+                        {job.pickup.summary && <span className="job-stop-details">{job.pickup.summary}</span>}
+                        {job.pickup.details?.notes && <span className="job-stop-notes">Access: {job.pickup.details.notes}</span>}
                     </div>
                 </div>
                 <div className="job-stop">
@@ -147,6 +149,8 @@ const DriverJobPage = () => {
                     <div>
                         <span className="job-label">Drop-off</span>
                         <strong>{job.dropoff.address}</strong>
+                        {job.dropoff.summary && <span className="job-stop-details">{job.dropoff.summary}</span>}
+                        {job.dropoff.details?.notes && <span className="job-stop-notes">Access: {job.dropoff.details.notes}</span>}
                     </div>
                 </div>
                 {job.routeInfo && (

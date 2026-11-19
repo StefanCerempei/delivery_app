@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { api } from '../api/client';
 
 
 // Autocomplete cu Photon (OpenStreetMap): sugerează adrese pe măsură ce scrii.
@@ -85,15 +86,23 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                     lon: String(BIAS.lon),
                     bbox: SERVICE_BBOX
                 });
-                const res = await fetch(`${PHOTON_URL}?${params}`, { signal: controller.signal });
-                if (!res.ok) throw new Error(`Address search failed (${res.status})`);
-                const data = await res.json();
-                const seen = new Set();
-                const results = (data.features || [])
-                    .map(toSuggestion)
-                    .filter((s) => s.countrycode === 'US' && s.title && Number.isFinite(s.lat))
-                    .filter((s) => (seen.has(s.address) ? false : seen.add(s.address)))
-                    .slice(0, 5);
+                let results;
+                try {
+                    // Serverul caută în registrul oficial al SUA (numere de casă exacte) + OpenStreetMap
+                    ({ results } = await api.geocode(query.trim(), controller.signal));
+                } catch (err) {
+                    if (err.name === 'AbortError') throw err;
+                    // Rezervă: căutarea directă în OpenStreetMap, din browser
+                    const res = await fetch(`${PHOTON_URL}?${params}`, { signal: controller.signal });
+                    if (!res.ok) throw new Error(`Address search failed (${res.status})`);
+                    const data = await res.json();
+                    const seen = new Set();
+                    results = (data.features || [])
+                        .map(toSuggestion)
+                        .filter((s) => s.countrycode === 'US' && s.title && Number.isFinite(s.lat))
+                        .filter((s) => (seen.has(s.address) ? false : seen.add(s.address)))
+                        .slice(0, 5);
+                }
                 setSuggestions(results);
                 setSearchError('');
                 setSearched(true);
@@ -167,6 +176,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                             <div className="dropdown-text">
                                 <strong>{item.title}</strong>
                                 {item.subtitle && <span>{item.subtitle}</span>}
+                                {item.approximate && <span className="dropdown-approx">Street found — pin placed on the street</span>}
                             </div>
                         </li>
                     ))}
@@ -175,7 +185,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
 
             {isOpen && !loading && suggestions.length === 0 && (searched || searchError) && (
                 <div className="address-dropdown address-dropdown-empty" role="status">
-                    {searchError || 'No matching address. Try a street and town, e.g. “98 Mountain Gate Rd, Ashland”.'}
+                    {searchError || 'No matching address. Try the house number, street and town, e.g. “98 Mountain Gate Rd, Ashland, MA”.'}
                 </div>
             )}
         </div>

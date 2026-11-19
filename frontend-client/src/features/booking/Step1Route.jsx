@@ -3,16 +3,22 @@ import { Link } from 'react-router-dom';
 import { COMPANY, LICENSE_LINE } from '../../data/company';
 import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
+import LocationDetails, { detailsComplete } from '../../components/LocationDetails';
 import Button from '../../components/Button';
 
 const Step1Route = () => {
     const { bookingData, updateBookingData, nextStep } = useBooking();
-    const isReady = Boolean(bookingData.pickup?.lat && bookingData.dropoff?.lat);
+    const addressesReady = Boolean(bookingData.pickup?.lat && bookingData.dropoff?.lat);
+    // Etajul (și liftul, dacă nu e parter / casă) e obligatoriu la ambele adrese
+    const detailsReady = detailsComplete(bookingData.pickupDetails) && detailsComplete(bookingData.dropoffDetails);
+    const isReady = addressesReady && detailsReady;
 
     const handleSwapAddresses = () => {
         updateBookingData({
             pickup: bookingData.dropoff,
-            dropoff: bookingData.pickup
+            dropoff: bookingData.pickup,
+            pickupDetails: bookingData.dropoffDetails,
+            dropoffDetails: bookingData.pickupDetails
         });
     };
 
@@ -42,6 +48,13 @@ const Step1Route = () => {
                             value={bookingData.pickup}
                             onSelect={(loc) => updateBookingData({ pickup: loc })}
                         />
+                        {bookingData.pickup?.lat && (
+                            <LocationDetails
+                                prefix="pickup"
+                                value={bookingData.pickupDetails}
+                                onChange={(d) => updateBookingData({ pickupDetails: d })}
+                            />
+                        )}
                     </div>
 
                     <div className="route-divider" />
@@ -55,6 +68,13 @@ const Step1Route = () => {
                             value={bookingData.dropoff}
                             onSelect={(loc) => updateBookingData({ dropoff: loc })}
                         />
+                        {bookingData.dropoff?.lat && (
+                            <LocationDetails
+                                prefix="dropoff"
+                                value={bookingData.dropoffDetails}
+                                onChange={(d) => updateBookingData({ dropoffDetails: d })}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -70,7 +90,7 @@ const Step1Route = () => {
                 )}
             </div>
 
-            {isReady && bookingData.routeInfo && (
+            {addressesReady && bookingData.routeInfo && (
                 <div className="trip-metrics-card">
                     <div className="metric-item">
                         <span className="metric-label">Driving distance</span>
@@ -86,7 +106,7 @@ const Step1Route = () => {
 
             <div className="step-footer">
                 <Button onClick={nextStep} disabled={!isReady}>
-                    Choose your items →
+                    {addressesReady && !detailsReady ? 'Add floor & elevator info' : 'Choose your items →'}
                 </Button>
                 <p className="trust-note">
                     Background-checked movers • Loading & unloading included

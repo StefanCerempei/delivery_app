@@ -10,16 +10,18 @@ export class ApiError extends Error {
     }
 }
 
-async function request(path, { method = 'GET', body } = {}) {
+async function request(path, { method = 'GET', body, signal } = {}) {
     let res;
     try {
         res = await fetch(`${API_BASE}/api${path}`, {
             method,
             credentials: 'include', // trimite cookie-ul de sesiune
+            signal,
             headers: body ? { 'Content-Type': 'application/json' } : undefined,
             body: body ? JSON.stringify(body) : undefined
         });
-    } catch {
+    } catch (err) {
+        if (err?.name === 'AbortError') throw err;
         throw new ApiError('Cannot reach the server. Check your connection and try again.', 0);
     }
 
@@ -52,6 +54,7 @@ export const api = {
     sendVerificationCode: () => request('/auth/verify-email/send', { method: 'POST' }),
     confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 
+    geocode: (q, signal) => request(`/geocode?q=${encodeURIComponent(q)}`, { signal }),
     availability: (from, to) => request(`/availability?from=${from}&to=${to}`),
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),
     createOrder: (payload) => request('/orders', { method: 'POST', body: payload }),

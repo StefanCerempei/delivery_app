@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { config } from '../config.js';
-import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
+import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, describeLocation } from '../orders.js';
 import { notifyStatusChange } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 import { sendDriverReminders } from '../jobs.js';
@@ -32,8 +32,8 @@ const toJobDto = (o) => ({
     status: o.status,
     scheduleText: o.scheduleText,
     vehicle: o.vehicle,
-    pickup: { address: o.pickup.address },
-    dropoff: { address: o.dropoff.address },
+    pickup: { address: o.pickup.address, details: o.pickup.details, summary: describeLocation(o.pickup.details) },
+    dropoff: { address: o.dropoff.address, details: o.dropoff.details, summary: describeLocation(o.dropoff.details) },
     routeInfo: o.routeInfo,
     itemsDescription: o.itemsDescription,
     dispatchNotes: o.dispatchNotes || '',

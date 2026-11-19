@@ -9,6 +9,7 @@ import { api, toLocation } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
+import { describeDetails } from '../../components/LocationDetails';
 import { useAuth } from '../../context/AuthContext';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -32,6 +33,17 @@ const stripeAppearance = {
         '.Input:focus': { border: '1px solid #ff3f34', boxShadow: '0 0 0 4px rgba(255,63,52,0.14)' }
     }
 };
+
+/** Detaliile locației pentru server (lipsă = draft vechi, fără detalii). */
+function cleanDetails(d) {
+    if (!d?.floor) return undefined;
+    return {
+        unit: (d.unit || '').trim(),
+        floor: d.floor,
+        elevator: d.floor === 'ground' ? null : d.elevator,
+        notes: (d.notes || '').trim()
+    };
+}
 
 function schedulePayload(scheduledTime) {
     if (!scheduledTime || typeof scheduledTime !== 'object') return null;
@@ -128,6 +140,8 @@ const Step5Pay = () => {
             const res = await api.createOrder({
                 pickup: toLocation(bookingData.pickup),
                 dropoff: toLocation(bookingData.dropoff),
+                pickupDetails: cleanDetails(bookingData.pickupDetails),
+                dropoffDetails: cleanDetails(bookingData.dropoffDetails),
                 vehicle: bookingData.vehicle,
                 schedule,
                 itemsDescription: bookingData.itemsDescription,
@@ -176,11 +190,17 @@ const Step5Pay = () => {
                 <div className="recap-addresses">
                     <div className="recap-addr-line">
                         <span className="mini-dot blue" />
-                        <span>{bookingData.pickup?.address}</span>
+                        <span>
+                            {bookingData.pickup?.address}
+                            {describeDetails(bookingData.pickupDetails) && <small className="recap-addr-details">{describeDetails(bookingData.pickupDetails)}</small>}
+                        </span>
                     </div>
                     <div className="recap-addr-line">
                         <span className="mini-dot green" />
-                        <span>{bookingData.dropoff?.address}</span>
+                        <span>
+                            {bookingData.dropoff?.address}
+                            {describeDetails(bookingData.dropoffDetails) && <small className="recap-addr-details">{describeDetails(bookingData.dropoffDetails)}</small>}
+                        </span>
                     </div>
                 </div>
             </div>

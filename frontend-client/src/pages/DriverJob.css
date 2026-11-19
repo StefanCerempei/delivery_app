@@ -94,3 +94,5 @@
 .job-timeline li.done::before { content: '✓'; margin-right: 8px; color: var(--go); }
 .job-timeline li span { margin-left: auto; font-family: var(--font-mono); }
 .job-footer { margin: 8px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
+.job-stop-details { font-size: 14px; font-weight: 600; color: #fde68a; }
+.job-stop-notes { font-size: 13px; color: var(--text-2); }

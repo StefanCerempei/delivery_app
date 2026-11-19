@@ -41,6 +41,34 @@ function orderPrice(row, vehicle) {
     };
 }
 
+function parseDetails(raw) {
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+const ORDINAL = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10 > 3 || Math.floor((n % 100) / 10) === 1 ? 0 : n % 10] || 'th'}`;
+
+/** „Apt 4B · 3rd floor · no elevator” (+ notele de acces separat). */
+export function describeLocation(details) {
+    if (!details) return '';
+    const floor =
+        details.floor === 'ground'
+            ? 'Ground floor / house'
+            : details.floor === 'basement'
+              ? 'Basement'
+              : details.floor === '10+'
+                ? '10th floor or higher'
+                : details.floor
+                  ? `${ORDINAL(Number(details.floor))} floor`
+                  : '';
+    const elevator = details.floor && details.floor !== 'ground' ? (details.elevator === 'yes' ? 'elevator' : 'no elevator (stairs)') : '';
+    return [details.unit ? `Unit ${details.unit}` : '', floor, elevator].filter(Boolean).join(' · ');
+}
+
 /** Manopera reală: de la sosirea la pickup până la finalizare, rotunjită în sus la minut. */
 export function laborActual(row) {
     if (!row.arrived_at || !row.completed_at || !row.labor_cents_per_min) return null;
@@ -58,8 +86,8 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
         status: row.status,
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
-        pickup: { address: row.pickup_address, lat: Number(row.pickup_lat), lng: Number(row.pickup_lng) },
-        dropoff: { address: row.dropoff_address, lat: Number(row.dropoff_lat), lng: Number(row.dropoff_lng) },
+        pickup: { address: row.pickup_address, lat: Number(row.pickup_lat), lng: Number(row.pickup_lng), details: parseDetails(row.pickup_details) },
+        dropoff: { address: row.dropoff_address, lat: Number(row.dropoff_lat), lng: Number(row.dropoff_lng), details: parseDetails(row.dropoff_details) },
         routeInfo: { distanceMiles: Number(row.distance_miles), durationMins: row.duration_mins },
         vehicle: { id: row.vehicle, name: vehicle?.name || row.vehicle, crewLabel: vehicle?.crewLabel || '' },
         schedule: { type: row.schedule_type, scheduledFor: row.scheduled_for, label: row.schedule_label },

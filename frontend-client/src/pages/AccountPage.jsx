@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { describeDetails } from '../components/LocationDetails';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { useAuth, initials } from '../context/AuthContext';
@@ -130,11 +131,17 @@ const OrderSection = ({ title, orders }) => (
                     <div className="order-card-route">
                         <div className="recap-addr-line">
                             <span className="mini-dot blue" />
-                            <span>{order.pickup?.address}</span>
+                            <span>
+                                {order.pickup?.address}
+                                {describeDetails(order.pickup?.details) && <small className="recap-addr-details">{describeDetails(order.pickup?.details)}</small>}
+                            </span>
                         </div>
                         <div className="recap-addr-line">
                             <span className="mini-dot green" />
-                            <span>{order.dropoff?.address}</span>
+                            <span>
+                                {order.dropoff?.address}
+                                {describeDetails(order.dropoff?.details) && <small className="recap-addr-details">{describeDetails(order.dropoff?.details)}</small>}
+                            </span>
                         </div>
                     </div>
                 </article>

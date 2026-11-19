@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatMoney } from '../utils/formatters';
 import { api } from '../api/client';
 import { STATUS_LABELS } from './AdminDashboard';
+import { describeDetails } from '../components/LocationDetails';
 import './Admin.css';
 
 const STATUS_ACTIONS = ['confirmed', 'en_route', 'completed', 'cancelled'];
@@ -356,8 +357,17 @@ const AdminOrderDetail = () => {
                 <div className="admin-card">
                     <h3>Route</h3>
                     <div className="record-route">
-                        <div className="route-point pickup"><span />{order.pickup?.address}</div>
-                        <div className="route-point dropoff"><span />{order.dropoff?.address}</div>
+                        {[
+                            ['pickup', order.pickup],
+                            ['dropoff', order.dropoff]
+                        ].map(([kind, stop]) => (
+                            <div key={kind} className={`route-point ${kind}`}>
+                                <span />
+                                {stop?.address}
+                                {describeDetails(stop?.details) && <strong className="route-details">{describeDetails(stop.details)}</strong>}
+                                {stop?.details?.notes && <small className="route-notes">Access: {stop.details.notes}</small>}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
