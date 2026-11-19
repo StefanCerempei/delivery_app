@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { Link } from 'react-router-dom';
 import { useBooking, PAYMENT_RETURN_PARAM } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
@@ -44,23 +44,12 @@ function schedulePayload(scheduledTime) {
     };
 }
 
-// Butoanele rapide (Express Checkout): Apple Pay, Google Pay, Amazon Pay — afișate mari, deasupra cardului.
-// Apple Pay apare doar în Safari / pe dispozitive Apple, cu domeniul înregistrat în Stripe;
-// Google Pay în Chrome / Android. Link, Klarna și PayPal-prin-Stripe nu se folosesc.
-const EXPRESS_OPTIONS = {
-    paymentMethods: { applePay: 'always', googlePay: 'always', amazonPay: 'auto', link: 'never', paypal: 'never', klarna: 'never' },
-    buttonType: { applePay: 'book', googlePay: 'book' },
-    buttonHeight: 48,
-    layout: { maxColumns: 1, maxRows: 0, overflow: 'never' }
-};
-
 /** Formularul de plată Stripe (afișat după ce comanda a fost creată pe server). */
 const StripePaymentForm = ({ order, onPaid, extraButtons }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState('');
     const [isPaying, setIsPaying] = useState(false);
-    const [hasExpress, setHasExpress] = useState(false);
 
     /** Confirmă plata la Stripe, apoi serverul verifică și marchează comanda (comun card + butoane rapide). */
     const confirmAndFinish = async () => {
@@ -95,33 +84,11 @@ const StripePaymentForm = ({ order, onPaid, extraButtons }) => {
         await confirmAndFinish();
     };
 
-    const handleExpressConfirm = async () => {
-        if (!stripe || !elements) return;
-        setError('');
-        setIsPaying(true);
-        await confirmAndFinish();
-    };
-
-    const showAltDivider = hasExpress || Boolean(extraButtons);
-
     return (
         <form onSubmit={handlePay}>
-            <div className="express-pay">
-                <ExpressCheckoutElement
-                    options={EXPRESS_OPTIONS}
-                    onConfirm={handleExpressConfirm}
-                    onReady={({ availablePaymentMethods }) => setHasExpress(Boolean(availablePaymentMethods))}
-                />
-                {extraButtons}
-            </div>
-            {showAltDivider && (
-                <div className="paypal-divider">
-                    <span>or pay by card</span>
-                </div>
-            )}
-
-            {/* Apple Pay / Google Pay sunt deja butoane mari mai sus, deci nu le repetăm ca tab-uri. */}
-            <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never' } }} />
+            {/* Toate metodele Stripe pe același rând de tab-uri: Card, Apple Pay, Google Pay, Amazon Pay.
+                Apple Pay apare doar în Safari / pe dispozitive Apple; Google Pay în Chrome / Android. */}
+            <PaymentElement options={{ layout: { type: 'tabs', defaultCollapsed: false } }} />
             {error && <p className="form-inline-error">{error}</p>}
             <div className="step-footer">
                 <Button type="submit" disabled={!stripe || isPaying}>
@@ -133,6 +100,7 @@ const StripePaymentForm = ({ order, onPaid, extraButtons }) => {
                 </p>
                 <p className="trust-note">Card details are handled securely by Stripe and never touch RELOQ servers.</p>
             </div>
+            {extraButtons}
         </form>
     );
 };

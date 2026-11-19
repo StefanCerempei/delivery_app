@@ -71,6 +71,22 @@ function scheduleFrom(input) {
     };
 }
 
+// RELOQ acceptă doar Card, Apple Pay, Google Pay și Amazon Pay (+ PayPal direct).
+// Metodele de mai jos se opresc din Stripe Dashboard → Payment methods; le excludem și aici,
+// ca să nu apară în formular chiar dacă rămân pornite din greșeală în Dashboard.
+const EXCLUDED_PAYMENT_METHODS = ['us_bank_account', 'cashapp', 'klarna', 'affirm', 'afterpay_clearpay', 'link'];
+
+/** Creează PaymentIntent-ul fără metodele nedorite; dacă Stripe refuză parametrul, merge fără el. */
+async function createPaymentIntent(params) {
+    try {
+        return await stripe.paymentIntents.create({ ...params, excluded_payment_method_types: EXCLUDED_PAYMENT_METHODS });
+    } catch (err) {
+        if (err.type !== 'StripeInvalidRequestError' || !/excluded_payment_method_types/.test(err.message || '')) throw err;
+        console.warn(`[reloq] excluded_payment_method_types refuzat de Stripe (${err.message}); metodele se filtrează doar din Dashboard.`);
+        return stripe.paymentIntents.create(params);
+    }
+}
+
 /** POST /api/orders — creează comanda; prețul e recalculat aici. */
 router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => {
     const data = parseBody(createOrderSchema, req, res);
@@ -127,7 +143,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
 
     let clientSecret = null;
     if (stripe) {
-        const intent = await stripe.paymentIntents.create({
+        const intent = await createPaymentIntent({
             amount: price.totalCents,
             currency: config.currency,
             automatic_payment_methods: { enabled: true },
