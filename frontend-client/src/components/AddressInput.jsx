@@ -133,15 +133,41 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
         onSelect(selectedLocation);
     };
 
-    // Adresa nu apare în sugestii: o folosim exact cum a fost scrisă, iar clientul o marchează pe hartă.
-    // Pinul pornește din cea mai apropiată sugestie (de obicei strada sau orașul), altfel din zona noastră.
-    const handleUseTyped = () => {
+    // Adresa nu apare în sugestii: o folosim exact cum a fost scrisă. Poziția pe hartă e aproximată
+    // din cea mai apropiată potrivire (strada, apoi orașul); clientul o poate ajusta cu pinul.
+    const handleUseTyped = async () => {
         const typed = query.trim();
-        const guess = suggestions[0] || { lat: BIAS.lat, lng: BIAS.lon };
         skipNextSearch.current = true;
         setSuggestions([]);
         setIsOpen(false);
-        onSelect({ address: typed, lat: guess.lat, lng: guess.lng, needsPin: true });
+
+        let guess = suggestions[0] || null;
+        if (!guess) {
+            setLoading(true);
+            const withoutNumber = typed.replace(/^\s*\d+[A-Za-z]?(-\d+)?\s+/, '');
+            const parts = typed.split(',').map((x) => x.trim()).filter(Boolean);
+            const tries = [withoutNumber, parts.slice(1).join(', '), parts[parts.length - 1]].filter(
+                (q, i, all) => q && q.length >= 3 && q !== typed && all.indexOf(q) === i
+            );
+            for (const q of tries) {
+                try {
+                    const { results } = await api.geocode(q);
+                    if (results?.[0]) {
+                        guess = results[0];
+                        break;
+                    }
+                } catch {
+                    break;
+                }
+            }
+            setLoading(false);
+        }
+        onSelect(
+            guess
+                ? { address: typed, lat: guess.lat, lng: guess.lng, approx: true }
+                : // nimic găsit: adresa rămâne, dar trebuie pus pinul pe hartă (altfel nu putem calcula traseul)
+                  { address: typed, lat: BIAS.lat, lng: BIAS.lon, approx: true, needsPin: true }
+        );
     };
     const canUseTyped = query.trim().length >= 6;
 
@@ -198,7 +224,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                             <span className="dropdown-pin">📍</span>
                             <div className="dropdown-text">
                                 <strong>Not in the list? Use “{query.trim()}”</strong>
-                                <span>You’ll mark the exact spot on the map</span>
+                                <span>We’ll use your address as typed</span>
                             </div>
                         </li>
                     )}
@@ -210,7 +236,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                     {searchError || 'No matching address. Try the house number, street and town, e.g. “98 Mountain Gate Rd, Ashland, MA”.'}
                     {canUseTyped && (
                         <button type="button" className="address-use-typed-btn" onClick={handleUseTyped}>
-                            📍 Use “{query.trim()}” and mark it on the map
+                            Use “{query.trim()}” as typed
                         </button>
                     )}
                 </div>

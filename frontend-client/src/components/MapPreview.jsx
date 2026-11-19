@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
 import Logo from './Logo';
+import { movePin as movePinShared } from '../utils/pinLocation';
 import { Link } from 'react-router-dom';
 import { useAuth, initials } from '../context/AuthContext';
 
@@ -79,14 +80,8 @@ const PinClickHandler = ({ pinMode, onPin }) => {
 const MapPreview = () => {
     const { bookingData, updateBookingData, pinMode, setPinMode } = useBooking();
 
-    // Pinul mutat de client: păstrăm textul adresei, schimbăm doar coordonatele
-    const movePin = (kind, latlng) => {
-        const current = bookingData[kind];
-        if (!current) return;
-        updateBookingData({
-            [kind]: { ...current, lat: Number(latlng.lat.toFixed(6)), lng: Number(latlng.lng.toFixed(6)), pinned: true, needsPin: false }
-        });
-    };
+    // Pinul mutat de client: adresa scrisă rămâne; locurile alese direct pe hartă primesc adresa punctului
+    const movePin = (kind, latlng) => movePinShared(updateBookingData, kind, latlng, bookingData[kind]);
     const [routeCoords, setRouteCoords] = useState([]);
     const { pickup, dropoff, routeInfo } = bookingData;
 

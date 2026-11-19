@@ -14,7 +14,7 @@ import { syncOrderPayment, markOrderPaid } from '../payments.js';
 import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.js';
 import { waitForMail } from '../mailer.js';
 import { takenSlots, withSlot } from '../slots.js';
-import { searchAddresses } from '../geocode.js';
+import { searchAddresses, reverseGeocode } from '../geocode.js';
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -100,6 +100,19 @@ router.get('/geocode', geocodeLimiter, async (req, res) => {
     } catch (err) {
         console.warn(`[reloq] Căutarea de adrese a eșuat: ${err.message}`);
         res.status(503).json({ error: 'Address search is unavailable right now. Please try again.' });
+    }
+});
+
+/** GET /api/reverse-geocode?lat=…&lng=… — adresa pentru un pin pus manual pe hartă. */
+router.get('/reverse-geocode', geocodeLimiter, async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Invalid point.' });
+    try {
+        res.json({ result: await reverseGeocode(lat, lng) });
+    } catch (err) {
+        console.warn(`[reloq] Adresa pentru pin nu a putut fi găsită: ${err.message}`);
+        res.json({ result: null });
     }
 });
 

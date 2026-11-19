@@ -118,3 +118,17 @@ export async function searchAddresses(q) {
     // registrul oficial primul, apoi OpenStreetMap în ordinea lui de relevanță
     return out.slice(0, 6);
 }
+
+/** Adresa unui punct ales pe hartă (OpenStreetMap). null dacă nu se găsește nimic. */
+export async function reverseGeocode(lat, lng) {
+    if (!inArea(lat, lng)) return null;
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lng), limit: '1', lang: 'en' });
+    const data = await fetchJson(`https://photon.komoot.io/reverse?${params}`);
+    const p = data?.features?.[0]?.properties;
+    if (!p || p.countrycode !== 'US') return null;
+    const streetLine = p.street ? [p.housenumber, p.street].filter(Boolean).join(' ') : p.name || '';
+    const stateZip = [STATE_ABBR[p.state] || p.state, p.postcode].filter(Boolean).join(' ');
+    const locality = p.city || p.town || p.village || p.district || p.county;
+    const address = [streetLine, locality, stateZip].filter(Boolean).join(', ');
+    return address ? { address, exact: Boolean(p.housenumber) } : null;
+}

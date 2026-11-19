@@ -87,8 +87,9 @@ export const BookingProvider = ({ children }) => {
         if (!completedOrder) writeDraft(currentStep, bookingData);
     }, [currentStep, bookingData, completedOrder]);
 
+    // Primește un obiect sau o funcție (prev) => obiect, pentru actualizări care depind de starea curentă
     const updateBookingData = useCallback((newData) => {
-        setBookingData((prev) => ({ ...prev, ...newData }));
+        setBookingData((prev) => ({ ...prev, ...(typeof newData === 'function' ? newData(prev) : newData) }));
     }, []);
 
     const nextStep = () => {

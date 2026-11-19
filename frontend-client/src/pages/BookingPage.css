@@ -2255,3 +2255,7 @@
 @media (max-width: 900px) {
     .pin-banner { bottom: 34px; font-size: 12.5px; }
 }
+@media (max-width: 480px) {
+    .loc-row { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 8px; }
+    .loc-field select { padding-right: 6px; }
+}

@@ -54,6 +54,7 @@ export const api = {
     sendVerificationCode: () => request('/auth/verify-email/send', { method: 'POST' }),
     confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 
+    reverseGeocode: (lat, lng) => request(`/reverse-geocode?lat=${lat}&lng=${lng}`),
     geocode: (q, signal) => request(`/geocode?q=${encodeURIComponent(q)}`, { signal }),
     availability: (from, to) => request(`/availability?from=${from}&to=${to}`),
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),

@@ -4,6 +4,7 @@ import { COMPANY, LICENSE_LINE } from '../../data/company';
 import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
 import LocationDetails, { detailsComplete } from '../../components/LocationDetails';
+import { startManualPin } from '../../utils/pinLocation';
 import Button from '../../components/Button';
 
 const Step1Route = () => {
@@ -25,17 +26,36 @@ const Step1Route = () => {
         else if (pinMode === kind) setPinMode(null);
     };
 
-    /** „Adjust pin on map” sub fiecare adresă aleasă. */
+    /** „Pick on map” (fără adresă) sau „Adjust pin on map” sub fiecare adresă. */
     const PinControl = ({ kind }) => {
         const loc = bookingData[kind];
-        if (!loc?.lat) return null;
         const active = pinMode === kind;
+        if (!loc?.lat) {
+            const other = bookingData[kind === 'pickup' ? 'dropoff' : 'pickup'];
+            return (
+                <div className="pin-control">
+                    <button
+                        type="button"
+                        className="pin-btn"
+                        onClick={() => {
+                            startManualPin(updateBookingData, kind, other);
+                            startPin(kind);
+                        }}
+                    >
+                        📍 Or pick it on the map
+                    </button>
+                </div>
+            );
+        }
         return (
             <div className="pin-control">
                 <button type="button" className={`pin-btn ${active ? 'active' : ''}`} onClick={() => (active ? setPinMode(null) : startPin(kind))}>
                     {active ? '✓ Done marking' : loc.pinned ? '📍 Pin set — adjust' : '📍 Adjust pin on map'}
                 </button>
-                {needsPin(loc) && !active && <span className="pin-warn">Mark the exact spot on the map to continue</span>}
+                {needsPin(loc) && !active && <span className="pin-warn">Mark the spot on the map to continue</span>}
+                {loc.approx && !loc.pinned && !needsPin(loc) && !active && (
+                    <span className="pin-hint">Map location is approximate — adjust the pin if needed</span>
+                )}
                 {active && <span className="pin-hint">Drag the pin or tap the map on the exact building</span>}
             </div>
         );
