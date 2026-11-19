@@ -97,7 +97,24 @@ export const createOrderSchema = z.object({
 });
 
 export const statusSchema = z.object({
-    status: z.enum(['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled'])
+    status: z.enum(['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled']),
+    // Opțional: șoferul ales odată cu confirmarea (null = fără șofer)
+    driverId: z.number().int().positive().nullable().optional()
+});
+
+/** Șofer / angajat (dispecerat). Telefonul e liber (pot fi și numere din afara SUA). */
+export const driverSchema = z.object({
+    fullName: z.string().trim().min(2, 'Please enter the driver’s full name.').max(120),
+    email: emailField,
+    phone: z.string().trim().max(32).optional().nullable().transform((v) => v || null),
+    notes: z.string().trim().max(500).optional().nullable().transform((v) => v || null),
+    active: z.boolean().optional()
+});
+
+export const assignDriverSchema = z.object({
+    driverId: z.number().int().positive().nullable(),
+    // Retrimite emailul chiar dacă e același șofer
+    resend: z.boolean().optional()
 });
 
 /** Rulează validarea și răspunde cu 400 dacă datele nu sunt bune. */

@@ -42,7 +42,7 @@ function orderPrice(row, vehicle) {
 }
 
 /** Transformă un rând din DB în obiectul trimis la frontend. */
-export function toOrderDto(row, { includeCustomer = false } = {}) {
+export function toOrderDto(row, { includeCustomer = false, includeDriver = false } = {}) {
     const vehicle = VEHICLES[row.vehicle];
     const dto = {
         id: row.code,
@@ -66,6 +66,19 @@ export function toOrderDto(row, { includeCustomer = false } = {}) {
         paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null)
     };
 
+    // Șoferul alocat: doar în dispecerat (și în emailurile trimise de acolo).
+    if (includeDriver) {
+        dto.driver = row.driver_id
+            ? {
+                  id: row.driver_id,
+                  fullName: row.driver_name ?? null,
+                  email: row.driver_email ?? null,
+                  phone: row.driver_phone ?? null,
+                  notifiedAt: row.driver_notified_at ? new Date(row.driver_notified_at).toISOString() : null
+              }
+            : null;
+    }
+
     if (includeCustomer || row.customer_email) {
         dto.customer = {
             fullName: row.customer_name ?? null,
@@ -77,6 +90,8 @@ export function toOrderDto(row, { includeCustomer = false } = {}) {
 }
 
 export const ORDER_WITH_CUSTOMER_SQL = `
-    SELECT o.*, u.full_name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
+    SELECT o.*, u.full_name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+           d.full_name AS driver_name, d.email AS driver_email, d.phone AS driver_phone
     FROM orders o
-    JOIN users u ON u.id = o.user_id`;
+    JOIN users u ON u.id = o.user_id
+    LEFT JOIN drivers d ON d.id = o.driver_id`;

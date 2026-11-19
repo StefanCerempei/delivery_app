@@ -95,3 +95,18 @@ CREATE TABLE IF NOT EXISTS password_resets (
     UNIQUE KEY uq_password_resets_token (token_hash),
     CONSTRAINT fk_password_resets_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Șoferi / angajați. Dispecerul alege șoferul la confirmarea comenzii; șoferul primește emailul cu jobul.
+-- „active = 0” = arhivat (nu mai apare la alegere, dar rămâne pe comenzile vechi).
+CREATE TABLE IF NOT EXISTS drivers (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    full_name   VARCHAR(120) NOT NULL,
+    email       VARCHAR(255) NOT NULL,
+    phone       VARCHAR(32)  NULL,
+    notes       VARCHAR(500) NULL,
+    active      TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_drivers_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

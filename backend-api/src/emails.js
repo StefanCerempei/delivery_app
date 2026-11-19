@@ -266,3 +266,66 @@ export function notifyAccountDeleted({ to, fullName }) {
         text: `Your RELOQ account and personal details have been deleted. If this wasn't you, call ${BRAND.phone}.`
     });
 }
+
+/** Link Google Maps cu traseul pickup → drop-off (se deschide în aplicația Maps pe telefon). */
+function directionsUrl(order) {
+    const q = (p) => encodeURIComponent(p?.address || `${p?.lat},${p?.lng}`);
+    return `https://www.google.com/maps/dir/?api=1&origin=${q(order.pickup)}&destination=${q(order.dropoff)}&travelmode=driving`;
+}
+
+/** Detaliile de care are nevoie șoferul (fără prețuri / plăți, cu contactul clientului). */
+function driverRows(order) {
+    return [
+        ['Order', `#${order.id}`],
+        ['Arrival window', order.scheduleText],
+        ['Vehicle', `${order.vehicle?.name}${order.vehicle?.crewLabel ? ` (${order.vehicle.crewLabel})` : ''}`],
+        ['Customer', order.customer?.fullName],
+        ['Customer phone', order.customer?.phone],
+        ['Pickup', order.pickup?.address],
+        ['Drop-off', order.dropoff?.address],
+        ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
+        ['Items', order.itemsDescription],
+        ['Labor rate', order.price?.labor ? `${order.price.labor.label} — from arrival at pickup to completion` : null]
+    ];
+}
+
+/** Email către șofer: i-a fost alocată o comandă. */
+export function notifyDriverAssigned(order) {
+    const driver = order.driver;
+    if (!driver?.email) return Promise.resolve(false);
+    const rows = driverRows(order);
+    const firstName = driver.fullName?.split(' ')[0] || 'there';
+    return sendMailInBackground({
+        to: driver.email,
+        subject: `New job: ${order.scheduleText} — ${order.pickup?.address?.split(',')[0] || ''} (#${order.id})`,
+        html: layout({
+            preheader: `You're scheduled for ${order.scheduleText}.`,
+            title: 'You have a new job',
+            intro: `Hi ${esc(firstName)}, dispatch assigned you to the job below for <strong>${esc(order.scheduleText)}</strong>. Please call the customer about 45 minutes before you arrive.`,
+            body: `${detailsTable(rows)}${button(directionsUrl(order), 'Open route in Google Maps')}
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Reply to this email or call dispatch at ${BRAND.phone} as soon as possible.</p>`
+        }),
+        text: `You have a new RELOQ job for ${order.scheduleText}.\n\n${orderText(order, rows)}\n\nRoute: ${directionsUrl(order)}\n\nPlease call the customer about 45 minutes before you arrive. Can't make it? Call dispatch at ${BRAND.phone}.`
+    });
+}
+
+/** Email către șofer: comanda i-a fost luată (realocată altcuiva sau anulată). */
+export function notifyDriverRemoved(order, driver, { cancelled = false } = {}) {
+    if (!driver?.email) return Promise.resolve(false);
+    const rows = driverRows(order).filter(([k]) => ['Order', 'Arrival window', 'Pickup', 'Drop-off'].includes(k));
+    const firstName = driver.fullName?.split(' ')[0] || 'there';
+    const title = cancelled ? 'Job cancelled' : 'Job removed from your schedule';
+    const why = cancelled ? 'this job was cancelled' : 'this job was reassigned';
+    return sendMailInBackground({
+        to: driver.email,
+        subject: `${title}: ${order.scheduleText} (#${order.id})`,
+        html: layout({
+            preheader: title,
+            title,
+            intro: `Hi ${esc(firstName)}, ${why}. You no longer need to go to it.`,
+            body: `${detailsTable(rows)}
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Questions? Call dispatch at ${BRAND.phone}.</p>`
+        }),
+        text: `${title}: ${why}. You no longer need to go to it.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone}`
+    });
+}

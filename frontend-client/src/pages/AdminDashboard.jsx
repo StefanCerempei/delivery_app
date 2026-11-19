@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatPrice } from '../utils/formatters';
 import { api } from '../api/client';
 import Logo from '../components/Logo';
+import AdminDrivers from './AdminDrivers';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
 
@@ -31,7 +32,8 @@ const AdminDashboard = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [view, setView] = useState('overview'); // overview | orders | customers
+    const [drivers, setDrivers] = useState([]);
+    const [view, setView] = useState('overview'); // overview | orders | drivers | customers
     const [statusFilter, setStatusFilter] = useState('all');
     const [search, setSearch] = useState('');
     const navigate = useNavigate();
@@ -40,8 +42,9 @@ const AdminDashboard = () => {
     const load = useCallback(async () => {
         setError('');
         try {
-            const { orders } = await api.adminOrders();
+            const [{ orders }, { drivers }] = await Promise.all([api.adminOrders(), api.adminDrivers()]);
             setOrders(orders);
+            setDrivers(drivers);
         } catch (err) {
             if (err.status === 401 || err.status === 403) return navigate('/admin/login', { replace: true });
             setError(err.message);
@@ -84,7 +87,8 @@ const AdminDashboard = () => {
                 o.customer?.phone,
                 o.pickup?.address,
                 o.dropoff?.address,
-                o.vehicle?.name
+                o.vehicle?.name,
+                o.driver?.fullName
             ]
                 .filter(Boolean)
                 .some((v) => String(v).toLowerCase().includes(q));
@@ -124,13 +128,13 @@ const AdminDashboard = () => {
     const openOrder = (id) => navigate(`/admin/order/${id}`);
 
     const exportCsv = () => {
-        const cols = ['Order', 'Status', 'Customer', 'Email', 'Phone', 'Vehicle', 'Pickup', 'Drop-off', 'Schedule', 'Distance (mi)', 'Total', 'Created'];
+        const cols = ['Order', 'Status', 'Customer', 'Email', 'Phone', 'Vehicle', 'Driver', 'Pickup', 'Drop-off', 'Schedule', 'Distance (mi)', 'Total', 'Created'];
         const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
         const lines = [cols.join(',')];
         for (const o of filteredOrders) {
             lines.push([
                 o.id, STATUS_LABELS[o.status] || o.status, o.customer?.fullName, o.customer?.email, o.customer?.phone,
-                o.vehicle?.name, o.pickup?.address, o.dropoff?.address, o.scheduleText, o.routeInfo?.distanceMiles,
+                o.vehicle?.name, o.driver?.fullName, o.pickup?.address, o.dropoff?.address, o.scheduleText, o.routeInfo?.distanceMiles,
                 o.totalAmount, new Date(o.createdAt).toISOString()
             ].map(cell).join(','));
         }
@@ -146,6 +150,7 @@ const AdminDashboard = () => {
     const NAV = [
         { id: 'overview', label: 'Overview', icon: '▚' },
         { id: 'orders', label: 'Orders', icon: '☰' },
+        { id: 'drivers', label: 'Drivers', icon: '⛟' },
         { id: 'customers', label: 'Customers', icon: '◎' }
     ];
 
@@ -192,14 +197,14 @@ const AdminDashboard = () => {
 
             <main className="crm-main">
                 <header className="crm-topbar">
-                    <h1>{view === 'overview' ? 'Overview' : view === 'orders' ? 'Orders' : 'Customers'}</h1>
+                    <h1>{NAV.find((n) => n.id === view)?.label}</h1>
                     <div className="crm-topbar-right">
                         <div className="crm-search">
                             <span aria-hidden="true">⌕</span>
                             <input
                                 type="search"
                                 name="orderSearch"
-                                placeholder="Search orders, customers, addresses…"
+                                placeholder="Search orders, customers, drivers…"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
@@ -257,6 +262,11 @@ const AdminDashboard = () => {
                             </div>
                             <OrdersTable orders={filteredOrders} loading={loading} onOpen={openOrder} full />
                         </>
+                    )}
+
+                    {/* ---------- DRIVERS ---------- */}
+                    {view === 'drivers' && (
+                        <AdminDrivers drivers={drivers} setDrivers={setDrivers} loading={loading} search={search} onError={setError} />
                     )}
 
                     {/* ---------- CUSTOMERS ---------- */}
@@ -318,6 +328,7 @@ const OrdersTable = ({ orders, loading, onOpen, full }) => (
                     <th>Customer</th>
                     {full && <th className="col-route">Route</th>}
                     <th>Vehicle</th>
+                    <th>Driver</th>
                     <th>Schedule</th>
                     <th>Total</th>
                     <th>Status</th>
@@ -326,9 +337,9 @@ const OrdersTable = ({ orders, loading, onOpen, full }) => (
             </thead>
             <tbody>
                 {loading ? (
-                    <tr><td colSpan={full ? 8 : 7} className="empty-state">Loading…</td></tr>
+                    <tr><td colSpan={full ? 9 : 8} className="empty-state">Loading…</td></tr>
                 ) : orders.length === 0 ? (
-                    <tr><td colSpan={full ? 8 : 7} className="empty-state">No orders found.</td></tr>
+                    <tr><td colSpan={full ? 9 : 8} className="empty-state">No orders found.</td></tr>
                 ) : (
                     orders.map((order) => (
                         <tr key={order.id} className="row-click" onClick={() => onOpen(order.id)}>
@@ -348,6 +359,15 @@ const OrdersTable = ({ orders, loading, onOpen, full }) => (
                                 </td>
                             )}
                             <td>{order.vehicle?.name}</td>
+                            <td>
+                                {order.driver ? (
+                                    <span className="driver-chip">{order.driver.fullName}</span>
+                                ) : ['paid', 'confirmed', 'en_route'].includes(order.status) ? (
+                                    <span className="driver-chip missing">Unassigned</span>
+                                ) : (
+                                    <span className="muted-dash">—</span>
+                                )}
+                            </td>
                             <td>
                                 <div className="client-info">
                                     <span>{order.scheduleText}</span>

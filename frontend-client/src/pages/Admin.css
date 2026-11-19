@@ -695,3 +695,70 @@
     font-weight: 400;
     color: var(--muted);
 }
+
+/* ===== Șoferi (Drivers) ===== */
+.crm-primary-btn,
+.crm-ghost-btn {
+    padding: 9px 14px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+.crm-primary-btn { border: 1px solid var(--accent); background-color: var(--accent); color: var(--accent-ink, #fff); }
+.crm-primary-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.crm-ghost-btn { border: 1px solid var(--line); background-color: transparent; color: var(--text-2); }
+.crm-ghost-btn:hover:not(:disabled) { border-color: var(--accent-ring); color: var(--text); }
+.crm-ghost-btn.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.crm-primary-btn:disabled,
+.crm-ghost-btn:disabled { opacity: 0.5; cursor: default; }
+
+.crm-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+.crm-field input,
+.crm-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background-color: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+}
+.crm-field input:focus,
+.crm-select:focus { border-color: var(--accent); }
+
+.driver-form { margin-bottom: 16px; }
+.driver-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.driver-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.driver-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.admin-table tbody tr.row-muted td { opacity: 0.55; }
+.crm-section-head h2 .filter-count { margin-left: 6px; vertical-align: middle; }
+
+.driver-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; background-color: var(--surface-3); color: var(--text); font-size: 12.5px; white-space: nowrap; }
+.driver-chip.missing { background-color: rgba(250, 204, 21, 0.12); color: #facc15; }
+.muted-dash { color: var(--muted); }
+
+.confirm-driver-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid var(--accent-ring);
+    border-radius: var(--r-lg);
+    background-color: var(--surface-2);
+}
+.confirm-driver-panel p { margin: 0; font-size: 13px; color: var(--text-2); line-height: 1.45; }
+.confirm-driver-panel .crm-select { max-width: 420px; }
+.driver-card { grid-column: 1 / -1; }
+.driver-assign { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; max-width: 460px; }
+.driver-msg { margin: 12px 0 0; font-size: 13px; color: var(--go); }
+
+@media (max-width: 720px) {
+    .driver-form-grid { grid-template-columns: 1fr; }
+}

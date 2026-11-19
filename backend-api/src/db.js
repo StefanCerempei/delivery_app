@@ -41,6 +41,8 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'outbound_mins', 'INT UNSIGNED NULL AFTER pricing_version');
     await addColumnIfMissing('orders', 'return_mins', 'INT UNSIGNED NULL AFTER outbound_mins');
     await addColumnIfMissing('orders', 'labor_cents_per_min', 'INT UNSIGNED NULL AFTER return_mins');
+    await addColumnIfMissing('orders', 'driver_id', 'INT UNSIGNED NULL AFTER labor_cents_per_min');
+    await addColumnIfMissing('orders', 'driver_notified_at', 'DATETIME NULL AFTER driver_id');
     await ensureStatusEnum();
     await ensureAdmin();
 }

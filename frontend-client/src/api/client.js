@@ -62,8 +62,19 @@ export const api = {
 
     adminOrders: () => request('/admin/orders'),
     adminOrder: (code) => request(`/admin/orders/${encodeURIComponent(code)}`),
-    adminSetStatus: (code, status) =>
-        request(`/admin/orders/${encodeURIComponent(code)}/status`, { method: 'PATCH', body: { status } })
+    // driverId opțional: șoferul ales odată cu schimbarea statusului (ex. la confirmare)
+    adminSetStatus: (code, status, driverId) =>
+        request(`/admin/orders/${encodeURIComponent(code)}/status`, {
+            method: 'PATCH',
+            body: driverId === undefined ? { status } : { status, driverId }
+        }),
+    adminAssignDriver: (code, driverId, { resend = false } = {}) =>
+        request(`/admin/orders/${encodeURIComponent(code)}/driver`, { method: 'PATCH', body: { driverId, resend } }),
+
+    adminDrivers: () => request('/admin/drivers'),
+    adminCreateDriver: (payload) => request('/admin/drivers', { method: 'POST', body: payload }),
+    adminUpdateDriver: (id, payload) => request(`/admin/drivers/${id}`, { method: 'PATCH', body: payload }),
+    adminDeleteDriver: (id) => request(`/admin/drivers/${id}`, { method: 'DELETE' })
 };
 
 /** Doar adresa și coordonatele: atât cere API-ul. */
