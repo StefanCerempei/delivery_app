@@ -71,19 +71,19 @@ function scheduleFrom(input) {
     };
 }
 
-// RELOQ acceptă doar Card, Apple Pay, Google Pay și Amazon Pay (+ PayPal direct).
-// Metodele de mai jos se opresc din Stripe Dashboard → Payment methods; le excludem și aici,
-// ca să nu apară în formular chiar dacă rămân pornite din greșeală în Dashboard.
-const EXCLUDED_PAYMENT_METHODS = ['us_bank_account', 'cashapp', 'klarna', 'affirm', 'afterpay_clearpay', 'link'];
+// RELOQ acceptă doar Card, Apple Pay, Google Pay și Amazon Pay (+ PayPal direct, separat de Stripe).
+// Apple Pay și Google Pay sunt plăți de tip „card” la Stripe, deci lista strictă e card + amazon_pay:
+// Link, Bank, Klarna, Cash App etc. nu pot apărea, indiferent ce e pornit în Dashboard.
+const PAYMENT_METHOD_TYPES = ['card', 'amazon_pay'];
 
-/** Creează PaymentIntent-ul fără metodele nedorite; dacă Stripe refuză parametrul, merge fără el. */
+/** Creează PaymentIntent-ul; dacă Amazon Pay nu e activat în contul Stripe, merge doar cu card. */
 async function createPaymentIntent(params) {
     try {
-        return await stripe.paymentIntents.create({ ...params, excluded_payment_method_types: EXCLUDED_PAYMENT_METHODS });
+        return await stripe.paymentIntents.create({ ...params, payment_method_types: PAYMENT_METHOD_TYPES });
     } catch (err) {
-        if (err.type !== 'StripeInvalidRequestError' || !/excluded_payment_method_types/.test(err.message || '')) throw err;
-        console.warn(`[reloq] excluded_payment_method_types refuzat de Stripe (${err.message}); metodele se filtrează doar din Dashboard.`);
-        return stripe.paymentIntents.create(params);
+        if (err.type !== 'StripeInvalidRequestError' || !/amazon_pay/.test(err.message || '')) throw err;
+        console.warn(`[reloq] Amazon Pay indisponibil în contul Stripe (${err.message}); plata merge doar cu card / Apple Pay / Google Pay.`);
+        return stripe.paymentIntents.create({ ...params, payment_method_types: ['card'] });
     }
 }
 
@@ -146,7 +146,6 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         const intent = await createPaymentIntent({
             amount: price.totalCents,
             currency: config.currency,
-            automatic_payment_methods: { enabled: true },
             receipt_email: req.user.email,
             description: `RELOQ ${VEHICLES[data.vehicle].name} — ${code}`,
             metadata: { order_code: code, order_id: id, user_id: String(req.user.id) }

@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import {
+    CardCvcElement,
+    CardExpiryElement,
+    CardNumberElement,
+    Elements,
+    ExpressCheckoutElement,
+    useElements,
+    useStripe
+} from '@stripe/react-stripe-js';
 import { api } from '../api/client';
 import { formatPrice } from '../utils/formatters';
 import Button from './Button';
@@ -9,7 +17,7 @@ import PaypalButton from './PaypalButton';
  * Rândul de metode de plată (cu swipe pe telefon): Card · Apple Pay · Google Pay · Amazon Pay · PayPal.
  * Formularul Stripe e un iframe pe care nu-l putem așeza noi, deci rândul e al nostru, iar dedesubt
  * se afișează doar plata metodei alese:
- *   - Card        → Payment Element limitat la card (fără Link / Bank / Klarna);
+ *   - Card        → câmpurile Stripe doar pentru card (număr, expirare, CVC) — fără Link / Bank / Klarna;
  *   - Apple Pay / Google Pay / Amazon Pay → butonul Stripe al metodei respective (Express Checkout);
  *   - PayPal      → butonul PayPal direct.
  * Plata se confirmă pe PaymentIntent-ul deja creat pe server (clientSecret), deci suma rămâne cea de pe server.
@@ -70,30 +78,124 @@ function useConfirmPayment({ order, clientSecret, onPaid, returnParam }) {
     return { pay, error, isPaying, ready: Boolean(stripe && elements) };
 }
 
-const CardPanel = (props) => {
-    const { pay, error, isPaying, ready } = useConfirmPayment(props);
+// Stil pentru câmpurile de card (iframe Stripe) — aceleași culori ca restul formularului.
+const CARD_FIELD_OPTIONS = {
+    style: {
+        base: {
+            color: '#f1f4f8',
+            fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+            fontSize: '16px',
+            '::placeholder': { color: '#6b7682' }
+        },
+        invalid: { color: '#ff7a7a', iconColor: '#ff7a7a' }
+    }
+};
+
+/**
+ * Plata cu cardul: câmpuri separate (număr / expirare / CVC), confirmate direct pe PaymentIntent.
+ * Nu folosim Payment Element aici, ca să nu apară tab-urile Bank / Klarna sau Link.
+ */
+const CardPanel = ({ order, clientSecret, onPaid }) => {
+    const stripe = useStripe();
+    const elements = useElements();
+    const [error, setError] = useState('');
+    const [isPaying, setIsPaying] = useState(false);
+
+    const pay = async (e) => {
+        e.preventDefault();
+        if (!stripe || !elements) return;
+        setError('');
+        setIsPaying(true);
+
+        const { error: stripeError } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: { card: elements.getElement(CardNumberElement) }
+        });
+        if (stripeError) {
+            setError(stripeError.message || 'Your payment could not be processed.');
+            setIsPaying(false);
+            return;
+        }
+
+        try {
+            const { order: updated } = await api.confirmPayment(order.id);
+            onPaid(updated);
+        } catch (err) {
+            setError(err.message);
+            setIsPaying(false);
+        }
+    };
+
     return (
-        <form
-            onSubmit={(e) => {
-                e.preventDefault();
-                pay();
-            }}
-        >
-            <PaymentElement options={{ layout: 'tabs', wallets: { applePay: 'never', googlePay: 'never' } }} />
-            {error && <p className="form-inline-error">{error}</p>}
-            <div className="step-footer">
-                <Button type="submit" disabled={!ready || isPaying}>
-                    {isPaying ? 'Processing payment…' : `Pay ${formatPrice(props.order.totalAmount)}`}
+        <form className="card-form" onSubmit={pay}>
+            <label className="card-field card-field-full">
+                <span>Card number</span>
+                <div className="card-input">
+                    <CardNumberElement options={{ ...CARD_FIELD_OPTIONS, showIcon: true, disableLink: true, placeholder: '1234 1234 1234 1234' }} />
+                </div>
+            </label>
+            <label className="card-field">
+                <span>Expiration date</span>
+                <div className="card-input">
+                    <CardExpiryElement options={CARD_FIELD_OPTIONS} />
+                </div>
+            </label>
+            <label className="card-field">
+                <span>Security code</span>
+                <div className="card-input">
+                    <CardCvcElement options={{ ...CARD_FIELD_OPTIONS, placeholder: 'CVC' }} />
+                </div>
+            </label>
+            {error && <p className="form-inline-error card-field-full">{error}</p>}
+            <div className="step-footer card-field-full">
+                <Button type="submit" disabled={!stripe || !elements || isPaying}>
+                    {isPaying ? 'Processing payment…' : `Pay ${formatPrice(order.totalAmount)}`}
                 </Button>
             </div>
         </form>
     );
 };
 
+const WALLET_HELP = {
+    applePay: 'Apple Pay works in Safari on an iPhone, iPad or Mac with a card added to Apple Wallet. Please choose Card or another method.',
+    googlePay: 'Google Pay works in Chrome or on Android with a card saved to your Google account. Please choose Card or another method.',
+    amazonPay: 'Amazon Pay couldn’t be loaded right now. Please choose Card or another method.'
+};
+
 /** Butonul Stripe pentru o singură metodă rapidă (Apple Pay, Google Pay sau Amazon Pay). */
 const WalletPanel = ({ method, ...props }) => {
     const { pay, error, isPaying } = useConfirmPayment(props);
-    const [unavailable, setUnavailable] = useState(false);
+    // loading → ready (butonul e afișat) sau unavailable (metoda nu merge pe acest dispozitiv / browser)
+    const [status, setStatus] = useState('loading');
+    const [diag, setDiag] = useState({ ready: 'no event yet' });
+
+    // Dacă Stripe nu afișează niciun buton (ex. Apple Pay pe Windows), uneori nu vine nici „ready”.
+    useEffect(() => {
+        const timer = setTimeout(() => setStatus((s) => (s === 'loading' ? 'unavailable' : s)), 8000);
+        return () => clearTimeout(timer);
+    }, [method]);
+
+    // Diagnostic: ce spune browserul despre Apple Pay (afișat sub mesajul de indisponibilitate).
+    useEffect(() => {
+        let applePay = 'ApplePaySession missing';
+        try {
+            if (window.ApplePaySession) applePay = `ApplePaySession ok, canMakePayments=${window.ApplePaySession.canMakePayments()}`;
+        } catch (err) {
+            applePay = `ApplePaySession error: ${err.message}`;
+        }
+        const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+        setDiag((d) => ({
+            ...d,
+            applePay,
+            key: key.startsWith('pk_live') ? 'live' : key.startsWith('pk_test') ? 'test' : 'unknown',
+            host: window.location.host
+        }));
+    }, []);
+
+    const handleReady = ({ availablePaymentMethods }) => {
+        setDiag((d) => ({ ...d, ready: JSON.stringify(availablePaymentMethods ?? null) }));
+        const shown = availablePaymentMethods && (method === 'amazonPay' || availablePaymentMethods[method] !== false);
+        setStatus(shown ? 'ready' : 'unavailable');
+    };
 
     const options = useMemo(
         () => ({
@@ -107,7 +209,7 @@ const WalletPanel = ({ method, ...props }) => {
             },
             buttonType: { applePay: 'book', googlePay: 'book' },
             buttonHeight: 50,
-            layout: { maxColumns: 1, maxRows: 1, overflow: 'never' }
+            layout: { maxColumns: 1, maxRows: 1, overflow: 'auto' }
         }),
         [method]
     );
@@ -118,12 +220,23 @@ const WalletPanel = ({ method, ...props }) => {
                 key={method}
                 options={options}
                 onConfirm={pay}
-                onReady={({ availablePaymentMethods }) => setUnavailable(!availablePaymentMethods)}
+                onReady={handleReady}
+                onLoadError={({ error: loadError }) => {
+                    setDiag((d) => ({ ...d, loadError: loadError?.message || 'load error' }));
+                    setStatus('unavailable');
+                }}
             />
-            {unavailable && (
-                <p className="trust-note">
-                    {METHOD_LABELS[method]} isn’t available on this device or browser. Please choose another payment method.
-                </p>
+            {status === 'loading' && <p className="trust-note">Loading {METHOD_LABELS[method]}…</p>}
+            {status === 'unavailable' && (
+                <div className="wallet-unavailable">
+                    <strong>{METHOD_LABELS[method]} isn’t available here</strong>
+                    <p>{WALLET_HELP[method]}</p>
+                    <small className="wallet-diag">
+                        {Object.entries(diag)
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(' · ')}
+                    </small>
+                </div>
             )}
             {isPaying && <p className="trust-note">Completing your payment…</p>}
             {error && <p className="form-inline-error">{error}</p>}
@@ -132,41 +245,10 @@ const WalletPanel = ({ method, ...props }) => {
 };
 
 /**
- * Ce metode afișăm. Apple Pay / Google Pay doar dacă browserul le suportă
- * (Apple Pay: Safari pe iPhone / Mac; Google Pay: Chrome / Android).
+ * Metodele afișate mereu: Card · Apple Pay · Google Pay · Amazon Pay (+ PayPal dacă e configurat).
+ * Dacă Apple Pay / Google Pay nu merg pe dispozitivul respectiv, panoul metodei spune asta.
  */
-function useAvailableMethods(stripePromise, order, paypalClientId) {
-    const [wallets, setWallets] = useState({ applePay: false, googlePay: false });
-
-    useEffect(() => {
-        let cancelled = false;
-        stripePromise
-            ?.then((stripe) =>
-                stripe
-                    ?.paymentRequest({
-                        country: 'US',
-                        currency: (order.currency || 'usd').toLowerCase(),
-                        total: { label: 'RELOQ booking', amount: Math.round(order.totalAmount * 100) }
-                    })
-                    .canMakePayment()
-            )
-            .then((result) => {
-                if (!cancelled && result) setWallets({ applePay: Boolean(result.applePay), googlePay: Boolean(result.googlePay) });
-            })
-            .catch(() => {});
-        return () => {
-            cancelled = true;
-        };
-    }, [stripePromise, order.id, order.totalAmount, order.currency]);
-
-    return [
-        'card',
-        ...(wallets.applePay ? ['applePay'] : []),
-        ...(wallets.googlePay ? ['googlePay'] : []),
-        'amazonPay',
-        ...(paypalClientId ? ['paypal'] : [])
-    ];
-}
+const methodsFor = (paypalClientId) => ['card', 'applePay', 'googlePay', 'amazonPay', ...(paypalClientId ? ['paypal'] : [])];
 
 const MethodIcon = ({ method }) => {
     switch (method) {
@@ -191,19 +273,23 @@ const MethodIcon = ({ method }) => {
 }
 
 const PaymentMethodPicker = ({ stripePromise, appearance, order, clientSecret, paypalClientId, onPaid, returnParam }) => {
-    const methods = useAvailableMethods(stripePromise, order, paypalClientId);
+    const methods = methodsFor(paypalClientId);
     const [selected, setSelected] = useState('card');
     const active = methods.includes(selected) ? selected : 'card';
 
-    // Elements „deferred”: noi alegem ce metode apar; confirmarea folosește PaymentIntent-ul comenzii.
+    // Card: Elements simplu (câmpuri de card). Portofele: Elements „deferred” cu metoda aleasă;
+    // confirmarea folosește oricum PaymentIntent-ul comenzii (clientSecret).
     const elementsOptions = useMemo(
-        () => ({
-            mode: 'payment',
-            amount: Math.round(order.totalAmount * 100),
-            currency: (order.currency || 'usd').toLowerCase(),
-            paymentMethodTypes: active === 'amazonPay' ? ['amazon_pay'] : ['card'],
-            appearance
-        }),
+        () =>
+            active === 'card'
+                ? { appearance }
+                : {
+                      mode: 'payment',
+                      amount: Math.round(order.totalAmount * 100),
+                      currency: (order.currency || 'usd').toLowerCase(),
+                      paymentMethodTypes: active === 'amazonPay' ? ['amazon_pay'] : ['card'],
+                      appearance
+                  },
         [order.totalAmount, order.currency, active, appearance]
     );
 
