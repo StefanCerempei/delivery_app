@@ -72,6 +72,7 @@ export const api = {
     adminAssignDriver: (code, driverId, { resend = false } = {}) =>
         request(`/admin/orders/${encodeURIComponent(code)}/driver`, { method: 'PATCH', body: { driverId, resend } }),
 
+    adminRevenue: (from, to) => request(`/admin/revenue?from=${from}&to=${to}`),
     adminSchedule: (from, to) => request(`/admin/schedule?from=${from}&to=${to}`),
     adminSaveNotes: (code, notes) =>
         request(`/admin/orders/${encodeURIComponent(code)}/notes`, { method: 'PATCH', body: { notes } }),

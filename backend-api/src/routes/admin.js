@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { statusSchema, driverSchema, assignDriverSchema, parseBody } from '../validation.js';
-import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
+import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from '../orders.js';
 import { notifyStatusChange, notifyOrderConfirmed, notifyDriverAssigned, notifyDriverRemoved } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 import { slotTakenByOther } from '../slots.js';
@@ -199,6 +199,127 @@ router.get('/schedule', async (req, res) => {
         [`${iso(from)} 00:00:00`, `${iso(to)} 23:59:59`]
     );
     res.json({ orders: rows.map((r) => toOrderDto(r, { includeCustomer: true, includeDriver: true })) });
+});
+
+/**
+ * GET /admin/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD — venitul brut (înainte de taxe, plata șoferilor
+ * și alte costuri), după ziua jobului. Intră comenzile plătite online sau confirmate, neanulate;
+ * manopera intră când jobul are Arrived + Completed. Comenzile plătite și apoi anulate se arată separat.
+ */
+router.get('/revenue', async (req, res) => {
+    const from = parseDateOnly(req.query.from);
+    const to = parseDateOnly(req.query.to);
+    if (!from || !to || to < from || (to - from) / 864e5 > 366) {
+        return res.status(400).json({ error: 'Invalid date range (max 1 year).' });
+    }
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const [rows] = await pool.query(
+        `${ORDER_WITH_CUSTOMER_SQL}
+         WHERE o.scheduled_for BETWEEN ? AND ?
+           AND (o.paid_at IS NOT NULL OR o.status IN ('paid', 'confirmed', 'en_route', 'completed'))
+         ORDER BY o.scheduled_for ASC`,
+        [`${iso(from)} 00:00:00`, `${iso(to)} 23:59:59`]
+    );
+
+    const c = (v) => Math.round(Number(v) || 0); // cenți
+    const days = new Map();
+    for (let d = new Date(from); d <= to; d = new Date(d.getTime() + 864e5)) {
+        days.set(iso(d), { date: iso(d), booking: 0, labor: 0, jobs: 0 });
+    }
+    const totals = { booking: 0, reservation: 0, service: 0, transportation: 0, other: 0, labor: 0, jobs: 0, completedJobs: 0, laborMinutes: 0, laborMissing: 0 };
+    const cancelledPaid = { count: 0, amount: 0 };
+    const byVehicle = new Map();
+    const byDriver = new Map();
+    const orders = [];
+
+    for (const r of rows) {
+        if (r.status === 'cancelled') {
+            if (r.paid_at) {
+                cancelledPaid.count += 1;
+                cancelledPaid.amount += c(r.total_cents);
+            }
+            continue;
+        }
+        const booking = c(r.total_cents);
+        const labor = laborActual(r);
+        const laborCents = labor ? labor.minutes * c(r.labor_cents_per_min) : 0;
+        const day = new Date(r.scheduled_for).toISOString().slice(0, 10);
+
+        totals.booking += booking;
+        if (Number(r.pricing_version) >= 2) {
+            totals.reservation += c(r.time_cost_cents);
+            totals.service += c(r.base_fare_cents);
+            totals.transportation += c(r.distance_cost_cents);
+        } else {
+            totals.other += booking;
+        }
+        totals.labor += laborCents;
+        totals.jobs += 1;
+        if (r.status === 'completed') {
+            totals.completedJobs += 1;
+            if (!labor) totals.laborMissing += 1;
+        }
+        if (labor) totals.laborMinutes += labor.minutes;
+
+        const bucket = days.get(day);
+        if (bucket) {
+            bucket.booking += booking;
+            bucket.labor += laborCents;
+            bucket.jobs += 1;
+        }
+
+        const v = byVehicle.get(r.vehicle) || { id: r.vehicle, name: toOrderDto(r).vehicle.name, jobs: 0, gross: 0 };
+        v.jobs += 1;
+        v.gross += booking + laborCents;
+        byVehicle.set(r.vehicle, v);
+
+        const dKey = r.driver_id || 'none';
+        const dr = byDriver.get(dKey) || { id: r.driver_id || null, name: r.driver_name || 'Unassigned', jobs: 0, gross: 0, laborMinutes: 0 };
+        dr.jobs += 1;
+        dr.gross += booking + laborCents;
+        dr.laborMinutes += labor ? labor.minutes : 0;
+        byDriver.set(dKey, dr);
+
+        orders.push({
+            id: r.code,
+            date: day,
+            status: r.status,
+            customer: r.customer_name,
+            vehicle: v.name,
+            driver: r.driver_name || '',
+            booking: booking / 100,
+            labor: laborCents / 100,
+            laborMinutes: labor ? labor.minutes : null,
+            gross: (booking + laborCents) / 100,
+            paymentMethod: r.payment_method || (r.paid_at ? 'stripe' : 'pay later')
+        });
+    }
+
+    const $ = (cents) => cents / 100;
+    const gross = totals.booking + totals.labor;
+    res.json({
+        from: iso(from),
+        to: iso(to),
+        totals: {
+            gross: $(gross),
+            booking: $(totals.booking),
+            reservation: $(totals.reservation),
+            service: $(totals.service),
+            transportation: $(totals.transportation),
+            other: $(totals.other),
+            labor: $(totals.labor),
+            jobs: totals.jobs,
+            completedJobs: totals.completedJobs,
+            avgPerJob: totals.jobs ? $(Math.round(gross / totals.jobs)) : 0,
+            laborMinutes: totals.laborMinutes,
+            laborMissing: totals.laborMissing,
+            cancelledPaid: { count: cancelledPaid.count, amount: $(cancelledPaid.amount) }
+        },
+        series: [...days.values()].map((d) => ({ ...d, booking: $(d.booking), labor: $(d.labor) })),
+        byVehicle: [...byVehicle.values()].map((v) => ({ ...v, gross: $(v.gross) })).sort((a, b) => b.gross - a.gross),
+        byDriver: [...byDriver.values()].map((d) => ({ ...d, gross: $(d.gross) })).sort((a, b) => b.gross - a.gross),
+        orders
+    });
 });
 
 /* ---------------------------------- Șoferi ---------------------------------- */

@@ -899,3 +899,72 @@
 .driver-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .reminder-msg { margin: -6px 0 12px; }
 a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: none; }
+
+/* ===== Revenue (venit brut) ===== */
+.crm-shell {
+    /* serii validate pe suprafața închisă (#141c2a): ΔE CVD 26.8, contrast ≥ 3:1 */
+    --series-1: #3987e5; /* plăți la rezervare */
+    --series-2: #d95926; /* manoperă */
+}
+.rev-toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.rev-toolbar .filter-chips { margin-bottom: 0; }
+.rev-dates { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.rev-dates .crm-select { width: auto; padding: 8px 10px; color-scheme: dark; }
+.rev-loading { opacity: 0.6; transition: opacity 0.15s; }
+.rev-kpis { grid-template-columns: repeat(5, 1fr); }
+.rev-kpi-sub { font-size: 11.5px; color: var(--muted); }
+.rev-chart-card { margin-bottom: 16px; }
+.rev-chart-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.rev-chart-head h3 { margin: 0; padding: 0; border: none; }
+.rev-legend { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--text-2); }
+.rev-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rev-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.rev-swatch.booking { background: var(--series-1); }
+.rev-swatch.labor { background: var(--series-2); }
+.rev-chart { position: relative; width: 100%; }
+.rev-chart svg { display: block; overflow: visible; }
+.rev-grid { stroke: var(--line); stroke-width: 1; }
+.rev-axis { stroke: var(--line-strong); stroke-width: 1; }
+.rev-tick { fill: var(--muted); font-size: 11px; font-family: var(--font-mono); }
+.rev-bar.booking { fill: var(--series-1); }
+.rev-bar.labor { fill: var(--series-2); }
+.rev-dim { opacity: 0.45; }
+.rev-tooltip {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 170px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface-3);
+    color: var(--text);
+    font-size: 12.5px;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.rev-tooltip span { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+.rev-tooltip-total { margin-top: 3px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--text) !important; font-weight: 600; }
+.rev-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.record-row.rev-sub { border-top: 1px solid var(--line-strong); font-weight: 600; }
+.record-row.rev-total { border-top: 1px solid var(--line-strong); font-size: 16px; font-weight: 700; }
+.record-row.rev-total .record-value { color: var(--accent); }
+.record-label small { color: var(--faint); }
+.rev-notes { margin-top: 14px; padding: 12px 14px; border: 1px solid rgba(250, 204, 21, 0.25); border-radius: var(--r-lg); background: rgba(250, 204, 21, 0.06); }
+.rev-notes p { margin: 0; font-size: 13px; color: #fde68a; line-height: 1.5; }
+.rev-notes p + p { margin-top: 6px; }
+.rev-footnote { display: block; margin-top: 12px; font-size: 12px; }
+@media (max-width: 1100px) {
+    .rev-kpis { grid-template-columns: repeat(3, 1fr); }
+    .rev-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+    .rev-dates { width: 100%; flex-wrap: wrap; }
+    .rev-dates .crm-select { flex: 1 1 120px; min-width: 0; }
+    .rev-dates .crm-export { flex: 1 1 100%; }
+    .rev-kpis { grid-template-columns: 1fr 1fr; }
+    .rev-hero { grid-column: 1 / -1; }
+    .rev-grid-3 { grid-template-columns: 1fr; }
+}

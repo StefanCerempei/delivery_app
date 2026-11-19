@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import Logo from '../components/Logo';
 import AdminDrivers from './AdminDrivers';
 import AdminSchedule from './AdminSchedule';
+import AdminRevenue from './AdminRevenue';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
 
@@ -177,6 +178,7 @@ const AdminDashboard = () => {
         { id: 'schedule', label: 'Schedule', icon: '▦' },
         { id: 'orders', label: 'Orders', icon: '☰' },
         { id: 'drivers', label: 'Drivers', icon: '⛟' },
+        { id: 'revenue', label: 'Revenue', icon: '$' },
         { id: 'customers', label: 'Customers', icon: '◎' }
     ];
 
@@ -323,6 +325,9 @@ const AdminDashboard = () => {
 
                     {/* ---------- SCHEDULE ---------- */}
                     {view === 'schedule' && <AdminSchedule drivers={drivers} onOpen={openOrder} refreshKey={refreshKey} />}
+
+                    {/* ---------- REVENUE ---------- */}
+                    {view === 'revenue' && <AdminRevenue refreshKey={refreshKey} />}
 
                     {/* ---------- DRIVERS ---------- */}
                     {view === 'drivers' && (
