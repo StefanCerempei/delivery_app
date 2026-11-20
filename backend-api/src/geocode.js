@@ -2,11 +2,12 @@
 //   1. US Census Geocoder — registrul oficial al SUA, are numerele caselor (gratuit, fără cheie);
 //   2. Photon (OpenStreetMap) — locuri, clădiri, străzi.
 // Când OpenStreetMap știe doar strada, păstrăm numărul scris de client (altfel s-ar pierde).
+import { inServiceArea } from './serviceArea.js';
 
 const CENSUS_URL = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress';
 const PHOTON_URL = 'https://photon.komoot.io/api/';
-// Zona deservită: nord-estul SUA (aceeași ca în formular)
-const BBOX = { west: -80.6, south: 38.8, east: -66.8, north: 47.6 };
+// Căutăm în estul statului Massachusetts (plus puțin în jur, ca adresele de lângă graniță să apară marcate „în afara zonei”)
+const BBOX = { west: -72.05, south: 41.15, east: -69.75, north: 42.95 };
 const BIAS = { lat: 42.26, lon: -71.46 };
 
 const STATE_ABBR = {
@@ -116,7 +117,8 @@ export async function searchAddresses(q) {
         out.push({ ...s, address: [s.title, s.subtitle].filter(Boolean).join(', ') });
     }
     // registrul oficial primul, apoi OpenStreetMap în ordinea lui de relevanță
-    return out.slice(0, 6);
+    // Adresele din afara zonei deservite rămân în listă, dar marcate (clientul înțelege de ce nu le poate alege)
+    return out.slice(0, 6).map((s) => ({ ...s, outside: !inServiceArea(s.lat, s.lng) }));
 }
 
 /** Adresa unui punct ales pe hartă (OpenStreetMap). null dacă nu se găsește nimic. */

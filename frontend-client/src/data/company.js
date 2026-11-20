@@ -11,7 +11,7 @@ export const COMPANY = {
     website: 'reloqmove.com',
     websiteUrl: 'https://www.reloqmove.com',
     governingLaw: 'the Commonwealth of Massachusetts, USA',
-    serviceArea: 'Massachusetts',
+    serviceArea: 'Massachusetts, from Worcester east (including Cape Cod and the Islands)',
     effectiveDate: 'November 12, 2026',
 
     // Licențe — trebuie afișate pe site (cerință FMCSA)

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
+import { inServiceArea } from '../data/serviceArea';
 
 
-// Autocomplete cu Photon (OpenStreetMap): sugerează adrese pe măsură ce scrii.
-// Rezultatele sunt limitate la nord-estul SUA (raza de 300 mile din jurul Massachusetts)
-// și favorizează zona Ashland, MA.
+// Rezervă pentru căutare (dacă serverul nu răspunde): Photon (OpenStreetMap), direct din browser.
+// Zona deservită: Massachusetts, de la Worcester spre est; favorizăm zona Ashland, MA.
 const PHOTON_URL = 'https://photon.komoot.io/api/';
-const SERVICE_BBOX = '-80.6,38.8,-66.8,47.6'; // stânga, jos, dreapta, sus
+const SERVICE_BBOX = '-72.05,41.15,-69.75,42.95'; // stânga, jos, dreapta, sus
 const BIAS = { lat: 42.26, lon: -71.46 };
 
 /** „1 Beacon Street, Boston, MA 02108” din câmpurile Photon */
@@ -101,7 +101,8 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                         .map(toSuggestion)
                         .filter((s) => s.countrycode === 'US' && s.title && Number.isFinite(s.lat))
                         .filter((s) => (seen.has(s.address) ? false : seen.add(s.address)))
-                        .slice(0, 5);
+                        .slice(0, 5)
+                        .map((s) => ({ ...s, outside: !inServiceArea(s.lat, s.lng) }));
                 }
                 setSuggestions(results);
                 setSearchError('');
@@ -125,6 +126,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
     }, [query]);
 
     const handleSelectSuggestion = (item) => {
+        if (item.outside) return; // în afara zonei: nu se poate alege (mesajul e pe rând)
         skipNextSearch.current = true;
         const selectedLocation = { address: item.address, lat: item.lat, lng: item.lng };
         setQuery(item.address);
@@ -210,12 +212,21 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                 <ul className="address-dropdown">
                     {/* opțiunea „cum am scris” e la final, după sugestii */}
                     {suggestions.map((item) => (
-                        <li key={item.id} onClick={() => handleSelectSuggestion(item)}>
+                        <li
+                            key={item.id}
+                            className={item.outside ? 'outside-area' : ''}
+                            aria-disabled={item.outside || undefined}
+                            onClick={() => handleSelectSuggestion(item)}
+                        >
                             <span className="dropdown-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg></span>
                             <div className="dropdown-text">
                                 <strong>{item.title}</strong>
                                 {item.subtitle && <span>{item.subtitle}</span>}
-                                {item.approximate && <span className="dropdown-approx">Street found — pin placed on the street</span>}
+                                {item.outside ? (
+                                    <span className="dropdown-outside">Outside our service area</span>
+                                ) : (
+                                    item.approximate && <span className="dropdown-approx">Street found — pin placed on the street</span>
+                                )}
                             </div>
                         </li>
                     ))}

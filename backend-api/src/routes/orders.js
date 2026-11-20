@@ -16,6 +16,15 @@ import { waitForMail } from '../mailer.js';
 import { takenSlots, withSlot } from '../slots.js';
 import { searchAddresses, reverseGeocode } from '../geocode.js';
 import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
+import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
+
+/** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
+function outsideArea(data, res) {
+    const bad = ['pickup', 'dropoff'].filter((k) => !inServiceArea(data[k].lat, data[k].lng));
+    if (!bad.length) return false;
+    res.status(422).json({ error: OUTSIDE_AREA_MESSAGE, code: 'OUTSIDE_SERVICE_AREA', fields: bad });
+    return true;
+}
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -32,6 +41,7 @@ router.post('/estimate', estimateLimiter, async (req, res) => {
     const data = parseBody(estimateSchema, req, res);
     if (!data) return;
 
+    if (outsideArea(data, res)) return;
     const route = await getTrip(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
@@ -143,6 +153,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         return res.status(400).json({ error: 'Bookings are available from tomorrow onward. Please pick another date.' });
     }
 
+    if (outsideArea(data, res)) return;
     const route = await getTrip(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });

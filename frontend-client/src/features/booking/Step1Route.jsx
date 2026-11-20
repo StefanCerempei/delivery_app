@@ -5,14 +5,21 @@ import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
 import LocationDetails, { detailsComplete } from '../../components/LocationDetails';
 import { startManualPin } from '../../utils/pinLocation';
+import { inServiceArea, SERVICE_AREA_LABEL } from '../../data/serviceArea';
 import Button from '../../components/Button';
 
 const Step1Route = () => {
     const { bookingData, updateBookingData, nextStep, pinMode, setPinMode } = useBooking();
     // O adresă folosită „cum a fost scrisă” trebuie marcată pe hartă înainte de a continua
     const needsPin = (loc) => Boolean(loc?.needsPin && !loc?.pinned);
+    // Doar în zona deservită (Massachusetts, de la Worcester spre est); serverul verifică și el
+    const outside = (loc) => Boolean(loc?.lat && !needsPin(loc) && !inServiceArea(loc.lat, loc.lng));
+    const anyOutside = outside(bookingData.pickup) || outside(bookingData.dropoff);
     const addressesReady =
-        Boolean(bookingData.pickup?.lat && bookingData.dropoff?.lat) && !needsPin(bookingData.pickup) && !needsPin(bookingData.dropoff);
+        Boolean(bookingData.pickup?.lat && bookingData.dropoff?.lat) &&
+        !needsPin(bookingData.pickup) &&
+        !needsPin(bookingData.dropoff) &&
+        !anyOutside;
 
     const startPin = (kind) => {
         setPinMode(kind);
@@ -53,6 +60,12 @@ const Step1Route = () => {
                     {active ? '✓ Done marking' : loc.pinned ? '📍 Pin set — adjust' : '📍 Adjust pin on map'}
                 </button>
                 {needsPin(loc) && !active && <span className="pin-warn">Mark the spot on the map to continue</span>}
+                {outside(loc) && (
+                    <span className="pin-error">
+                        This address is outside our service area ({SERVICE_AREA_LABEL}). Please choose another address
+                        {loc.pinned || loc.manual ? ' or move the pin' : ''}.
+                    </span>
+                )}
                 {loc.approx && !loc.pinned && !needsPin(loc) && !active && (
                     <span className="pin-hint">Map location is approximate — adjust the pin if needed</span>
                 )}
@@ -78,7 +91,8 @@ const Step1Route = () => {
             <div className="step-heading">
                 <h1>Where are we moving?</h1>
                 <p className="subtitle">
-                    Enter your pickup and dropoff addresses for an instant route estimate.
+                    Enter your pickup and dropoff addresses for an instant route estimate. We serve Massachusetts from Worcester
+                    east, including Cape Cod and the Islands.
                 </p>
             </div>
 
@@ -159,7 +173,9 @@ const Step1Route = () => {
 
             <div className="step-footer">
                 <Button onClick={nextStep} disabled={!isReady}>
-                    {needsPin(bookingData.pickup) || needsPin(bookingData.dropoff)
+                    {anyOutside
+                        ? 'Address outside our service area'
+                        : needsPin(bookingData.pickup) || needsPin(bookingData.dropoff)
                         ? 'Mark the address on the map'
                         : addressesReady && !detailsReady
                           ? 'Add floor & elevator info'
