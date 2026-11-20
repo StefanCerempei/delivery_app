@@ -38,10 +38,21 @@ const dropoffIconBig = bigPin('#2dd4a7');
 const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     const map = useMap();
 
-    // La marcarea pe hartă: zoom pe pinul ales, apoi harta nu se mai mută singură cât tragi pinul
+    // La marcarea pe hartă: zoom pe pinul ales, apoi harta nu se mai mută singură cât tragi pinul.
+    // Pe telefon containerul își schimbă înălțimea (36% ↔ 75% din ecran): Leaflet trebuie să-și recalculeze mărimea.
     useEffect(() => {
         const target = pinMode === 'pickup' ? pickup : pinMode === 'dropoff' ? dropoff : null;
-        if (target?.lat) map.flyTo([target.lat, target.lng], 18, { duration: 0.6 });
+        const timer = setTimeout(() => {
+            map.invalidateSize();
+            if (target?.lat) {
+                map.flyTo([target.lat, target.lng], 18, { duration: 0.6 });
+            } else if (routeCoords?.length) {
+                map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80] });
+            } else if (pickup?.lat && dropoff?.lat) {
+                map.fitBounds(L.latLngBounds([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]]), { padding: [80, 80] });
+            }
+        }, 320); // după animația de înălțime
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [map, pinMode]);
 

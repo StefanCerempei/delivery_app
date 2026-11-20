@@ -1609,6 +1609,13 @@
         min-height: 240px;
         position: sticky;
         top: 0;
+        transition: height 0.3s ease;
+    }
+
+    /* Marcare pe hartă: harta ocupă ~75% din ecran, ca pinul să se pună ușor cu degetul */
+    .map-container.pin-mode {
+        height: 75vh;
+        height: 75dvh;
     }
 
     .map-container::after {
