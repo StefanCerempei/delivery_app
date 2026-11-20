@@ -30,8 +30,8 @@
     z-index: 800;
     pointer-events: none;
     background:
-        radial-gradient(120% 90% at 40% 50%, transparent 60%, rgba(10, 15, 24, 0.4) 100%),
-        linear-gradient(to left, rgba(10, 15, 24, 0.4), transparent 16%);
+        radial-gradient(120% 90% at 40% 50%, transparent 70%, rgba(10, 15, 24, 0.18) 100%),
+        linear-gradient(to left, rgba(10, 15, 24, 0.35), transparent 10%);
 }
 
 /* ================= HUD PESTE HARTĂ ================= */
@@ -1612,7 +1612,7 @@
     }
 
     .map-container::after {
-        background: linear-gradient(to top, rgba(10, 15, 24, 0.55), transparent 30%);
+        background: linear-gradient(to top, rgba(10, 15, 24, 0.45), transparent 22%);
     }
 
     .map-floating-hud {
