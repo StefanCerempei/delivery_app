@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../api/client';
+import { api, jobPhotoUrl } from '../api/client';
+import PhotoGallery from '../components/PhotoGallery';
+import { PageLoader } from '../components/Spinner';
 import Logo from '../components/Logo';
 import './DriverJob.css';
 
@@ -66,7 +68,7 @@ const DriverJobPage = () => {
                     <Logo height={22} />
                 </header>
                 <div className="job-card">
-                    <p className={error ? 'job-error' : 'job-muted'}>{error || 'Loading job…'}</p>
+                    {error ? <p className="job-error">{error}</p> : <PageLoader label="Loading job…" compact />}
                 </div>
             </div>
         );
@@ -166,6 +168,12 @@ const DriverJobPage = () => {
             <div className="job-card">
                 <span className="job-label">Items</span>
                 <p className="job-text">{job.itemsDescription || '—'}</p>
+                {job.photoIds?.length > 0 && (
+                    <>
+                        <span className="job-label">Photos ({job.photoIds.length})</span>
+                        <PhotoGallery urls={job.photoIds.map((pid) => jobPhotoUrl(token, pid))} />
+                    </>
+                )}
                 {job.dispatchNotes && (
                     <>
                         <span className="job-label">Notes from dispatch</span>

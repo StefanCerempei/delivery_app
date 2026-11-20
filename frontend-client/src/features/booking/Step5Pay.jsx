@@ -5,7 +5,7 @@ import { useBooking, PAYMENT_RETURN_PARAM } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
 import { isValidEmail, isValidPhone, formatUsPhone } from '../../utils/validators';
-import { api, toLocation } from '../../api/client';
+import { api, toLocation, uploadOrderPhoto } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
@@ -76,6 +76,9 @@ const Step5Pay = () => {
     const [clientSecret, setClientSecret] = useState(null);
     const [orderError, setOrderError] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    // Încărcarea pozelor după crearea comenzii: { done, total } sau null
+    const [photoUpload, setPhotoUpload] = useState(null);
+    const [photoNotice, setPhotoNotice] = useState('');
     const { refresh } = useAuth();
     const verified = Boolean(user?.emailVerified);
 
@@ -147,6 +150,7 @@ const Step5Pay = () => {
                 itemsDescription: bookingData.itemsDescription,
                 photosCount: bookingData.photos?.length || 0
             });
+            await uploadPhotos(res.order.id);
             setOrder(res.order);
             if (res.clientSecret) {
                 setClientSecret(res.clientSecret);
@@ -159,6 +163,34 @@ const Step5Pay = () => {
             setOrderError(err.message);
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    /** Trimite pozele alese la pasul cu obiectele. O poză eșuată nu oprește rezervarea. */
+    const uploadPhotos = async (code) => {
+        const photos = (bookingData.photos || []).filter((p) => p.blob || p.file);
+        setPhotoNotice('');
+        if (!photos.length) return;
+        let failed = 0;
+        setPhotoUpload({ done: 0, total: photos.length });
+        for (const [i, photo] of photos.entries()) {
+            try {
+                await uploadOrderPhoto(code, photo.blob || photo.file);
+            } catch {
+                // o a doua încercare (rețea mobilă instabilă)
+                try {
+                    await uploadOrderPhoto(code, photo.blob || photo.file);
+                } catch {
+                    failed += 1;
+                }
+            }
+            setPhotoUpload({ done: i + 1, total: photos.length });
+        }
+        setPhotoUpload(null);
+        if (failed) {
+            setPhotoNotice(
+                `${failed} of ${photos.length} photo${photos.length === 1 ? '' : 's'} couldn’t be uploaded. Your booking is fine — you can reply to the confirmation email with them.`
+            );
         }
     };
 
@@ -352,6 +384,7 @@ const Step5Pay = () => {
 
                 {clientSecret && stripePromise ? (
                     <>
+                        {photoNotice && <p className="form-inline-error">{photoNotice}</p>}
                         <PaymentMethodPicker
                             stripePromise={stripePromise}
                             appearance={stripeAppearance}
@@ -376,8 +409,14 @@ const Step5Pay = () => {
                             </button>
                         )}
                         <div className="step-footer">
-                            <Button onClick={handleCreateOrder} disabled={!user || !verified || isCreating || totalAmount == null}>
-                                {isCreating
+                            <Button
+                                onClick={handleCreateOrder}
+                                loading={isCreating}
+                                disabled={!user || !verified || totalAmount == null}
+                            >
+                                {photoUpload
+                                    ? `Uploading photos ${Math.min(photoUpload.done + 1, photoUpload.total)}/${photoUpload.total}…`
+                                    : isCreating
                                     ? 'Creating your booking…'
                                     : paymentsEnabled
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { formatMoney } from '../utils/formatters';
+import { PageLoader } from '../components/Spinner';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -447,7 +448,7 @@ const AdminRevenue = ({ refreshKey }) => {
                     </p>
                 </div>
             )}
-            {!t && loading && <p className="empty-state">Loading…</p>}
+            {!t && loading && <PageLoader label="Calculating revenue…" />}
         </>
     );
 };

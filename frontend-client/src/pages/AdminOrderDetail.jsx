@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatMoney } from '../utils/formatters';
-import { api } from '../api/client';
+import { api, orderPhotoUrl } from '../api/client';
+import PhotoGallery from '../components/PhotoGallery';
+import { PageLoader } from '../components/Spinner';
 import { STATUS_LABELS } from './AdminDashboard';
 import { describeDetails } from '../components/LocationDetails';
 import './Admin.css';
@@ -162,7 +164,7 @@ const AdminOrderDetail = () => {
         );
     }
 
-    if (!order) return <div className="crm-record"><p className="empty-state">Loading…</p></div>;
+    if (!order) return <div className="crm-record"><PageLoader label="Loading order…" /></div>;
 
     // Online se plătește doar transportul; încărcarea/descărcarea se încasează la fața locului.
     const payment = order.paidOnline
@@ -377,6 +379,14 @@ const AdminOrderDetail = () => {
                     <Row label="Items">{order.itemsDescription || '—'}</Row>
                     <Row label="Photos">{order.photosCount}</Row>
                     <Row label="Payment">{payment}</Row>
+                </div>
+
+                <div className="admin-card photos-card">
+                    <h3>Item photos {order.photoIds?.length ? `(${order.photoIds.length})` : ''}</h3>
+                    <PhotoGallery
+                        urls={(order.photoIds || []).map((pid) => orderPhotoUrl(order.id, pid))}
+                        emptyText="The customer didn’t add photos."
+                    />
                 </div>
 
                 <div className="admin-card record-total-card">

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { STATUS_LABELS } from './AdminDashboard';
+import { PageLoader } from '../components/Spinner';
 
 // Aceleași ferestre ca la rezervare (ora firmei, Massachusetts)
 const SLOTS = [
@@ -125,6 +126,7 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
 
             {error && <p className="form-inline-error">{error}</p>}
 
+            {loading && orders.length === 0 && <PageLoader label="Loading schedule…" compact />}
             <div className={`schedule-grid ${loading ? 'is-loading' : ''}`}>
                 {days.map((day) => {
                     const dayIso = iso(day);

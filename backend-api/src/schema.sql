@@ -118,3 +118,17 @@ CREATE TABLE IF NOT EXISTS driver_reminders (
     sent_at     DATETIME     NOT NULL,
     PRIMARY KEY (driver_id, job_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Pozele obiectelor încărcate de client (comprimate în browser, ~200–600 KB fiecare).
+-- Stau în baza de date ca să nu se piardă la redeploy (fișierele aplicației se rescriu).
+CREATE TABLE IF NOT EXISTS order_photos (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id    CHAR(36)     NOT NULL,
+    mime        VARCHAR(20)  NOT NULL,
+    size_bytes  INT UNSIGNED NOT NULL,
+    data        MEDIUMBLOB   NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order_photos_order (order_id),
+    CONSTRAINT fk_order_photos_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

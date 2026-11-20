@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '../api/client';
+import { storePhotos, loadStoredPhotos, clearStoredPhotos } from '../utils/photos';
 
 // Parametrul pus în return_url când Stripe trimite clientul pe alt site (ex. Amazon Pay).
 // La întoarcere verificăm plata pe server și arătăm pagina de succes.
@@ -69,6 +70,8 @@ function clearDraft() {
 }
 
 export const BookingProvider = ({ children }) => {
+    // Pozele (fișiere) nu încap în sessionStorage: le păstrăm separat, în IndexedDB
+    const photosRestored = useRef(false);
     const draft = readDraft();
     const [currentStep, setCurrentStep] = useState(draft?.step || 1);
     const [completedOrder, setCompletedOrderState] = useState(null);
@@ -87,6 +90,18 @@ export const BookingProvider = ({ children }) => {
         if (!completedOrder) writeDraft(currentStep, bookingData);
     }, [currentStep, bookingData, completedOrder]);
 
+    // La deschidere: pozele alese înainte de o reîncărcare a paginii
+    useEffect(() => {
+        loadStoredPhotos().then((list) => {
+            if (list.length) setBookingData((prev) => (prev.photos?.length ? prev : { ...prev, photos: list }));
+            photosRestored.current = true;
+        });
+    }, []);
+
+    useEffect(() => {
+        if (photosRestored.current) storePhotos(bookingData.photos || []);
+    }, [bookingData.photos]);
+
     // Primește un obiect sau o funcție (prev) => obiect, pentru actualizări care depind de starea curentă
     const updateBookingData = useCallback((newData) => {
         setBookingData((prev) => ({ ...prev, ...(typeof newData === 'function' ? newData(prev) : newData) }));
@@ -100,6 +115,7 @@ export const BookingProvider = ({ children }) => {
 
     const setCompletedOrder = (order) => {
         clearDraft();
+        clearStoredPhotos();
         setCompletedOrderState(order);
     };
 
@@ -135,6 +151,7 @@ export const BookingProvider = ({ children }) => {
     const resetBooking = () => {
         bookingData.photos?.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
         clearDraft();
+        clearStoredPhotos();
         setCurrentStep(1);
         setCompletedOrderState(null);
         setBookingData(EMPTY_BOOKING);

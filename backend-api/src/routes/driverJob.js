@@ -9,6 +9,7 @@ import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, describeLocation } from '../orders
 import { notifyStatusChange } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 import { sendDriverReminders } from '../jobs.js';
+import { sendPhoto } from '../photos.js';
 
 const router = Router();
 const jobLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
@@ -42,7 +43,8 @@ const toJobDto = (o) => ({
     laborRate: o.price?.labor?.label || null,
     timeline: o.timeline,
     laborActual: o.laborActual,
-    directionsUrl: directions(o)
+    directionsUrl: directions(o),
+    photoIds: o.photoIds || []
 });
 
 const gone = (res) => res.status(404).json({ error: 'This job link is no longer valid. Ask dispatch for the latest job email.' });
@@ -52,6 +54,14 @@ router.get('/job/:token', jobLimiter, async (req, res) => {
     if (!job || job.status === 'pending_payment') return gone(res);
     res.set('Cache-Control', 'no-store');
     res.json({ job: toJobDto(job) });
+});
+
+/** Pozele obiectelor, pentru șoferul cu linkul jobului. */
+router.get('/job/:token/photos/:photoId', jobLimiter, async (req, res) => {
+    if (!TOKEN_RE.test(req.params.token)) return res.status(404).end();
+    const [rows] = await pool.query("SELECT id FROM orders WHERE driver_token = ? AND status <> 'pending_payment'", [req.params.token]);
+    if (!rows[0]) return res.status(404).end();
+    await sendPhoto(res, rows[0].id, req.params.photoId);
 });
 
 const ACTIONS = {

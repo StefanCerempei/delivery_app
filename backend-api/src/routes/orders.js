@@ -15,6 +15,7 @@ import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.
 import { waitForMail } from '../mailer.js';
 import { takenSlots, withSlot } from '../slots.js';
 import { searchAddresses, reverseGeocode } from '../geocode.js';
+import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -171,7 +172,8 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
                         route.distanceMiles, route.durationMins, data.vehicle,
                         schedule.type, schedule.scheduledFor, schedule.label,
-                        data.itemsDescription, data.photosCount,
+                        // numărul real de poze se actualizează la încărcarea lor (/orders/:code/photos)
+                        data.itemsDescription, 0,
                         // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
                         // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
                         price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
@@ -294,6 +296,30 @@ router.post('/orders/:code/paypal/capture', requireAuth, paypalLimiter, async (r
         });
     }
     res.json({ order });
+});
+
+const photoLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+
+/** POST /api/orders/:code/photos — o poză (octeții imaginii în corp, Content-Type image/jpeg|png|webp). */
+router.post('/orders/:code/photos', requireAuth, photoLimiter, rawImageBody, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    if (['completed', 'cancelled'].includes(row.status)) {
+        return res.status(409).json({ error: 'Photos can no longer be added to this booking.' });
+    }
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        return res.status(400).json({ error: 'No photo received. Please try again.' });
+    }
+    const result = await savePhoto(row.id, req.body);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.status(201).json({ photoId: result.photoId });
+});
+
+/** GET /api/orders/:code/photos/:photoId — poza, pentru clientul comenzii sau dispecer. */
+router.get('/orders/:code/photos/:photoId', requireAuth, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    await sendPhoto(res, row.id, req.params.photoId);
 });
 
 /** GET /api/orders/mine — istoricul clientului. */

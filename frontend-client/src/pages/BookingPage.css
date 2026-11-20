@@ -2259,3 +2259,4 @@
     .loc-row { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 8px; }
     .loc-field select { padding-right: 6px; }
 }
+.uploader-preparing { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 13px; color: var(--muted); }

@@ -26,7 +26,9 @@ const Step4Items = () => {
     const { bookingData, updateBookingData, nextStep } = useBooking();
     const [items, setItems] = useState(bookingData.items || []);
     const [notes, setNotes] = useState(bookingData.itemsNotes || '');
-    const [photos, setPhotos] = useState(bookingData.photos || []);
+    // Pozele stau în rezervare (și în IndexedDB), ca să nu se piardă la reîncărcare sau la intrarea în cont
+    const photos = bookingData.photos || [];
+    const setPhotos = (list) => updateBookingData({ photos: list });
     const deck = useMemo(() => shuffled(ALL_ITEMS), []);
 
     const qtyOf = (id) => items.find((it) => it.id === id)?.qty || 0;
@@ -48,7 +50,6 @@ const Step4Items = () => {
             items,
             itemsNotes: notes.trim(),
             itemsDescription: buildDescription(items, notes),
-            photos,
             vehicle: null,
             priceEstimate: null
         });
@@ -100,7 +101,7 @@ const Step4Items = () => {
                     id="items-notes"
                     className="items-textarea"
                     rows={3}
-                    placeholder="e.g., 2nd floor pickup with elevator, narrow driveway, anything heavy or fragile."
+                    placeholder="e.g., anything heavy or fragile, items that need disassembly, narrow driveway."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                 />

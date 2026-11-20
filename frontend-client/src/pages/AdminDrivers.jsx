@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api/client';
 import { initials } from '../context/AuthContext';
+import { PageLoader } from '../components/Spinner';
 
 const EMPTY_FORM = { fullName: '', email: '', phone: '', notes: '' };
 
@@ -179,7 +180,9 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="6" className="empty-state">Loading…</td>
+                                <td colSpan="6">
+                                    <PageLoader label="Loading drivers…" compact />
+                                </td>
                             </tr>
                         ) : visible.length === 0 ? (
                             <tr>

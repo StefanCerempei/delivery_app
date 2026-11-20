@@ -1,4 +1,6 @@
 // Toate apelurile către backend trec pe aici.
+import { trackRequest } from './loadingTracker';
+
 // Implicit API-ul e pe același domeniu (/api). VITE_API_URL e necesar doar dacă e pe alt domeniu.
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
@@ -10,7 +12,13 @@ export class ApiError extends Error {
     }
 }
 
-async function request(path, { method = 'GET', body, signal } = {}) {
+/** `quiet`: cererile de fundal (căutare la tastare, reîmprospătări) nu aprind bara de încărcare. */
+function request(path, options = {}) {
+    const promise = rawRequest(path, options);
+    return options.quiet ? promise : trackRequest(promise);
+}
+
+async function rawRequest(path, { method = 'GET', body, signal } = {}) {
     let res;
     try {
         res = await fetch(`${API_BASE}/api${path}`, {
@@ -55,8 +63,8 @@ export const api = {
     confirmVerificationCode: (code) => request('/auth/verify-email/confirm', { method: 'POST', body: { code } }),
 
     reverseGeocode: (lat, lng) => request(`/reverse-geocode?lat=${lat}&lng=${lng}`),
-    geocode: (q, signal) => request(`/geocode?q=${encodeURIComponent(q)}`, { signal }),
-    availability: (from, to) => request(`/availability?from=${from}&to=${to}`),
+    geocode: (q, signal) => request(`/geocode?q=${encodeURIComponent(q)}`, { signal, quiet: true }),
+    availability: (from, to, { quiet = false } = {}) => request(`/availability?from=${from}&to=${to}`, { quiet }),
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),
     createOrder: (payload) => request('/orders', { method: 'POST', body: payload }),
     confirmPayment: (code) => request(`/orders/${encodeURIComponent(code)}/confirm-payment`, { method: 'POST' }),
@@ -91,6 +99,32 @@ export const api = {
     adminUpdateDriver: (id, payload) => request(`/admin/drivers/${id}`, { method: 'PATCH', body: payload }),
     adminDeleteDriver: (id) => request(`/admin/drivers/${id}`, { method: 'DELETE' })
 };
+
+/** Încarcă o poză la o comandă (octeții imaginii, nu JSON). */
+export function uploadOrderPhoto(code, blob) {
+    return trackRequest(uploadOrderPhotoRaw(code, blob));
+}
+
+async function uploadOrderPhotoRaw(code, blob) {
+    let res;
+    try {
+        res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(code)}/photos`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': blob.type || 'image/jpeg' },
+            body: blob
+        });
+    } catch {
+        throw new ApiError('Cannot reach the server. Check your connection and try again.', 0);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(data.error || `Photo upload failed (${res.status})`, res.status, data);
+    return data;
+}
+
+/** Linkul unei poze încărcate: pentru client și dispecer (cu sesiune) sau pentru șofer (cu tokenul jobului). */
+export const orderPhotoUrl = (code, photoId) => `${API_BASE}/api/orders/${encodeURIComponent(code)}/photos/${photoId}`;
+export const jobPhotoUrl = (token, photoId) => `${API_BASE}/api/job/${encodeURIComponent(token)}/photos/${photoId}`;
 
 /** Doar adresa și coordonatele: atât cere API-ul. */
 export const toLocation = (loc) => ({ address: loc.address, lat: Number(loc.lat), lng: Number(loc.lng) });

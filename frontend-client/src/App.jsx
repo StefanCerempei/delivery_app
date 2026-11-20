@@ -12,12 +12,14 @@ import AuthPage from './pages/AuthPage';
 import AccountPage from './pages/AccountPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
+import GlobalLoadingBar from './components/GlobalLoadingBar';
 import './App.css';
 
 function App() {
     return (
         <Router>
             <AuthProvider>
+            <GlobalLoadingBar />
             <Routes>
                 {/* Fluxul Clientului */}
                 <Route

@@ -94,6 +94,8 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
         scheduleText: row.schedule_label,
         itemsDescription: row.items_description,
         photosCount: row.photos_count,
+        // Pozele încărcate (id-uri); fiecare pagină își construiește linkul (client / dispecer / șofer)
+        photoIds: row.photo_ids ? String(row.photo_ids).split(',').map(Number) : [],
         price: orderPrice(row, vehicle),
         totalAmount: cents(row.total_cents),
         currency: row.currency,
@@ -136,7 +138,8 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
 
 export const ORDER_WITH_CUSTOMER_SQL = `
     SELECT o.*, u.full_name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
-           d.full_name AS driver_name, d.email AS driver_email, d.phone AS driver_phone
+           d.full_name AS driver_name, d.email AS driver_email, d.phone AS driver_phone,
+           (SELECT GROUP_CONCAT(p.id ORDER BY p.id) FROM order_photos p WHERE p.order_id = o.id) AS photo_ids
     FROM orders o
     JOIN users u ON u.id = o.user_id
     LEFT JOIN drivers d ON d.id = o.driver_id`;

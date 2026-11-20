@@ -71,7 +71,10 @@ const Step3Time = () => {
 
     const loadAvailability = useCallback(async () => {
         try {
-            const { taken } = await api.availability(upcomingDays[0].dateStr, upcomingDays[upcomingDays.length - 1].dateStr);
+            // în fundal (la fiecare minut): fără bara de încărcare
+            const { taken } = await api.availability(upcomingDays[0].dateStr, upcomingDays[upcomingDays.length - 1].dateStr, {
+                quiet: true
+            });
             setTaken(taken || {});
         } catch {
             // Fără răspuns: serverul verifică oricum la rezervare.

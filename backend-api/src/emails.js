@@ -112,7 +112,7 @@ function orderRows(order, { forDispatcher = false } = {}) {
     ];
     if (forDispatcher) {
         rows.splice(1, 0, ['Customer', order.customer?.fullName], ['Phone', order.customer?.phone], ['Email', order.customer?.email]);
-        rows.push(['Photos', order.photosCount ? `${order.photosCount} (not uploaded)` : '0']);
+        rows.push(['Photos', order.photosCount ? `${order.photosCount} — open the order in dispatch to see them` : 'None']);
     }
     return rows;
 }
@@ -301,6 +301,7 @@ function driverRows(order) {
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
         ['Labor rate', order.price?.labor ? `${order.price.labor.label} — from arrival at pickup to completion` : null],
+        ['Photos', order.photosCount ? `${order.photosCount} — on the job page` : null],
         ['Dispatch notes', order.dispatchNotes || null]
     ];
 }

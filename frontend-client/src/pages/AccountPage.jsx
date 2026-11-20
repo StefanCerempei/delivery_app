@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import { formatPrice } from '../utils/formatters';
 import { CUSTOMER_STATUS_LABELS } from '../utils/orderStatus';
 import './Account.css';
+import { PageLoader } from '../components/Spinner';
 
 const ACTIVE = ['pending_payment', 'confirmed', 'paid', 'en_route'];
 
@@ -42,7 +43,11 @@ const AccountPage = () => {
     };
 
     if (!authChecked || !user) {
-        return <div className="account-layout account-loading">Loading…</div>;
+        return (
+            <div className="account-layout account-loading">
+                <PageLoader label="Loading your bookings…" />
+            </div>
+        );
     }
 
     const active = (orders || []).filter((o) => ACTIVE.includes(o.status));

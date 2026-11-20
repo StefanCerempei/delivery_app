@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { isValidPhone, formatUsPhone } from '../utils/validators';
 import './Account.css';
+import { PageLoader } from '../components/Spinner';
 
 const AccountSettingsPage = () => {
     const navigate = useNavigate();
@@ -24,7 +25,11 @@ const AccountSettingsPage = () => {
     }, [authChecked, user, navigate]);
 
     if (!authChecked || !user) {
-        return <div className="account-layout account-loading">Loading…</div>;
+        return (
+            <div className="account-layout account-loading">
+                <PageLoader />
+            </div>
+        );
     }
 
     return (

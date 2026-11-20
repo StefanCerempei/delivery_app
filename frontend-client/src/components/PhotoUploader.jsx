@@ -1,14 +1,17 @@
 import React, { useState, useRef } from 'react';
+import { compressImage } from '../utils/photos';
+import Spinner from './Spinner';
 
 const MAX_PHOTOS = 5;
-const MAX_SIZE_MB = 8;
+const MAX_SIZE_MB = 25; // înainte de comprimare (pozele de telefon pot fi mari)
 
 const PhotoUploader = ({ photos = [], onChange }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState('');
+    const [preparing, setPreparing] = useState(0);
     const fileInputRef = useRef(null);
 
-    const processFiles = (fileList) => {
+    const processFiles = async (fileList) => {
         setError('');
         const incoming = Array.from(fileList);
 
@@ -17,24 +20,36 @@ const PhotoUploader = ({ photos = [], onChange }) => {
             return;
         }
 
-        const validItems = [];
-        for (const file of incoming) {
+        const accepted = incoming.filter((file) => {
             if (!file.type.startsWith('image/')) {
                 setError('Only image files (JPG, PNG, WebP) are supported.');
-                continue;
+                return false;
             }
             if (file.size > MAX_SIZE_MB * 1024 * 1024) {
                 setError(`Each image must be smaller than ${MAX_SIZE_MB} MB.`);
-                continue;
+                return false;
             }
+            return true;
+        });
 
-            validItems.push({
-                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                file,
-                name: file.name,
-                previewUrl: URL.createObjectURL(file)
-            });
+        // Comprimare în browser: încărcare rapidă și pe date mobile
+        setPreparing(accepted.length);
+        const validItems = [];
+        for (const file of accepted) {
+            try {
+                const blob = await compressImage(file);
+                validItems.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    blob,
+                    name: file.name,
+                    previewUrl: URL.createObjectURL(blob)
+                });
+            } catch (err) {
+                setError(err.message);
+            }
+            setPreparing((n) => Math.max(0, n - 1));
         }
+        setPreparing(0);
 
         if (validItems.length > 0) {
             onChange([...photos, ...validItems]);
@@ -104,6 +119,11 @@ const PhotoUploader = ({ photos = [], onChange }) => {
                 </div>
             )}
 
+            {preparing > 0 && (
+                <p className="uploader-preparing">
+                    <Spinner size={14} /> Preparing {preparing} photo{preparing === 1 ? '' : 's'}…
+                </p>
+            )}
             {error && <p className="uploader-error">{error}</p>}
 
             {photos.length > 0 && (

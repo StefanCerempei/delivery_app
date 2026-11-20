@@ -8,6 +8,7 @@ import AdminSchedule from './AdminSchedule';
 import AdminRevenue from './AdminRevenue';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
+import { PageLoader } from '../components/Spinner';
 
 export const STATUS_LABELS = {
     pending_payment: 'New',
@@ -349,7 +350,7 @@ const AdminDashboard = () => {
                                 </thead>
                                 <tbody>
                                     {loading ? (
-                                        <tr><td colSpan="5" className="empty-state">Loading…</td></tr>
+                                        <tr><td colSpan="5"><PageLoader label="Loading customers…" compact /></td></tr>
                                     ) : customers.length === 0 ? (
                                         <tr><td colSpan="5" className="empty-state">No customers yet.</td></tr>
                                     ) : (
@@ -402,7 +403,7 @@ const OrdersTable = ({ orders, loading, onOpen, full }) => (
             </thead>
             <tbody>
                 {loading ? (
-                    <tr><td colSpan={full ? 9 : 8} className="empty-state">Loading…</td></tr>
+                    <tr><td colSpan={full ? 9 : 8}><PageLoader label="Loading orders…" compact /></td></tr>
                 ) : orders.length === 0 ? (
                     <tr><td colSpan={full ? 9 : 8} className="empty-state">No orders found.</td></tr>
                 ) : (

@@ -1,13 +1,17 @@
 import React from 'react';
+import Spinner from './Spinner';
 
-const Button = ({ children, onClick, disabled = false, variant = 'primary', type = 'button' }) => {
+/** `loading`: butonul se dezactivează și arată un spinner lângă text. */
+const Button = ({ children, onClick, disabled = false, loading = false, variant = 'primary', type = 'button' }) => {
     return (
         <button
             type={type}
-            className={`lugg-btn lugg-btn-${variant}`}
+            className={`lugg-btn lugg-btn-${variant} ${loading ? 'is-loading' : ''}`}
             onClick={onClick}
-            disabled={disabled}
+            disabled={disabled || loading}
+            aria-busy={loading || undefined}
         >
+            {loading && <Spinner size={18} className="btn-spinner" />}
             {children}
         </button>
     );
