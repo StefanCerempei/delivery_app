@@ -275,7 +275,7 @@ textarea {
 /* ================= Leaflet ================= */
 .leaflet-container {
     font-family: var(--font-body);
-    background: #d4d4d2 !important;
+    background: #a3a3a1 !important;
 }
 
 .leaflet-control-attribution {
@@ -290,9 +290,9 @@ textarea {
     color: var(--muted) !important;
 }
 
-/* Hartă deschisă, ușor estompată (culorile OpenStreetMap mai liniștite), ca să nu bată peste panoul închis */
+/* Hartă deschisă, estompată și ușor întunecată, ca să nu bată peste panoul închis */
 .leaflet-tile-pane {
-    filter: grayscale(35%) brightness(92%) contrast(88%) saturate(70%);
+    filter: grayscale(40%) brightness(70%) contrast(92%) saturate(60%);
 }
 
 .custom-map-pin {

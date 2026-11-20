@@ -158,7 +158,7 @@ const MapPreview = () => {
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={11}
-                style={{ width: '100%', height: '100%', backgroundColor: '#d4d4d2' }}
+                style={{ width: '100%', height: '100%', backgroundColor: '#a3a3a1' }}
                 zoomControl={false}
             >
                 <TileLayer
