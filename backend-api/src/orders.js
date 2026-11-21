@@ -149,7 +149,7 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
                   phone: row.driver_phone ?? null,
                   notifiedAt: row.driver_notified_at ? new Date(row.driver_notified_at).toISOString() : null,
                   // Linkul paginii de job a șoferului (dispecerul îl poate copia / deschide)
-                  jobPath: row.driver_token ? `/job/${row.driver_token}` : null
+                  jobPath: row.driver_token ? `/driver/job/${row.driver_token}` : null
               }
             : null;
     }

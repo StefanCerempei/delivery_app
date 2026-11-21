@@ -113,7 +113,7 @@ const toCard = (o, token) => ({
     timerRunning: Boolean(o.timeline?.arrivedAt && !o.timeline?.completedAt),
     labor: o.laborActual,
     laborStatus: o.laborBilling?.status || 'none',
-    jobPath: `/job/${token}`
+    jobPath: `/driver/job/${token}`
 });
 
 /** GET /api/driver/jobs — joburile active (azi și viitoare) și cele terminate în ultimele 14 zile. */

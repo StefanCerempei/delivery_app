@@ -137,6 +137,9 @@ if (fs.existsSync(distDir)) {
                 if (filePath.includes(`${path.sep}assets${path.sep}`)) {
                     res.set('Cache-Control', 'public, max-age=31536000, immutable');
                 }
+                // Aplicația șoferului: service worker-ul și manifestul trebuie verificate la fiecare deschidere
+                if (/(driver-sw\.js|\.webmanifest|pwa-driver\.js)$/.test(filePath)) res.set('Cache-Control', 'no-cache');
+                if (filePath.endsWith('.webmanifest')) res.type('application/manifest+json');
             }
         })
     );

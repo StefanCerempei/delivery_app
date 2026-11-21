@@ -48,6 +48,8 @@ function App() {
                 <Route path="/job/:token" element={<DriverJobPage />} />
                 <Route path="/driver" element={<DriverPortal />} />
                 <Route path="/driver/login" element={<DriverPortal />} />
+                {/* aceeași pagină de job, dar în interiorul aplicației instalabile (scope /driver) */}
+                <Route path="/driver/job/:token" element={<DriverJobPage />} />
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />

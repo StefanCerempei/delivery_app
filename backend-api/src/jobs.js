@@ -8,7 +8,7 @@ import { notifyDriverReminder } from './emails.js';
 
 const DAY_MS = 24 * 3600e3;
 
-export const jobUrl = (token) => (mailSettings.appUrl && token ? `${mailSettings.appUrl}/job/${token}` : null);
+export const jobUrl = (token) => (mailSettings.appUrl && token ? `${mailSettings.appUrl}/driver/job/${token}` : null);
 
 /** Tokenul linkului de job al comenzii (îl creează la prima nevoie). Se schimbă când se schimbă șoferul. */
 export async function ensureDriverToken(code) {
