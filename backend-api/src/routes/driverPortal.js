@@ -1,6 +1,7 @@
 // Panoul șoferului: /api/driver/* (autentificare prin link pe email + lista joburilor lui).
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
 import { mailSettings } from '../mailer.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, describeLocation } from '../orders.js';
@@ -37,7 +38,33 @@ export async function emailLoginLink(driver, { invite = false } = {}) {
     });
 }
 
-/** POST /api/driver/login-link { email } — răspunsul e același și dacă emailul nu e al unui șofer. */
+// Comparăm mereu cu un hash (și când emailul nu există), ca timpul de răspuns să nu dezvăluie conturile
+const DUMMY_HASH = bcrypt.hashSync('reloq-driver-timing-protection', 12);
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Please try again in a few minutes.' }
+});
+
+/** POST /api/driver/login { email, password } — parola e setată de dispecer. */
+router.post('/login', loginLimiter, async (req, res) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 255) : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password.slice(0, 100) : '';
+    if (!email || !password) return res.status(400).json({ error: 'Please enter your email and password.' });
+    const [rows] = await pool.query('SELECT * FROM drivers WHERE email = ? AND active = 1', [email]);
+    const driver = rows[0];
+    const ok = await bcrypt.compare(password, driver?.password_hash || DUMMY_HASH);
+    if (!driver || !driver.password_hash || !ok) {
+        return res.status(401).json({ error: 'Wrong email or password. Ask dispatch if you don’t have a password yet.' });
+    }
+    await pool.query('UPDATE drivers SET last_login_at = UTC_TIMESTAMP() WHERE id = ?', [driver.id]);
+    setDriverCookie(res, driver);
+    res.json({ driver: publicDriver(driver) });
+});
+
+/** POST /api/driver/login-link { email } — rezervă: link pe email. Răspunsul e același și dacă emailul nu e al unui șofer. */
 router.post('/login-link', linkLimiter, async (req, res) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 255) : '';
     if (!email.includes('@')) return res.status(400).json({ error: 'Please enter your email address.' });

@@ -56,6 +56,8 @@ export async function migrate() {
     // Conturile șoferilor: sesiunile se revocă crescând versiunea (ex. la arhivare)
     await addColumnIfMissing('drivers', 'session_version', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER active');
     await addColumnIfMissing('drivers', 'last_login_at', 'DATETIME NULL AFTER session_version');
+    // Parola șoferului, setată de dispecer (bcrypt)
+    await addColumnIfMissing('drivers', 'password_hash', 'VARCHAR(255) NULL AFTER email');
     // Cronometrul manoperei: pauzele nu se taxează; dispecerul poate corecta minutele
     await addColumnIfMissing('orders', 'labor_paused_at', 'DATETIME NULL AFTER completed_at');
     await addColumnIfMissing('orders', 'labor_paused_secs', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER labor_paused_at');

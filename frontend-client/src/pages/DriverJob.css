@@ -152,3 +152,7 @@
 .labor-card { text-align: center; align-items: center; }
 .labor-amount { font-size: 18px; }
 .labor-status { margin: 0; font-size: 14px; color: var(--text-2); line-height: 1.45; }
+.portal-password { position: relative; display: flex; }
+.portal-password input { flex: 1; padding-right: 70px; }
+.portal-password button { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); padding: 6px 10px; border: none; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.portal-link-btn { align-self: center; padding: 6px; border: none; background: none; color: var(--text-2); font: inherit; font-size: 13.5px; text-decoration: underline; cursor: pointer; }

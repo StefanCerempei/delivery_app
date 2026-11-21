@@ -126,7 +126,15 @@ export const driverSchema = z.object({
     email: emailField,
     phone: z.string().trim().max(32).optional().nullable().transform((v) => v || null),
     notes: z.string().trim().max(500).optional().nullable().transform((v) => v || null),
-    active: z.boolean().optional()
+    active: z.boolean().optional(),
+    // Parola de acces în panoul șoferului, setată de dispecer (gol = neschimbată)
+    password: z
+        .string()
+        .max(100)
+        .optional()
+        .nullable()
+        .transform((v) => (v ? v : undefined))
+        .refine((v) => v === undefined || v.length >= 8, { error: 'The driver password must have at least 8 characters.' })
 });
 
 export const assignDriverSchema = z.object({

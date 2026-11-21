@@ -3,11 +3,19 @@ import { api } from '../api/client';
 import { initials } from '../context/AuthContext';
 import { PageLoader } from '../components/Spinner';
 
-const EMPTY_FORM = { fullName: '', email: '', phone: '', notes: '' };
+const EMPTY_FORM = { fullName: '', email: '', phone: '', notes: '', password: '' };
+
+/** Parolă ușor de dictat la telefon: fără caractere care se confundă (0/O, 1/l/I). */
+function generatePassword() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = crypto.getRandomValues(new Uint8Array(10));
+    return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
 
 /** Formular pentru adăugare / editare șofer. */
 const DriverForm = ({ initial, onSaved, onCancel }) => {
-    const [form, setForm] = useState(initial ? { ...EMPTY_FORM, ...initial } : EMPTY_FORM);
+    const [form, setForm] = useState(initial ? { ...EMPTY_FORM, ...initial, password: '' } : EMPTY_FORM);
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const editing = Boolean(initial?.id);
@@ -22,7 +30,9 @@ const DriverForm = ({ initial, onSaved, onCancel }) => {
             fullName: form.fullName,
             email: form.email,
             phone: form.phone || null,
-            notes: form.notes || null
+            notes: form.notes || null,
+            // gol la editare = parola rămâne aceeași
+            password: form.password || null
         };
         try {
             const { driver } = editing
@@ -54,6 +64,44 @@ const DriverForm = ({ initial, onSaved, onCancel }) => {
                 <label className="crm-field">
                     <span>Notes (truck, license, availability…)</span>
                     <input name="notes" value={form.notes || ''} onChange={set('notes')} maxLength={500} />
+                </label>
+                <label className="crm-field driver-password-field">
+                    <span>
+                        {editing
+                            ? initial.hasPassword
+                                ? 'New password for the driver panel (leave empty to keep the current one)'
+                                : 'Password for the driver panel'
+                            : 'Password for the driver panel (min. 8 characters)'}
+                    </span>
+                    <div className="password-row">
+                        <input
+                            name="driverPassword"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            minLength={8}
+                            maxLength={100}
+                            required={!editing}
+                            value={form.password}
+                            onChange={set('password')}
+                        />
+                        <button type="button" className="crm-ghost-btn" onClick={() => setShowPassword((v) => !v)}>
+                            {showPassword ? 'Hide' : 'Show'}
+                        </button>
+                        <button
+                            type="button"
+                            className="crm-ghost-btn"
+                            onClick={() => {
+                                setForm((f) => ({ ...f, password: generatePassword() }));
+                                setShowPassword(true);
+                            }}
+                        >
+                            Generate
+                        </button>
+                    </div>
+                    <small className="password-hint">
+                        Give it to the driver. They log in at {window.location.origin}/driver with their email and this password.
+                        {editing && initial.hasPassword ? ' Changing it logs them out on all phones.' : ''}
+                    </small>
                 </label>
             </div>
             {error && <p className="form-inline-error">{error}</p>}
@@ -265,9 +313,11 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                                             <span>{d.email}</span>
                                             <small>{d.phone || ''}</small>
                                             <small className="driver-login-state">
-                                                {d.lastLoginAt
-                                                    ? `Panel: last login ${new Date(d.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                                                    : 'Panel: not logged in yet'}
+                                                {!d.hasPassword
+                                                    ? 'Panel: no password yet'
+                                                    : d.lastLoginAt
+                                                      ? `Panel: last login ${new Date(d.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                                      : 'Panel: password set, not logged in yet'}
                                             </small>
                                         </div>
                                     </td>
@@ -287,7 +337,7 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                                         <div className="driver-actions">
                                             {d.active && (
                                                 <button className="crm-ghost-btn" disabled={busyId === d.id} onClick={() => sendLoginLink(d)}>
-                                                    {d.lastLoginAt ? 'Send login link' : 'Invite to panel'}
+                                                    Email login link
                                                 </button>
                                             )}
                                             <button className="crm-ghost-btn" disabled={busyId === d.id} onClick={() => setEditing(d)}>

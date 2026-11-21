@@ -58,14 +58,30 @@ const JobCard = ({ job }) => (
     </Link>
 );
 
-/** Autentificare: emailul → link pe email (fără parolă). */
-const DriverLogin = ({ error: initialError }) => {
+/** Autentificare: email + parola setată de dispecer; rezervă: link pe email. */
+const DriverLogin = ({ error: initialError, onLoggedIn }) => {
+    const [mode, setMode] = useState('password'); // password | link
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [sent, setSent] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(initialError || '');
 
-    const submit = async (e) => {
+    const login = async (e) => {
+        e.preventDefault();
+        setError('');
+        setBusy(true);
+        try {
+            await api.driverLogin(email, password);
+            onLoggedIn();
+        } catch (err) {
+            setError(err.message);
+            setBusy(false);
+        }
+    };
+
+    const sendLink = async (e) => {
         e.preventDefault();
         setError('');
         setBusy(true);
@@ -82,30 +98,66 @@ const DriverLogin = ({ error: initialError }) => {
     return (
         <div className="job-card portal-login">
             <h1>Driver panel</h1>
-            {sent ? (
+            {mode === 'password' ? (
+                <form onSubmit={login} className="portal-login-form">
+                    <p className="job-muted">Log in with the email and password you got from dispatch.</p>
+                    <input
+                        type="email"
+                        name="email"
+                        autoComplete="username"
+                        required
+                        placeholder="Email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <div className="portal-password">
+                        <input
+                            type={showPassword ? 'text' : 'password'}
+                            name="password"
+                            autoComplete="current-password"
+                            required
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <button type="button" onClick={() => setShowPassword((v) => !v)}>
+                            {showPassword ? 'Hide' : 'Show'}
+                        </button>
+                    </div>
+                    <Button type="submit" loading={busy}>
+                        Log in
+                    </Button>
+                    <button type="button" className="portal-link-btn" onClick={() => (setMode('link'), setError(''))}>
+                        Forgot your password? Email me a login link
+                    </button>
+                </form>
+            ) : sent ? (
                 <>
                     <p className="job-text">
                         If <strong>{email}</strong> belongs to a RELOQ driver, we just emailed you a login link. Open it on this phone.
                     </p>
-                    <button type="button" className="job-btn" onClick={() => setSent(false)}>
-                        Use another email
+                    <button type="button" className="portal-link-btn" onClick={() => (setMode('password'), setSent(false))}>
+                        ← Back to log in
                     </button>
                 </>
             ) : (
-                <form onSubmit={submit} className="portal-login-form">
-                    <p className="job-muted">Enter the email dispatch has on file. We’ll send you a login link — no password needed.</p>
+                <form onSubmit={sendLink} className="portal-login-form">
+                    <p className="job-muted">We’ll email you a one-time login link. To get a new password, ask dispatch.</p>
                     <input
                         type="email"
                         name="email"
                         autoComplete="email"
                         required
-                        placeholder="you@example.com"
+                        placeholder="Email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
                     <Button type="submit" loading={busy}>
                         Email me a login link
                     </Button>
+                    <button type="button" className="portal-link-btn" onClick={() => setMode('password')}>
+                        ← Back to log in with password
+                    </button>
                 </form>
             )}
             {error && <p className="job-error">{error}</p>}
@@ -173,7 +225,7 @@ const DriverPortal = () => {
             {state.loading ? (
                 <PageLoader label="Loading your jobs…" />
             ) : !state.driver ? (
-                <DriverLogin error={state.loginError} />
+                <DriverLogin error={state.loginError} onLoggedIn={() => load()} />
             ) : (
                 <>
                     <div className="portal-hello">

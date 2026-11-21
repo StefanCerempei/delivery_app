@@ -101,6 +101,7 @@ export const api = {
 
     // Panoul șoferului
     driverMe: () => request('/driver/me', { quiet: true }),
+    driverLogin: (email, password) => request('/driver/login', { method: 'POST', body: { email, password } }),
     driverLoginLink: (email) => request('/driver/login-link', { method: 'POST', body: { email } }),
     driverSession: (token) => request('/driver/session', { method: 'POST', body: { token } }),
     driverLogout: () => request('/driver/logout', { method: 'POST' }),

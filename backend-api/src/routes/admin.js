@@ -11,6 +11,7 @@ import { parseDateOnly } from '../time.js';
 import { emailLoginLink } from './driverPortal.js';
 import { revokeDriverSessions } from '../driverAuth.js';
 import { getSettings, setSetting } from '../settings.js';
+import bcrypt from 'bcryptjs';
 import { onJobCompleted, requestLaborPayment, markLaborCash, waiveLabor, reopenLabor, setLaborMinutes } from '../labor.js';
 
 const router = Router();
@@ -407,6 +408,7 @@ const toDriverDto = (r) => ({
     completedJobs: Number(r.completed_jobs || 0),
     nextJob: r.next_job || null,
     lastLoginAt: r.last_login_at ? new Date(r.last_login_at).toISOString() : null,
+    hasPassword: Boolean(r.password_hash),
     createdAt: new Date(r.created_at).toISOString()
 });
 
@@ -438,9 +440,10 @@ router.post('/drivers', async (req, res) => {
     const data = parseBody(driverSchema, req, res);
     if (!data) return;
     try {
+        const hash = data.password ? await bcrypt.hash(data.password, 12) : null;
         const [result] = await pool.query(
-            'INSERT INTO drivers (full_name, email, phone, notes, active) VALUES (?, ?, ?, ?, ?)',
-            [data.fullName, data.email, data.phone, data.notes, data.active === false ? 0 : 1]
+            'INSERT INTO drivers (full_name, email, password_hash, phone, notes, active) VALUES (?, ?, ?, ?, ?, ?)',
+            [data.fullName, data.email, hash, data.phone, data.notes, data.active === false ? 0 : 1]
         );
         res.status(201).json({ driver: await loadDriver(result.insertId) });
     } catch (err) {
@@ -470,6 +473,11 @@ router.patch('/drivers/:id', async (req, res) => {
             sets.push(`${column} = ?`);
             params.push(key === 'active' ? (data[key] ? 1 : 0) : data[key]);
         }
+    }
+    // Parolă nouă → deconectat de pe toate telefoanele (intră din nou cu parola nouă)
+    if (data.password) {
+        sets.push('password_hash = ?', 'session_version = session_version + 1');
+        params.push(await bcrypt.hash(data.password, 12));
     }
     if (data.active === false) sets.push('session_version = session_version + 1'); // arhivat → deconectat
     if (data.email !== undefined && data.email !== existing.email) sets.push('session_version = session_version + 1');
