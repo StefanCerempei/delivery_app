@@ -489,3 +489,13 @@ textarea {
 .lightbox-nav.next { right: 12px; top: 50%; transform: translateY(-50%); }
 .lightbox-count { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); color: #cbd2dc; font-size: 13px; font-family: var(--font-mono); }
 .lightbox-open { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: #cbd2dc; font-size: 13px; }
+
+/* ===== Instalare aplicație (PWA) ===== */
+.install-app { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border: 1px solid var(--accent-ring); border-radius: var(--r-lg, 16px); background: var(--surface); }
+.install-app img { flex-shrink: 0; border-radius: 10px; }
+.install-app-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.install-app-text strong { font-size: 14.5px; color: var(--text); }
+.install-app-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.install-btn { min-height: 40px; padding: 8px 16px; border: none; border-radius: 10px; background: var(--accent); color: var(--accent-ink, #fff); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.install-app-close { width: 32px; height: 32px; border: none; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+.install-copy { align-self: flex-start; margin-top: 6px; padding: 7px 12px; border: 1px solid var(--line-strong, var(--line)); border-radius: 10px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }

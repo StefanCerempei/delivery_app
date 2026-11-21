@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import Logo from '../components/Logo';
 import Button from '../components/Button';
 import { PageLoader } from '../components/Spinner';
-import InstallDriverApp from '../components/InstallDriverApp';
+import InstallApp from '../components/InstallApp';
 import './DriverJob.css';
 
 /** Ziua jobului (ora firmei salvată fără fus → citită cu getUTC*). */
@@ -224,7 +224,7 @@ const DriverPortal = () => {
             </header>
 
             {/* „Instalează aplicația” — și înainte de login, ca șoferul s-o poată pune pe ecran din prima */}
-            <InstallDriverApp />
+            <InstallApp app="driver" />
 
             {state.loading ? (
                 <PageLoader label="Loading your jobs…" />

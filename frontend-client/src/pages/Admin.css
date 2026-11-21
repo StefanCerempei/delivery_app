@@ -990,3 +990,11 @@ a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: no
 .password-row { display: flex; gap: 8px; }
 .password-row input { flex: 1; min-width: 0; font-family: var(--font-mono); }
 .password-hint { color: var(--faint); font-size: 12px; line-height: 1.45; }
+.crm-install:empty { display: none; }
+.crm-install { margin-bottom: 16px; }
+/* Aplicația „RELOQ Dispatch” instalată pe iPhone: conținutul nu intră sub ceas / notch */
+@media (display-mode: standalone) {
+    .crm-sidebar { padding-top: max(10px, env(safe-area-inset-top)); }
+    .crm-menu { padding-top: max(10px, env(safe-area-inset-top)); }
+    .crm-record, .admin-login-layout { padding-top: max(20px, env(safe-area-inset-top)); }
+}

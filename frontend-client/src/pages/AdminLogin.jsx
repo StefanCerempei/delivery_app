@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import InstallApp from '../components/InstallApp';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import { api } from '../api/client';
@@ -43,6 +44,9 @@ const AdminLogin = () => {
     return (
         <div className="admin-login-layout">
             <div className="admin-login-card">
+                <div className="crm-install">
+                    <InstallApp app="admin" />
+                </div>
                 <div className="admin-login-brand">
                     <Link to="/" aria-label="RELOQ home">
                         <Logo variant="full" height={56} />

@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
-const DISMISS_KEY = 'reloq_driver_install_dismissed';
+// Aplicațiile instalabile: aceleași reguli pentru „RELOQ Driver” (/driver) și „RELOQ Dispatch” (/admin)
+const APPS = {
+    driver: { name: 'RELOQ Driver', path: '/driver', icon: '/driver-icon-192.png', dismissKey: 'reloq_driver_install_dismissed' },
+    admin: { name: 'RELOQ Dispatch', path: '/admin/dashboard', icon: '/admin-icon-192.png', dismissKey: 'reloq_admin_install_dismissed' }
+};
 
 const isStandalone = () =>
     window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -12,18 +16,19 @@ const isIOSSafari = () => {
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
 /**
- * „Instalează aplicația” în panoul șoferului (fără Google Play / App Store):
+ * „Instalează aplicația” (fără Google Play / App Store) — `app`: 'driver' sau 'admin':
  *   - Android / Chrome: butonul deschide fereastra de instalare a browserului;
  *   - iPhone: instrucțiuni pentru Share → Add to Home Screen (Apple nu permite un buton).
  * Nu apare dacă aplicația rulează deja instalată sau dacă șoferul a ascuns-o.
  */
-const InstallDriverApp = () => {
+const InstallApp = ({ app = 'driver' }) => {
+    const cfg = APPS[app];
     const [prompt, setPrompt] = useState(null);
     const [copied, setCopied] = useState(false);
     const [installed, setInstalled] = useState(isStandalone());
     const [dismissed, setDismissed] = useState(() => {
         try {
-            return localStorage.getItem(DISMISS_KEY) === '1';
+            return localStorage.getItem(cfg.dismissKey) === '1';
         } catch {
             return false;
         }
@@ -46,7 +51,7 @@ const InstallDriverApp = () => {
     const dismiss = () => {
         setDismissed(true);
         try {
-            localStorage.setItem(DISMISS_KEY, '1');
+            localStorage.setItem(cfg.dismissKey, '1');
         } catch {
             // stocare indisponibilă: ascuns doar acum
         }
@@ -57,7 +62,7 @@ const InstallDriverApp = () => {
     if (!prompt && !ios) return null; // browserul nu permite instalarea (ex. deja instalată sau desktop fără suport)
 
     const copyLink = async () => {
-        const url = `${window.location.origin}/driver`;
+        const url = `${window.location.origin}${cfg.path}`;
         try {
             await navigator.clipboard.writeText(url);
             setCopied(true);
@@ -75,9 +80,9 @@ const InstallDriverApp = () => {
 
     return (
         <div className="install-app">
-            <img src="/driver-icon-192.png" alt="" width="44" height="44" />
+            <img src={cfg.icon} alt="" width="44" height="44" />
             <div className="install-app-text">
-                <strong>Add RELOQ Driver to your phone</strong>
+                <strong>Add {cfg.name} to your phone</strong>
                 {ios && !isIOSSafari() ? (
                     <>
                         <span>
@@ -97,7 +102,7 @@ const InstallDriverApp = () => {
             </div>
             <div className="install-app-actions">
                 {!ios && (
-                    <button type="button" className="job-btn primary" onClick={install}>
+                    <button type="button" className="install-btn" onClick={install}>
                         Install
                     </button>
                 )}
@@ -109,4 +114,4 @@ const InstallDriverApp = () => {
     );
 };
 
-export default InstallDriverApp;
+export default InstallApp;

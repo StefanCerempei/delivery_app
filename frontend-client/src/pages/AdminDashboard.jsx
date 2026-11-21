@@ -6,6 +6,7 @@ import Logo from '../components/Logo';
 import AdminDrivers from './AdminDrivers';
 import AdminSchedule from './AdminSchedule';
 import AdminRevenue from './AdminRevenue';
+import InstallApp from '../components/InstallApp';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
 import { PageLoader } from '../components/Spinner';
@@ -274,6 +275,10 @@ const AdminDashboard = () => {
                 </header>
 
                 <div className="crm-body">
+                    {/* „Add RELOQ Dispatch to your phone” (nu apare dacă e deja instalată sau ascunsă) */}
+                    <div className="crm-install">
+                        <InstallApp app="admin" />
+                    </div>
                     {error && <p className="form-inline-error">{error}</p>}
 
                     {/* ---------- OVERVIEW ---------- */}
