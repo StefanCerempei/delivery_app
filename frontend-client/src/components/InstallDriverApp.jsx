@@ -4,6 +4,11 @@ const DISMISS_KEY = 'reloq_driver_install_dismissed';
 
 const isStandalone = () =>
     window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+/** Safari „curat” pe iPhone (Chrome, Firefox, Edge, Opera și browserele din aplicații au alt identificator). */
+const isIOSSafari = () => {
+    const ua = navigator.userAgent;
+    return /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|GSA\/|YaBrowser|DuckDuckGo|Instagram|FBAN|FBAV|Line\//.test(ua);
+};
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
 /**
@@ -14,6 +19,7 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/
  */
 const InstallDriverApp = () => {
     const [prompt, setPrompt] = useState(null);
+    const [copied, setCopied] = useState(false);
     const [installed, setInstalled] = useState(isStandalone());
     const [dismissed, setDismissed] = useState(() => {
         try {
@@ -50,6 +56,16 @@ const InstallDriverApp = () => {
     const ios = isIOS();
     if (!prompt && !ios) return null; // browserul nu permite instalarea (ex. deja instalată sau desktop fără suport)
 
+    const copyLink = async () => {
+        const url = `${window.location.origin}/driver`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+        } catch {
+            window.prompt('Copy this link and open it in Safari:', url);
+        }
+    };
+
     const install = async () => {
         prompt.prompt();
         const { outcome } = await prompt.userChoice.catch(() => ({ outcome: 'dismissed' }));
@@ -62,9 +78,18 @@ const InstallDriverApp = () => {
             <img src="/driver-icon-192.png" alt="" width="44" height="44" />
             <div className="install-app-text">
                 <strong>Add RELOQ Driver to your phone</strong>
-                {ios ? (
+                {ios && !isIOSSafari() ? (
+                    <>
+                        <span>
+                            Open this page in <b>Safari</b>, tap <b>Share</b> <span aria-hidden="true">⬆︎</span>, then <b>Add to Home Screen</b>.
+                        </span>
+                        <button type="button" className="install-copy" onClick={copyLink}>
+                            {copied ? '✓ Link copied — paste it in Safari' : 'Copy link for Safari'}
+                        </button>
+                    </>
+                ) : ios ? (
                     <span>
-                        In Safari tap <b>Share</b> <span aria-hidden="true">⬆︎</span>, then <b>Add to Home Screen</b>.
+                        Tap <b>Share</b> <span aria-hidden="true">⬆︎</span> at the bottom of Safari, scroll down and choose <b>Add to Home Screen</b>.
                     </span>
                 ) : (
                     <span>Opens full screen from your home screen — no app store needed.</span>

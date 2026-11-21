@@ -169,3 +169,4 @@
 @media (display-mode: standalone) {
     .job-page { padding-top: env(safe-area-inset-top); padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
 }
+.install-copy { align-self: flex-start; margin-top: 6px; padding: 7px 12px; border: 1px solid var(--line-strong, var(--line)); border-radius: 10px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
