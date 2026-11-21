@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { initials } from '../context/AuthContext';
 import { PageLoader } from '../components/Spinner';
@@ -73,6 +73,22 @@ const DriverForm = ({ initial, onSaved, onCancel }) => {
 const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
     const [editing, setEditing] = useState(null); // null | 'new' | driver
     const [busyId, setBusyId] = useState(null);
+    // Setarea: cererea de plată pentru manoperă pleacă automat la oprirea cronometrului sau după verificare
+    const [settings, setSettings] = useState(null);
+    useEffect(() => {
+        api.adminSettings()
+            .then(({ settings }) => setSettings(settings))
+            .catch(() => {});
+    }, []);
+    const toggleAutoRequest = async (value) => {
+        onError('');
+        try {
+            const { settings } = await api.adminUpdateSettings({ laborAutoRequest: value });
+            setSettings(settings);
+        } catch (err) {
+            onError(err.message);
+        }
+    };
     const [reminding, setReminding] = useState(false);
     const [reminderMsg, setReminderMsg] = useState('');
 
@@ -117,6 +133,15 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
         }
     };
 
+    // Linkul de acces în panoul șoferului (pe email; prima dată e invitația)
+    const [linkMsg, setLinkMsg] = useState('');
+    const sendLoginLink = (driver) =>
+        run(driver, async () => {
+            setLinkMsg('');
+            await api.adminDriverLoginLink(driver.id);
+            setLinkMsg(`Login link emailed to ${driver.fullName} (${driver.email}). It works once, for 30 minutes.`);
+        });
+
     const toggleActive = (driver) =>
         run(driver, async () => {
             const { driver: updated } = await api.adminUpdateDriver(driver.id, { active: !driver.active });
@@ -155,6 +180,37 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                 </div>
             </div>
             {reminderMsg && <p className="driver-msg reminder-msg">{reminderMsg}</p>}
+            {linkMsg && <p className="driver-msg reminder-msg">{linkMsg}</p>}
+
+            {settings && (
+                <div className="admin-card labor-setting">
+                    <h3>Labor payments</h3>
+                    <label className="setting-row">
+                        <input
+                            type="radio"
+                            name="laborAutoRequest"
+                            checked={!settings.laborAutoRequest}
+                            onChange={() => toggleAutoRequest(false)}
+                        />
+                        <span>
+                            <strong>Review first</strong>
+                            <small>When the driver stops the timer, the job waits for you. You check the time, then send the payment request.</small>
+                        </span>
+                    </label>
+                    <label className="setting-row">
+                        <input
+                            type="radio"
+                            name="laborAutoRequest"
+                            checked={settings.laborAutoRequest}
+                            onChange={() => toggleAutoRequest(true)}
+                        />
+                        <span>
+                            <strong>Send automatically</strong>
+                            <small>The customer gets the payment request (email + their account) as soon as the driver stops the timer.</small>
+                        </span>
+                    </label>
+                </div>
+            )}
 
             {editing !== null && (
                 <DriverForm
@@ -208,6 +264,11 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                                         <div className="client-info">
                                             <span>{d.email}</span>
                                             <small>{d.phone || ''}</small>
+                                            <small className="driver-login-state">
+                                                {d.lastLoginAt
+                                                    ? `Panel: last login ${new Date(d.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                                    : 'Panel: not logged in yet'}
+                                            </small>
                                         </div>
                                     </td>
                                     <td>
@@ -224,6 +285,11 @@ const AdminDrivers = ({ drivers, setDrivers, loading, search, onError }) => {
                                     </td>
                                     <td>
                                         <div className="driver-actions">
+                                            {d.active && (
+                                                <button className="crm-ghost-btn" disabled={busyId === d.id} onClick={() => sendLoginLink(d)}>
+                                                    {d.lastLoginAt ? 'Send login link' : 'Invite to panel'}
+                                                </button>
+                                            )}
                                             <button className="crm-ghost-btn" disabled={busyId === d.id} onClick={() => setEditing(d)}>
                                                 Edit
                                             </button>

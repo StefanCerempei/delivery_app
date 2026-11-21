@@ -648,3 +648,17 @@ input[type='date'].reloq-input {
 .age-btn.active { border-color: var(--accent); background-color: var(--accent-soft); color: var(--accent); }
 .age-btn.no.active { border-color: var(--danger); background-color: var(--danger-soft); color: var(--danger); }
 .auth-hint.error, .field-hint.error { color: var(--danger); }
+
+/* ===== Plata manoperei ===== */
+.labor-pay { display: flex; flex-direction: column; gap: 14px; padding: 18px; border: 1px solid var(--accent-ring); border-radius: var(--r-lg); background: var(--surface); margin-bottom: 12px; }
+.labor-pay-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.labor-pay-head > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.labor-pay-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.labor-pay-head strong { font-size: 26px; }
+.labor-pay-head small { color: var(--muted); font-size: 13px; }
+.labor-pay-cta { min-width: 200px; }
+.labor-paid-notice { padding: 12px 14px; border-radius: var(--r-md); background: var(--go-soft, rgba(45, 212, 167, 0.12)); color: var(--go); font-weight: 600; }
+.order-labor-line { margin: 6px 0 0; font-size: 13px; color: var(--text-2); }
+.order-labor-line.requested { color: var(--accent); font-weight: 600; }
+.order-labor-line.paid, .order-labor-line.paid_cash { color: var(--go); }
+@media (max-width: 520px) { .labor-pay-cta { min-width: 0; width: 100%; } }

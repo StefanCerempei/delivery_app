@@ -10,6 +10,7 @@ import { notifyStatusChange } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 import { sendDriverReminders } from '../jobs.js';
 import { sendPhoto } from '../photos.js';
+import { onJobCompleted, markLaborCash, UNPAID_LABOR } from '../labor.js';
 
 const router = Router();
 const jobLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
@@ -43,6 +44,7 @@ const toJobDto = (o) => ({
     laborRate: o.price?.labor?.label || null,
     timeline: o.timeline,
     laborActual: o.laborActual,
+    laborBilling: { status: o.laborBilling?.status || 'none', amount: o.laborBilling?.amount ?? null },
     directionsUrl: directions(o),
     photoIds: o.photoIds || []
 });
@@ -72,9 +74,34 @@ const ACTIONS = {
         allowed: ['paid', 'confirmed', 'en_route'],
         sql: "status = 'en_route', en_route_at = COALESCE(en_route_at, UTC_TIMESTAMP()), arrived_at = COALESCE(arrived_at, UTC_TIMESTAMP())"
     },
-    // Terminat la destinație: manopera se oprește.
-    completed: { allowed: ['en_route'], needsArrived: true, sql: "status = 'completed', completed_at = COALESCE(completed_at, UTC_TIMESTAMP())" }
+    // Pauză (ex. masă): timpul de pauză nu se taxează.
+    pause: { allowed: ['en_route'], needsArrived: true, sql: 'labor_paused_at = COALESCE(labor_paused_at, UTC_TIMESTAMP())' },
+    resume: {
+        allowed: ['en_route'],
+        needsArrived: true,
+        sql: `labor_paused_secs = labor_paused_secs + IF(labor_paused_at IS NULL, 0, TIMESTAMPDIFF(SECOND, labor_paused_at, UTC_TIMESTAMP())),
+              labor_paused_at = NULL`
+    },
+    // Terminat la destinație: manopera se oprește (o pauză în curs se închide aici).
+    completed: {
+        allowed: ['en_route'],
+        needsArrived: true,
+        sql: `labor_paused_secs = labor_paused_secs + IF(labor_paused_at IS NULL, 0, TIMESTAMPDIFF(SECOND, labor_paused_at, UTC_TIMESTAMP())),
+              labor_paused_at = NULL, status = 'completed', completed_at = COALESCE(completed_at, UTC_TIMESTAMP())`
+    }
 };
+
+/** Șoferul bifează că clientul a plătit manopera cash. */
+router.post('/job/:token/cash', jobLimiter, async (req, res) => {
+    const job = await loadJob(req.params.token);
+    if (!job || job.status === 'pending_payment') return gone(res);
+    if (job.status !== 'completed' || !UNPAID_LABOR.includes(job.laborBilling.status)) {
+        return res.status(409).json({ error: 'There is no unpaid labor on this job.' });
+    }
+    const result = await markLaborCash(job.id);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.json({ job: toJobDto(await loadJob(req.params.token)) });
+});
 
 router.post('/job/:token/:action', jobLimiter, async (req, res) => {
     const action = ACTIONS[req.params.action];
@@ -86,6 +113,8 @@ router.post('/job/:token/:action', jobLimiter, async (req, res) => {
     const repeat =
         (req.params.action === 'on_my_way' && before.timeline.enRouteAt) ||
         (req.params.action === 'arrived' && before.timeline.arrivedAt) ||
+        (req.params.action === 'pause' && before.timeline.pausedAt) ||
+        (req.params.action === 'resume' && !before.timeline.pausedAt) ||
         (req.params.action === 'completed' && before.status === 'completed');
     if (!repeat) {
         if (!action.allowed.includes(before.status)) {
@@ -96,6 +125,9 @@ router.post('/job/:token/:action', jobLimiter, async (req, res) => {
         }
         await pool.query(`UPDATE orders SET ${action.sql} WHERE code = ?`, [before.id]);
     }
+
+    // Jobul s-a terminat: manopera merge la verificare sau direct la client (după setare)
+    if (req.params.action === 'completed' && before.status !== 'completed') await onJobCompleted(before.id);
 
     const job = await loadJob(req.params.token);
     // Clientul află că echipa e pe drum (o singură dată, la prima trecere în „en_route”).

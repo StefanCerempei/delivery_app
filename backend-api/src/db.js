@@ -53,6 +53,20 @@ export async function migrate() {
     // Detaliile locațiilor (apartament, etaj, lift, acces), JSON
     await addColumnIfMissing('orders', 'pickup_details', 'TEXT NULL AFTER pickup_lng');
     await addColumnIfMissing('orders', 'dropoff_details', 'TEXT NULL AFTER dropoff_lng');
+    // Conturile șoferilor: sesiunile se revocă crescând versiunea (ex. la arhivare)
+    await addColumnIfMissing('drivers', 'session_version', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER active');
+    await addColumnIfMissing('drivers', 'last_login_at', 'DATETIME NULL AFTER session_version');
+    // Cronometrul manoperei: pauzele nu se taxează; dispecerul poate corecta minutele
+    await addColumnIfMissing('orders', 'labor_paused_at', 'DATETIME NULL AFTER completed_at');
+    await addColumnIfMissing('orders', 'labor_paused_secs', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER labor_paused_at');
+    await addColumnIfMissing('orders', 'labor_minutes_override', 'INT UNSIGNED NULL AFTER labor_paused_secs');
+    // Plata manoperei după job
+    await addColumnIfMissing('orders', 'labor_status', "VARCHAR(20) NOT NULL DEFAULT 'none' AFTER labor_minutes_override");
+    await addColumnIfMissing('orders', 'labor_cents', 'INT UNSIGNED NULL AFTER labor_status');
+    await addColumnIfMissing('orders', 'labor_requested_at', 'DATETIME NULL AFTER labor_cents');
+    await addColumnIfMissing('orders', 'labor_paid_at', 'DATETIME NULL AFTER labor_requested_at');
+    await addColumnIfMissing('orders', 'labor_payment_method', 'VARCHAR(20) NULL AFTER labor_paid_at');
+    await addColumnIfMissing('orders', 'labor_payment_intent_id', 'VARCHAR(255) NULL AFTER labor_payment_method');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

@@ -132,3 +132,23 @@ CREATE TABLE IF NOT EXISTS order_photos (
     KEY idx_order_photos_order (order_id),
     CONSTRAINT fk_order_photos_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Linkuri de autentificare pentru șoferi (fără parolă). Doar hash-ul tokenului e salvat; un link merge o singură dată.
+CREATE TABLE IF NOT EXISTS driver_login_tokens (
+    token_hash  CHAR(64)     NOT NULL,
+    driver_id   INT UNSIGNED NOT NULL,
+    expires_at  DATETIME     NOT NULL,
+    used_at     DATETIME     NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (token_hash),
+    KEY idx_driver_login_tokens_driver (driver_id),
+    CONSTRAINT fk_driver_login_tokens_driver FOREIGN KEY (driver_id) REFERENCES drivers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Setări ale aplicației, modificabile din dispecerat (ex. trimiterea automată a cererilor de plată pentru manoperă).
+CREATE TABLE IF NOT EXISTS app_settings (
+    name        VARCHAR(64)  NOT NULL,
+    value       VARCHAR(255) NOT NULL,
+    updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

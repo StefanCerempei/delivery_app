@@ -320,7 +320,8 @@ export function notifyDriverAssigned(order) {
             title: 'You have a new job',
             intro: `Hi ${esc(firstName)}, dispatch assigned you to the job below for <strong>${esc(order.scheduleText)}</strong>. Please call the customer about 45 minutes before you arrive.`,
             body: `${detailsTable(rows)}${button(order.jobUrl, 'Open job page')}${button(directionsUrl(order), 'Open route in Google Maps')}
-${order.jobUrl ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">On the job page, tap <strong>On my way</strong> when you leave, <strong>Arrived</strong> at pickup and <strong>Completed</strong> at the destination — labor time is calculated from Arrived to Completed.</p>` : ''}
+${order.jobUrl ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">On the job page, tap <strong>On my way</strong> when you leave and <strong>Arrived</strong> at the pickup to start the labor timer. Pause it for breaks and <strong>Stop</strong> when everything is delivered.</p>` : ''}
+${link('/driver') ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">All your jobs: <a href="${esc(link('/driver'))}" style="color:${BRAND.gray}">${esc(link('/driver'))}</a></p>` : ''}
 <p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Reply to this email or call dispatch at ${BRAND.phone} as soon as possible.</p>`
         }),
         text: `You have a new RELOQ job for ${order.scheduleText}.\n\n${orderText(order, rows)}\n\n${order.jobUrl ? `Job page (tap On my way / Arrived / Completed): ${order.jobUrl}\n` : ''}Route: ${directionsUrl(order)}\n\nPlease call the customer about 45 minutes before you arrive. Can't make it? Call dispatch at ${BRAND.phone}.`
@@ -373,5 +374,72 @@ ${detailsTable(driverRows(o).filter(([k]) => k !== 'Arrival window'))}${button(o
 <p style="margin:20px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Call dispatch at ${BRAND.phone} as soon as possible.</p>`
         }),
         text: `Your RELOQ jobs for ${dayLabel}:\n\n${text}\n\nCan't make it? Call dispatch at ${BRAND.phone}.`
+    });
+}
+
+/** Linkul de autentificare în panoul șoferului (fără parolă). `invite`: trimis de dispecerat prima dată. */
+export function sendDriverLoginLink({ to, fullName, url, minutes, invite = false }) {
+    const firstName = String(fullName || '').trim().split(/\s+/)[0] || 'there';
+    const title = invite ? 'Your RELOQ driver account' : 'Log in to your RELOQ driver panel';
+    const html = layout({
+        preheader: invite ? 'Open your jobs on your phone' : 'Your login link',
+        title,
+        intro: invite
+            ? `Hi ${esc(firstName)}, dispatch created your RELOQ driver account. From your phone you can see today's and upcoming jobs, start the labor timer on site and mark jobs complete.`
+            : `Hi ${esc(firstName)}, tap the button below to open your RELOQ driver panel.`,
+        body: `${button(url, 'Open my driver panel')}
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">The link works once and expires in ${minutes} minutes. You'll stay logged in on this phone. Need a new link later? Go to ${esc(mailSettings.appUrl || '')}/driver and enter your email.</p>`
+    });
+    const text = `${title}\n\nOpen your driver panel: ${url}\n\nThe link works once and expires in ${minutes} minutes.`;
+    return sendMailNow({ to, subject: invite ? 'Your RELOQ driver account' : 'Your RELOQ driver login link', html, text });
+}
+
+/** Rândurile cu detaliile manoperei (timp, tarif, sumă). */
+function laborRows(order) {
+    const l = order.laborActual;
+    return [
+        ['Order', `#${order.id}`],
+        ['Move', order.scheduleText],
+        ['Labor time', l ? `${l.minutes} min${l.adjusted ? ' (reviewed by dispatch)' : ''}` : null],
+        ['Rate', order.price?.labor?.label || null],
+        ['Amount due', money2(order.laborBilling?.amount)]
+    ];
+}
+
+/** Cererea de plată pentru manoperă, după job. */
+export function notifyLaborPaymentRequest(order) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = laborRows(order);
+    const payUrl = link(`/account?pay=${encodeURIComponent(order.id)}`);
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Labor payment for your move — ${money2(order.laborBilling?.amount)} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ move is complete. Labor due: ${money2(order.laborBilling?.amount)}.`,
+            title: 'Thanks for moving with RELOQ',
+            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion (breaks not included).`,
+            body: `${detailsTable(rows)}${button(payUrl, `Pay ${money2(order.laborBilling?.amount)}`)}
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">You can pay by card, Apple Pay or Google Pay from your RELOQ account. Questions about the time? Reply to this email or call ${BRAND.phone}.</p>`
+        }),
+        text: `Your RELOQ move is complete.\n\n${orderText(order, rows)}\n\nPay here: ${payUrl || 'log in to your RELOQ account'}\n\nQuestions: ${BRAND.phone}`
+    });
+}
+
+/** Confirmare după plata online a manoperei (Stripe trimite separat chitanța). */
+export function notifyLaborPaid(order) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = laborRows(order).map(([k, v]) => (k === 'Amount due' ? ['Paid', v] : [k, v]));
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Payment received — thank you (#${order.id})`,
+        html: layout({
+            preheader: 'We received your labor payment.',
+            title: 'Payment received',
+            intro: `Hi ${esc(firstName)}, we received your labor payment. Thank you for choosing RELOQ!`,
+            body: detailsTable(rows)
+        }),
+        text: `We received your labor payment. Thank you!\n\n${orderText(order, rows)}`
     });
 }

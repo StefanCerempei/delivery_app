@@ -72,6 +72,9 @@ export const api = {
     paypalCapture: (code, paypalOrderId) =>
         request(`/orders/${encodeURIComponent(code)}/paypal/capture`, { method: 'POST', body: { paypalOrderId } }),
     myOrders: () => request('/orders/mine'),
+    // Plata manoperei după job (din contul clientului)
+    laborIntent: (code) => request(`/orders/${encodeURIComponent(code)}/labor/intent`, { method: 'POST' }),
+    laborConfirm: (code) => request(`/orders/${encodeURIComponent(code)}/labor/confirm`, { method: 'POST' }),
 
     adminOrders: () => request('/admin/orders'),
     adminOrder: (code) => request(`/admin/orders/${encodeURIComponent(code)}`),
@@ -85,6 +88,8 @@ export const api = {
         request(`/admin/orders/${encodeURIComponent(code)}/driver`, { method: 'PATCH', body: { driverId, resend } }),
 
     adminRevenue: (from, to) => request(`/admin/revenue?from=${from}&to=${to}`),
+    adminLabor: (code, action, extra = {}) =>
+        request(`/admin/orders/${encodeURIComponent(code)}/labor`, { method: 'POST', body: { action, ...extra } }),
     adminSchedule: (from, to) => request(`/admin/schedule?from=${from}&to=${to}`),
     adminSaveNotes: (code, notes) =>
         request(`/admin/orders/${encodeURIComponent(code)}/notes`, { method: 'PATCH', body: { notes } }),
@@ -93,6 +98,16 @@ export const api = {
     // Pagina de job a șoferului (fără cont, cu tokenul din link)
     job: (token) => request(`/job/${encodeURIComponent(token)}`),
     jobAction: (token, action) => request(`/job/${encodeURIComponent(token)}/${action}`, { method: 'POST' }),
+
+    // Panoul șoferului
+    driverMe: () => request('/driver/me', { quiet: true }),
+    driverLoginLink: (email) => request('/driver/login-link', { method: 'POST', body: { email } }),
+    driverSession: (token) => request('/driver/session', { method: 'POST', body: { token } }),
+    driverLogout: () => request('/driver/logout', { method: 'POST' }),
+    driverJobs: ({ quiet = false } = {}) => request('/driver/jobs', { quiet }),
+    adminDriverLoginLink: (id) => request(`/admin/drivers/${id}/login-link`, { method: 'POST' }),
+    adminSettings: () => request('/admin/settings'),
+    adminUpdateSettings: (patch) => request('/admin/settings', { method: 'PATCH', body: patch }),
 
     adminDrivers: () => request('/admin/drivers'),
     adminCreateDriver: (payload) => request('/admin/drivers', { method: 'POST', body: payload }),

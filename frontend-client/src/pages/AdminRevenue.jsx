@@ -320,7 +320,9 @@ const AdminRevenue = ({ refreshKey }) => {
                         <div className="kpi-card">
                             <span className="kpi-label">Labor</span>
                             <span className="kpi-value">{formatMoney(t.labor)}</span>
-                            <small className="rev-kpi-sub">{t.laborMinutes} min billed</small>
+                            <small className="rev-kpi-sub">
+                                {formatMoney(t.laborCollected || 0)} collected · {formatMoney(t.laborOutstanding || 0)} due
+                            </small>
                         </div>
                         <div className="kpi-card">
                             <span className="kpi-label">Jobs</span>

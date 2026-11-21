@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api, jobPhotoUrl } from '../api/client';
 import PhotoGallery from '../components/PhotoGallery';
 import { PageLoader } from '../components/Spinner';
@@ -8,14 +8,45 @@ import './DriverJob.css';
 
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null);
 
-/** Pasul următor al șoferului, după ce s-a raportat deja. */
-function nextAction(job) {
-    if (job.status === 'cancelled') return null;
-    if (job.status === 'completed') return null;
-    if (!job.timeline.enRouteAt) return { id: 'on_my_way', label: 'On my way', hint: 'Tap when you leave for the pickup. The customer gets a “crew on the way” email.' };
-    if (!job.timeline.arrivedAt) return { id: 'arrived', label: 'Arrived at pickup', hint: 'Tap when you reach the pickup address. Labor time starts now.' };
-    return { id: 'completed', label: 'Job completed', hint: 'Tap when everything is delivered at the destination. Labor time stops now.' };
+/** Faza jobului pentru șofer: before → on the way → timer (running / paused) → done. */
+function phase(job) {
+    if (job.status === 'cancelled') return 'cancelled';
+    if (job.status === 'completed') return 'done';
+    if (!job.timeline.enRouteAt) return 'before';
+    if (!job.timeline.arrivedAt) return 'on_the_way';
+    return job.timeline.pausedAt ? 'paused' : 'running';
 }
+
+/** Secundele de lucru (fără pauze) până acum. */
+function workedSeconds(job, now) {
+    const t = job.timeline;
+    if (!t.arrivedAt) return 0;
+    const end = t.completedAt ? new Date(t.completedAt).getTime() : now;
+    const openPause = t.pausedAt && !t.completedAt ? now - new Date(t.pausedAt).getTime() : 0;
+    return Math.max(0, Math.floor((end - new Date(t.arrivedAt).getTime() - openPause) / 1000) - (t.pausedSecs || 0));
+}
+
+const clock = (secs) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const sec = secs % 60;
+    return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+};
+
+const LABOR_TEXT = {
+    pending_review: 'Dispatch will review the time and send the customer a payment request.',
+    requested: 'Payment request sent to the customer (email + their account).',
+    paid: '✓ Customer paid online.',
+    paid_cash: '✓ Marked as paid in cash.',
+    waived: 'No labor charge for this job.'
+};
+
+const CONFIRM = {
+    on_my_way: 'Leaving for the pickup now?',
+    arrived: 'Arrived at the pickup? The labor timer starts now.',
+    completed: 'Job finished? The labor timer stops and can’t be restarted.',
+    cash: 'Customer paid the labor in cash?'
+};
 
 /** Pagina de job a șoferului: /job/<token> (fără cont; linkul vine prin email). */
 const DriverJobPage = () => {
@@ -23,8 +54,15 @@ const DriverJobPage = () => {
     const [job, setJob] = useState(null);
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
-    const [confirming, setConfirming] = useState(false);
+    const [confirming, setConfirming] = useState(null); // acțiunea care așteaptă „Yes”
     const [now, setNow] = useState(Date.now());
+    const [hasDriverSession, setHasDriverSession] = useState(false);
+
+    useEffect(() => {
+        api.driverMe()
+            .then(({ driver }) => setHasDriverSession(Boolean(driver)))
+            .catch(() => {});
+    }, []);
 
     const load = useCallback(async () => {
         try {
@@ -40,12 +78,24 @@ const DriverJobPage = () => {
         load();
     }, [load]);
 
-    // Cronometrul manoperei cât timp jobul e în lucru
+    // Cronometrul afișat (timpul real vine de la server; pagina doar numără între reîmprospătări)
     useEffect(() => {
-        if (!job?.timeline.arrivedAt || job.timeline.completedAt) return undefined;
-        const timer = setInterval(() => setNow(Date.now()), 15000);
+        if (!job?.timeline.arrivedAt || job.timeline.completedAt || job.timeline.pausedAt) return undefined;
+        const timer = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(timer);
     }, [job]);
+
+    // Telefonul a stat blocat / aplicația în fundal: reîncărcăm starea reală la revenire
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                setNow(Date.now());
+                load();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [load]);
 
     const act = async (action) => {
         setBusy(true);
@@ -53,7 +103,8 @@ const DriverJobPage = () => {
         try {
             const { job } = await api.jobAction(token, action);
             setJob(job);
-            setConfirming(false);
+            setNow(Date.now());
+            setConfirming(null);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -74,15 +125,23 @@ const DriverJobPage = () => {
         );
     }
 
-    const action = nextAction(job);
-    const runningMins =
-        job.timeline.arrivedAt && !job.timeline.completedAt ? Math.max(0, Math.ceil((now - new Date(job.timeline.arrivedAt)) / 60000)) : null;
+    const stage = phase(job);
+    const secs = workedSeconds(job, now);
+    const billing = job.laborBilling || { status: 'none' };
+    // o acțiune cu confirmare: butonul mare → „Yes / Not yet”
+    const ask = (id) => setConfirming(id);
     const phoneHref = job.customer.phone ? `tel:${job.customer.phone.replace(/[^\d+]/g, '')}` : null;
 
     return (
         <div className="job-page">
             <header className="job-header">
-                <Logo height={22} />
+                {hasDriverSession ? (
+                    <Link to="/driver" className="job-back">
+                        ← My jobs
+                    </Link>
+                ) : (
+                    <Logo height={22} />
+                )}
                 <span className="job-code">{job.id}</span>
             </header>
 
@@ -97,30 +156,74 @@ const DriverJobPage = () => {
                 {job.status === 'completed' && <p className="job-banner done">Job completed — thank you!</p>}
             </div>
 
-            {action && (
+            {confirming ? (
                 <div className="job-card job-action">
-                    {confirming ? (
-                        <>
-                            <p className="job-confirm-q">{action.label}?</p>
+                    <p className="job-confirm-q">{CONFIRM[confirming]}</p>
+                    <div className="job-action-row">
+                        <button className="job-btn primary" disabled={busy} onClick={() => act(confirming)}>
+                            {busy ? 'Saving…' : 'Yes'}
+                        </button>
+                        <button className="job-btn" disabled={busy} onClick={() => setConfirming(null)}>
+                            Not yet
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {stage === 'before' && (
+                        <div className="job-card job-action">
+                            <button className="job-btn primary big" onClick={() => ask('on_my_way')}>
+                                On my way
+                            </button>
+                            <p className="job-muted">Tap when you leave for the pickup. The customer gets a “crew on the way” email.</p>
+                        </div>
+                    )}
+                    {stage === 'on_the_way' && (
+                        <div className="job-card job-action">
+                            <button className="job-btn primary big" onClick={() => ask('arrived')}>
+                                ▶ Arrived — start labor timer
+                            </button>
+                            <p className="job-muted">Tap when you reach the pickup address. Labor time starts now.</p>
+                        </div>
+                    )}
+                    {(stage === 'running' || stage === 'paused') && (
+                        <div className={`job-card job-action timer-card ${stage}`}>
+                            <span className="job-label">{stage === 'paused' ? 'Timer paused' : 'Labor timer'}</span>
+                            <span className="timer-clock" aria-live="off">
+                                {clock(secs)}
+                            </span>
+                            {job.laborRate && <span className="job-muted">{job.laborRate}</span>}
                             <div className="job-action-row">
-                                <button className="job-btn primary" disabled={busy} onClick={() => act(action.id)}>
-                                    {busy ? 'Saving…' : 'Yes'}
-                                </button>
-                                <button className="job-btn" disabled={busy} onClick={() => setConfirming(false)}>
-                                    Not yet
+                                {stage === 'running' ? (
+                                    <button className="job-btn" disabled={busy} onClick={() => act('pause')}>
+                                        ⏸ Pause
+                                    </button>
+                                ) : (
+                                    <button className="job-btn resume" disabled={busy} onClick={() => act('resume')}>
+                                        ▶ Resume
+                                    </button>
+                                )}
+                                <button className="job-btn primary" disabled={busy} onClick={() => ask('completed')}>
+                                    ■ Stop — done
                                 </button>
                             </div>
-                        </>
-                    ) : (
-                        <>
-                            <button className="job-btn primary big" onClick={() => setConfirming(true)}>
-                                {action.label}
-                            </button>
-                            <p className="job-muted">{action.hint}</p>
-                        </>
+                            <p className="job-muted">Pause for breaks — paused time isn’t billed. Stop when everything is delivered.</p>
+                        </div>
                     )}
-                    {runningMins !== null && <p className="job-timer">Labor time so far: {runningMins} min</p>}
-                </div>
+                    {stage === 'done' && (
+                        <div className="job-card labor-card">
+                            <span className="job-label">Labor</span>
+                            <span className="timer-clock done">{job.laborActual ? `${job.laborActual.minutes} min` : clock(secs)}</span>
+                            {job.laborActual && <strong className="labor-amount">${job.laborActual.amount.toFixed(2)} labor</strong>}
+                            {LABOR_TEXT[billing.status] && <p className="labor-status">{LABOR_TEXT[billing.status]}</p>}
+                            {['pending_review', 'requested'].includes(billing.status) && (
+                                <button className="job-btn" disabled={busy} onClick={() => ask('cash')}>
+                                    💵 Customer paid in cash
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </>
             )}
 
             {error && <p className="job-error">{error}</p>}

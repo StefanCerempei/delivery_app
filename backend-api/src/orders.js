@@ -69,13 +69,26 @@ export function describeLocation(details) {
     return [details.unit ? `Unit ${details.unit}` : '', floor, elevator].filter(Boolean).join(' · ');
 }
 
-/** Manopera reală: de la sosirea la pickup până la finalizare, rotunjită în sus la minut. */
+/**
+ * Manopera reală: cronometrul pornit la sosire (Arrived) și oprit la final (Completed), fără pauze,
+ * rotunjită în sus la minut. Dispecerul poate corecta minutele (labor_minutes_override).
+ */
 export function laborActual(row) {
-    if (!row.arrived_at || !row.completed_at || !row.labor_cents_per_min) return null;
-    const ms = new Date(row.completed_at) - new Date(row.arrived_at);
-    if (!(ms > 0)) return null;
-    const minutes = Math.ceil(ms / 60000);
-    return { minutes, amount: cents(minutes * Number(row.labor_cents_per_min)) };
+    if (!row.labor_cents_per_min) return null;
+    let timed = null;
+    if (row.arrived_at && row.completed_at) {
+        const ms = new Date(row.completed_at) - new Date(row.arrived_at) - Number(row.labor_paused_secs || 0) * 1000;
+        if (ms > 0) timed = Math.ceil(ms / 60000);
+    }
+    const override = row.labor_minutes_override != null ? Number(row.labor_minutes_override) : null;
+    const minutes = override ?? timed;
+    if (minutes == null) return null;
+    return {
+        minutes,
+        timedMinutes: timed,
+        adjusted: override != null,
+        amount: cents(minutes * Number(row.labor_cents_per_min))
+    };
 }
 
 /** Transformă un rând din DB în obiectul trimis la frontend. */
@@ -107,8 +120,23 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
 
     // Momentele jobului (raportate de șofer sau de dispecer) și manopera calculată din ele
     const iso = (v) => (v ? new Date(v).toISOString() : null);
-    dto.timeline = { enRouteAt: iso(row.en_route_at), arrivedAt: iso(row.arrived_at), completedAt: iso(row.completed_at) };
+    dto.timeline = {
+        enRouteAt: iso(row.en_route_at),
+        arrivedAt: iso(row.arrived_at),
+        completedAt: iso(row.completed_at),
+        // pauza în curs (dacă e pe pauză) și totalul pauzelor terminate, în secunde
+        pausedAt: iso(row.labor_paused_at),
+        pausedSecs: Number(row.labor_paused_secs || 0)
+    };
     dto.laborActual = laborActual(row);
+    // Plata manoperei după job (vezi labor.js): starea și suma cerută / plătită
+    dto.laborBilling = {
+        status: row.labor_status || 'none',
+        amount: row.labor_cents != null ? cents(row.labor_cents) : dto.laborActual?.amount ?? null,
+        requestedAt: iso(row.labor_requested_at),
+        paidAt: iso(row.labor_paid_at),
+        method: row.labor_payment_method || null
+    };
 
     // Șoferul alocat și notele interne: doar în dispecerat (și în emailurile trimise de acolo).
     if (includeDriver) {

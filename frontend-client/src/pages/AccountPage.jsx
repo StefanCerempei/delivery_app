@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { describeDetails } from '../components/LocationDetails';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import LaborPayment from '../components/LaborPayment';
+import { formatMoney } from '../utils/formatters';
 import Logo from '../components/Logo';
 import { useAuth, initials } from '../context/AuthContext';
 import { api } from '../api/client';
@@ -16,6 +18,9 @@ const AccountPage = () => {
     const { user, authChecked, logoutUser } = useAuth();
     const [orders, setOrders] = useState(null);
     const [error, setError] = useState('');
+    const [params] = useSearchParams();
+    const payCode = params.get('pay'); // linkul din emailul cu cererea de plată
+    const [paidNotice, setPaidNotice] = useState('');
 
     useEffect(() => {
         document.title = 'My account — RELOQ';
@@ -25,7 +30,7 @@ const AccountPage = () => {
         if (!authChecked) return;
         if (!user || (user.role !== 'admin' && !user.emailVerified)) {
             // Fără cont sau cu emailul neverificat → pagina de login arată pasul de verificare
-            navigate('/login?next=/account', { replace: true });
+            navigate(`/login?next=${encodeURIComponent(payCode ? `/account?pay=${payCode}` : '/account')}`, { replace: true });
             return;
         }
         api.myOrders()
@@ -50,6 +55,11 @@ const AccountPage = () => {
         );
     }
 
+    const due = (orders || []).filter((o) => o.laborBilling?.status === 'requested');
+    const markPaid = (updated) => {
+        setOrders((list) => list.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
+        setPaidNotice(`Thank you! Your labor payment for #${updated.id} was received.`);
+    };
     const active = (orders || []).filter((o) => ACTIVE.includes(o.status));
     const past = (orders || []).filter((o) => !ACTIVE.includes(o.status));
 
@@ -100,6 +110,15 @@ const AccountPage = () => {
                     </div>
                 ) : (
                     <>
+                        {paidNotice && <p className="labor-paid-notice">✓ {paidNotice}</p>}
+                        {due.length > 0 && (
+                            <section className="account-orders">
+                                <h2>Payment due</h2>
+                                {due.map((o) => (
+                                    <LaborPayment key={o.id} order={o} onPaid={markPaid} autoOpen={o.id === payCode} />
+                                ))}
+                            </section>
+                        )}
                         {active.length > 0 && <OrderSection title="Upcoming & active" orders={active} />}
                         {past.length > 0 && <OrderSection title="Past orders" orders={past} />}
                     </>
@@ -111,6 +130,20 @@ const AccountPage = () => {
                 </p>
             </main>
         </div>
+    );
+};
+
+const LABOR_STATE = { requested: 'due', paid: 'paid online', paid_cash: 'paid in cash', waived: 'no charge', pending_review: 'being reviewed' };
+
+/** Manopera unei comenzi terminate: minute, sumă, stare. */
+const LaborLine = ({ order }) => {
+    const b = order.laborBilling;
+    if (!b || b.status === 'none' || order.status !== 'completed') return null;
+    return (
+        <p className={`order-labor-line ${b.status}`}>
+            Labor{order.laborActual ? ` · ${order.laborActual.minutes} min` : ''}
+            {b.status !== 'waived' && b.amount != null ? ` · ${formatMoney(b.amount)}` : ''} — {LABOR_STATE[b.status] || b.status}
+        </p>
     );
 };
 
@@ -133,6 +166,7 @@ const OrderSection = ({ title, orders }) => (
                             <span className="order-card-total">{formatPrice(order.totalAmount)}</span>
                         </div>
                     </div>
+                    <LaborLine order={order} />
                     <div className="order-card-route">
                         <div className="recap-addr-line">
                             <span className="mini-dot blue" />

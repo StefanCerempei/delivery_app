@@ -8,6 +8,10 @@ import { waitForMail } from '../mailer.js';
 import { slotTakenByOther } from '../slots.js';
 import { ensureDriverToken, jobUrl, stampStatus, sendDriverReminders, tomorrowDate } from '../jobs.js';
 import { parseDateOnly } from '../time.js';
+import { emailLoginLink } from './driverPortal.js';
+import { revokeDriverSessions } from '../driverAuth.js';
+import { getSettings, setSetting } from '../settings.js';
+import { onJobCompleted, requestLaborPayment, markLaborCash, waiveLabor, reopenLabor, setLaborMinutes } from '../labor.js';
 
 const router = Router();
 
@@ -127,6 +131,7 @@ router.patch('/orders/:code/status', async (req, res) => {
         await pool.query('UPDATE orders SET status = ? WHERE code = ?', [data.status, req.params.code]);
     }
     await stampStatus(req.params.code, data.status);
+    if (data.status === 'completed' && before.status !== 'completed') await onJobCompleted(req.params.code);
 
     let order = await loadOrder(req.params.code);
     const mails = [];
@@ -170,6 +175,30 @@ router.patch('/orders/:code/driver', async (req, res) => {
     if (driverNotified) order = await loadOrder(req.params.code);
 
     res.json({ order });
+});
+
+/**
+ * POST /admin/orders/:code/labor { action, minutes }
+ *   request — aprobă și trimite clientului cererea de plată (sau o retrimite)
+ *   cash    — plătit cash   ·  waive — fără taxă  ·  reopen — anulează cash/waive
+ *   minutes — corectează minutele (null = timpul măsurat)
+ */
+router.post('/orders/:code/labor', async (req, res) => {
+    const { action } = req.body || {};
+    let result;
+    if (action === 'minutes') {
+        const m = req.body.minutes;
+        if (m !== null && !(Number.isInteger(m) && m >= 0 && m <= 24 * 60)) {
+            return res.status(400).json({ error: 'Minutes must be a whole number between 0 and 1440.' });
+        }
+        result = await setLaborMinutes(req.params.code, m);
+    } else if (action === 'request') result = await requestLaborPayment(req.params.code);
+    else if (action === 'cash') result = await markLaborCash(req.params.code);
+    else if (action === 'waive') result = await waiveLabor(req.params.code);
+    else if (action === 'reopen') result = await reopenLabor(req.params.code);
+    else return res.status(400).json({ error: 'Unknown action.' });
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.json({ order: await loadOrder(req.params.code) });
 });
 
 /** Notele interne ale dispecerului (apar și în emailurile către șofer). */
@@ -226,7 +255,10 @@ router.get('/revenue', async (req, res) => {
     for (let d = new Date(from); d <= to; d = new Date(d.getTime() + 864e5)) {
         days.set(iso(d), { date: iso(d), booking: 0, labor: 0, jobs: 0 });
     }
-    const totals = { booking: 0, reservation: 0, service: 0, transportation: 0, other: 0, labor: 0, jobs: 0, completedJobs: 0, laborMinutes: 0, laborMissing: 0 };
+    const totals = {
+        booking: 0, reservation: 0, service: 0, transportation: 0, other: 0, labor: 0,
+        laborCollected: 0, laborOutstanding: 0, jobs: 0, completedJobs: 0, laborMinutes: 0, laborMissing: 0
+    };
     const cancelledPaid = { count: 0, amount: 0 };
     const byVehicle = new Map();
     const byDriver = new Map();
@@ -242,7 +274,10 @@ router.get('/revenue', async (req, res) => {
         }
         const booking = c(r.total_cents);
         const labor = laborActual(r);
-        const laborCents = labor ? labor.minutes * c(r.labor_cents_per_min) : 0;
+        // Suma finală de manoperă: cea cerută / plătită (după verificarea dispecerului), altfel cea măsurată
+        const laborCents = r.labor_status === 'waived' ? 0 : r.labor_cents != null ? c(r.labor_cents) : labor ? labor.minutes * c(r.labor_cents_per_min) : 0;
+        if (['paid', 'paid_cash'].includes(r.labor_status)) totals.laborCollected += laborCents;
+        else if (laborCents) totals.laborOutstanding += laborCents;
         const day = new Date(r.scheduled_for).toISOString().slice(0, 10);
 
         totals.booking += booking;
@@ -257,7 +292,7 @@ router.get('/revenue', async (req, res) => {
         totals.jobs += 1;
         if (r.status === 'completed') {
             totals.completedJobs += 1;
-            if (!labor) totals.laborMissing += 1;
+            if (!labor && r.labor_cents == null) totals.laborMissing += 1;
         }
         if (labor) totals.laborMinutes += labor.minutes;
 
@@ -308,6 +343,8 @@ router.get('/revenue', async (req, res) => {
             transportation: $(totals.transportation),
             other: $(totals.other),
             labor: $(totals.labor),
+            laborCollected: $(totals.laborCollected),
+            laborOutstanding: $(totals.laborOutstanding),
             jobs: totals.jobs,
             completedJobs: totals.completedJobs,
             avgPerJob: totals.jobs ? $(Math.round(gross / totals.jobs)) : 0,
@@ -323,6 +360,33 @@ router.get('/revenue', async (req, res) => {
 });
 
 /* ---------------------------------- Șoferi ---------------------------------- */
+
+/** Trimite șoferului linkul de autentificare în panoul lui (invitație sau link nou). */
+router.post('/drivers/:id/login-link', async (req, res) => {
+    const [rows] = await pool.query('SELECT * FROM drivers WHERE id = ?', [Number(req.params.id)]);
+    if (!rows[0]) return res.status(404).json({ error: 'Driver not found.' });
+    if (!rows[0].active) return res.status(409).json({ error: 'This driver is archived. Reactivate them first.' });
+    try {
+        await emailLoginLink(rows[0], { invite: !rows[0].last_login_at });
+    } catch (err) {
+        console.error(`[reloq] Invitația pentru șofer nu a plecat: ${err.message}`);
+        return res.status(503).json({ error: 'The email could not be sent. Check the email settings and try again.' });
+    }
+    res.json({ ok: true });
+});
+
+/** Deconectează șoferul de pe toate telefoanele (ex. telefon pierdut). */
+router.post('/drivers/:id/logout', async (req, res) => {
+    await revokeDriverSessions(Number(req.params.id));
+    res.json({ ok: true });
+});
+
+/** Setările dispeceratului (ex. trimiterea automată a cererilor de plată pentru manoperă). */
+router.get('/settings', async (req, res) => res.json({ settings: await getSettings() }));
+router.patch('/settings', async (req, res) => {
+    if (typeof req.body?.laborAutoRequest === 'boolean') await setSetting('labor_auto_request', req.body.laborAutoRequest);
+    res.json({ settings: await getSettings() });
+});
 
 /** Trimite acum reamintirile pentru o zi (implicit mâine), chiar dacă au mai fost trimise. */
 router.post('/drivers/reminders', async (req, res) => {
@@ -342,6 +406,7 @@ const toDriverDto = (r) => ({
     upcomingJobs: Number(r.upcoming_jobs || 0),
     completedJobs: Number(r.completed_jobs || 0),
     nextJob: r.next_job || null,
+    lastLoginAt: r.last_login_at ? new Date(r.last_login_at).toISOString() : null,
     createdAt: new Date(r.created_at).toISOString()
 });
 
@@ -406,6 +471,8 @@ router.patch('/drivers/:id', async (req, res) => {
             params.push(key === 'active' ? (data[key] ? 1 : 0) : data[key]);
         }
     }
+    if (data.active === false) sets.push('session_version = session_version + 1'); // arhivat → deconectat
+    if (data.email !== undefined && data.email !== existing.email) sets.push('session_version = session_version + 1');
     if (sets.length) {
         try {
             await pool.query(`UPDATE drivers SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
@@ -430,7 +497,7 @@ router.delete('/drivers/:id', async (req, res) => {
 
     const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM orders WHERE driver_id = ?', [id]);
     if (Number(total) > 0) {
-        await pool.query('UPDATE drivers SET active = 0 WHERE id = ?', [id]);
+        await pool.query('UPDATE drivers SET active = 0, session_version = session_version + 1 WHERE id = ?', [id]);
         return res.json({ archived: true, driver: await loadDriver(id) });
     }
     await pool.query('DELETE FROM drivers WHERE id = ?', [id]);

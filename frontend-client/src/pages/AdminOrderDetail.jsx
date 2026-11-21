@@ -39,6 +39,117 @@ const DriverSelect = ({ drivers, value, onChange, current, disabled }) => {
     );
 };
 
+const LABOR_STATUS = {
+    none: 'No labor time yet',
+    pending_review: 'Waiting for your review',
+    requested: 'Payment requested from the customer',
+    paid: 'Paid online',
+    paid_cash: 'Paid in cash',
+    waived: 'Waived (no charge)'
+};
+
+/** Manopera: timpul măsurat, corectarea minutelor, aprobarea cererii de plată, cash / fără taxă. */
+const LaborBilling = ({ order, onUpdated }) => {
+    const b = order.laborBilling || { status: 'none' };
+    const l = order.laborActual;
+    const unpaid = ['none', 'pending_review', 'requested'].includes(b.status);
+    const [minutes, setMinutes] = useState('');
+    const [busy, setBusy] = useState(null);
+    const [msg, setMsg] = useState('');
+    const [err, setErr] = useState('');
+
+    const call = async (action, extra = {}, done = '') => {
+        setErr('');
+        setMsg('');
+        setBusy(action);
+        try {
+            const { order: updated } = await api.adminLabor(order.id, action, extra);
+            onUpdated(updated);
+            setMsg(done);
+            setMinutes('');
+        } catch (e) {
+            setErr(e.message);
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    return (
+        <div className="labor-billing">
+            <Row label="Labor time">
+                {l ? (
+                    <>
+                        {l.minutes} min
+                        {l.adjusted && <small className="record-line-detail">Adjusted by dispatch (measured: {l.timedMinutes ?? '—'} min)</small>}
+                    </>
+                ) : order.timeline?.arrivedAt && !order.timeline?.completedAt ? (
+                    order.timeline?.pausedAt ? 'Timer paused…' : 'Timer running…'
+                ) : (
+                    '—'
+                )}
+            </Row>
+            <div className="record-total">
+                <span>Labor</span>
+                <strong>{b.amount != null && b.status !== 'waived' ? formatMoney(b.amount) : '—'}</strong>
+            </div>
+            <p className={`labor-state ${b.status}`}>
+                {LABOR_STATUS[b.status] || b.status}
+                {b.paidAt ? ` · ${fmtWhen(b.paidAt)}` : b.requestedAt && b.status === 'requested' ? ` · sent ${fmtWhen(b.requestedAt)}` : ''}
+            </p>
+
+            {unpaid && order.status === 'completed' && (
+                <>
+                    <div className="labor-minutes">
+                        <input
+                            type="number"
+                            name="laborMinutes"
+                            min="0"
+                            max="1440"
+                            inputMode="numeric"
+                            className="crm-select"
+                            placeholder={l ? `${l.minutes}` : 'Minutes'}
+                            value={minutes}
+                            onChange={(e) => setMinutes(e.target.value)}
+                        />
+                        <button
+                            className="crm-ghost-btn"
+                            disabled={busy !== null || minutes === '' || !(Number(minutes) >= 0)}
+                            onClick={() => call('minutes', { minutes: Math.round(Number(minutes)) }, 'Minutes updated.')}
+                        >
+                            Set minutes
+                        </button>
+                        {l?.adjusted && (
+                            <button className="crm-link-btn" disabled={busy !== null} onClick={() => call('minutes', { minutes: null }, 'Back to the measured time.')}>
+                                Use measured time
+                            </button>
+                        )}
+                    </div>
+                    <div className="record-actions-row">
+                        {b.amount > 0 && (
+                            <button className="crm-primary-btn" disabled={busy !== null} onClick={() => call('request', {}, 'Payment request emailed to the customer.')}>
+                                {busy === 'request' ? 'Sending…' : b.status === 'requested' ? 'Resend payment request' : 'Approve & request payment'}
+                            </button>
+                        )}
+                        <button className="crm-ghost-btn" disabled={busy !== null} onClick={() => call('cash', {}, 'Marked as paid in cash.')}>
+                            Paid in cash
+                        </button>
+                        <button className="crm-ghost-btn danger" disabled={busy !== null} onClick={() => call('waive', {}, 'Labor waived.')}>
+                            No charge
+                        </button>
+                    </div>
+                </>
+            )}
+            {['paid_cash', 'waived'].includes(b.status) && (
+                <button className="crm-link-btn" disabled={busy !== null} onClick={() => call('reopen', {}, 'Reopened for review.')}>
+                    Undo ({b.status === 'paid_cash' ? 'not paid in cash' : 'charge labor'})
+                </button>
+            )}
+            {msg && <p className="driver-msg">{msg}</p>}
+            {err && <p className="form-inline-error">{err}</p>}
+        </div>
+    );
+};
+
 const AdminOrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -301,19 +412,10 @@ const AdminOrderDetail = () => {
                     <Row label="On the way">{order.timeline?.enRouteAt ? fmtWhen(order.timeline.enRouteAt) : '—'}</Row>
                     <Row label="Arrived at pickup">{order.timeline?.arrivedAt ? fmtWhen(order.timeline.arrivedAt) : '—'}</Row>
                     <Row label="Completed">{order.timeline?.completedAt ? fmtWhen(order.timeline.completedAt) : '—'}</Row>
-                    <Row label="Labor time">
-                        {order.laborActual ? `${order.laborActual.minutes} min` : order.timeline?.arrivedAt ? 'In progress…' : '—'}
-                    </Row>
-                    {order.laborActual && (
-                        <div className="record-total">
-                            <span>Labor due</span>
-                            <strong>{formatMoney(order.laborActual.amount)}</strong>
-                        </div>
+                    {order.timeline?.pausedSecs > 0 && (
+                        <Row label="Breaks (not billed)">{Math.round(order.timeline.pausedSecs / 60)} min</Row>
                     )}
-                    <p className="record-sub job-progress-note">
-                        The driver taps On my way / Arrived / Completed on their job page. Labor = Arrived → Completed
-                        {order.price?.labor ? ` at ${order.price.labor.label}` : ''}.
-                    </p>
+                    <LaborBilling order={order} onUpdated={(o) => applyOrder(o, { keepNotes: true })} />
                 </div>
 
                 <div className="admin-card">

@@ -17,6 +17,7 @@ import { takenSlots, withSlot } from '../slots.js';
 import { searchAddresses, reverseGeocode } from '../geocode.js';
 import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
 import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
+import { laborPaymentIntent, syncLaborPayment } from '../labor.js';
 
 /** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
 function outsideArea(data, res) {
@@ -331,6 +332,25 @@ router.get('/orders/:code/photos/:photoId', requireAuth, async (req, res) => {
     const row = await loadOwnOrder(req, res);
     if (!row) return;
     await sendPhoto(res, row.id, req.params.photoId);
+});
+
+/** POST /api/orders/:code/labor/intent — plata online a manoperei cerute după job. */
+router.post('/orders/:code/labor/intent', requireAuth, paypalLimiter, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    const result = await laborPaymentIntent(row, row.customer_email);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.json({ clientSecret: result.clientSecret, amount: row.labor_cents / 100, currency: row.currency });
+});
+
+/** POST /api/orders/:code/labor/confirm — verifică plata manoperei la Stripe. */
+router.post('/orders/:code/labor/confirm', requireAuth, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    if (!stripe || !row.labor_payment_intent_id) return res.status(400).json({ error: 'No labor payment in progress.' });
+    const { order, paid, status } = await syncLaborPayment(row.labor_payment_intent_id);
+    if (!paid) return res.status(402).json({ error: 'The payment has not gone through yet.', status });
+    res.json({ order });
 });
 
 /** GET /api/orders/mine — istoricul clientului. */
