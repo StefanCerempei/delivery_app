@@ -5,6 +5,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminOrderDetail from './pages/AdminOrderDetail';
 import DriverJobPage from './pages/DriverJobPage';
 import DriverPortal from './pages/DriverPortal';
+import { AboutPage, ContactPage } from './pages/CompanyPages';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import { BookingProvider } from './context/BookingContext';
@@ -43,6 +44,8 @@ function App() {
                 {/* Pagini legale */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
 
                 {/* Zona de Administrare */}
                 <Route path="/job/:token" element={<DriverJobPage />} />

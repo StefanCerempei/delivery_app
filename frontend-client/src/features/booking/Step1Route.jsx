@@ -185,6 +185,8 @@ const Step1Route = () => {
                     Background-checked movers • Loading & unloading included
                 </p>
                 <p className="trust-note legal-inline-links">
+                    <Link to="/about">About</Link> • <Link to="/contact">Contact</Link> •{' '}
+                    <a href="tel:+15088167230">(508) 816-7230</a> •{' '}
                     <Link to="/terms" target="_blank" rel="noopener">Terms</Link> •{' '}
                     <Link to="/privacy" target="_blank" rel="noopener">Privacy</Link> •{' '}
                     <a href={COMPANY.fmcsaRightsAndResponsibilities} target="_blank" rel="noopener noreferrer">
