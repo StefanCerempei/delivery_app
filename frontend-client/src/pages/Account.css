@@ -662,3 +662,4 @@ input[type='date'].reloq-input {
 .order-labor-line.requested { color: var(--accent); font-weight: 600; }
 .order-labor-line.paid, .order-labor-line.paid_cash { color: var(--go); }
 @media (max-width: 520px) { .labor-pay-cta { min-width: 0; width: 100%; } }
+.auth-driver-link { display: block; margin-top: 10px; }

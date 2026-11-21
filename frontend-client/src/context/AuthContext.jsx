@@ -38,9 +38,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     const loginUser = async (email, password) => {
-        const { user } = await api.login(email, password);
-        setUser(user);
-        return user;
+        const res = await api.login(email, password);
+        // Contul e al unui șofer: serverul a deschis sesiunea de șofer → panoul șoferului
+        if (res.driver) {
+            window.location.assign(res.redirect || '/driver');
+            return new Promise(() => {}); // pagina se schimbă; nu continuăm fluxul de client
+        }
+        setUser(res.user);
+        return res.user;
     };
 
     const sendVerificationCode = async () => {
