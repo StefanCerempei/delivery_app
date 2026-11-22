@@ -10,6 +10,8 @@ export const COMPANY = {
     privacyEmail: 'info@reloqmove.com',
     website: 'reloqmove.com',
     websiteUrl: 'https://www.reloqmove.com',
+    instagram: 'https://www.instagram.com/myreloq/',
+    instagramHandle: '@myreloq',
     governingLaw: 'the Commonwealth of Massachusetts, USA',
     serviceArea: 'Massachusetts, from Worcester east (including Cape Cod and the Islands)',
     effectiveDate: 'November 12, 2026',

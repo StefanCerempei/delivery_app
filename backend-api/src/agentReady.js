@@ -20,6 +20,7 @@ export const COMPANY = {
     phoneE164: '+15088167230',
     email: 'info@reloqmove.com',
     website: 'https://www.reloqmove.com',
+    instagram: 'https://www.instagram.com/myreloq/',
     usdot: '4182047',
     mc: '1623651',
     madpu: '24HG10',
@@ -42,6 +43,7 @@ export function sameAsLinks() {
         .filter((s) => /^https:\/\//.test(s));
     return [
         COMPANY.website,
+        COMPANY.instagram,
         `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string=${COMPANY.usdot}`,
         ...extra
     ];
@@ -62,7 +64,8 @@ const vehicleLines = () =>
 function pages() {
     const contactLinks = [
         [`Call ${COMPANY.phone}`, `tel:${COMPANY.phoneE164}`],
-        [`Email ${COMPANY.email}`, `mailto:${COMPANY.email}`]
+        [`Email ${COMPANY.email}`, `mailto:${COMPANY.email}`],
+        ['Instagram @myreloq', COMPANY.instagram]
     ];
     const footerLinks = [
         ['Book a move', '/'],
@@ -76,7 +79,7 @@ function pages() {
     const fmcsaLinks = [
         ['Your Rights and Responsibilities When You Move (FMCSA)', 'https://www.fmcsa.dot.gov/protect-your-move/consumer-rights'],
         ['Ready to Move? brochure (FMCSA)', 'https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/ReadytoMoveBrochure_2022Update.pdf'],
-        [`RELOQ on FMCSA SAFER (USDOT ${COMPANY.usdot})`, sameAsLinks()[1]]
+        [`RELOQ on FMCSA SAFER (USDOT ${COMPANY.usdot})`, sameAsLinks().find((u) => u.includes('safer.fmcsa'))]
     ];
     return {
         '/': {

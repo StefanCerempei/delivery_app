@@ -24,7 +24,10 @@ export const AboutPage = () => (
         </ul>
         <h2>Contact</h2>
         <p>
-            {COMPANY.address} · <a href={tel}>{COMPANY.phone}</a> · <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>
+            {COMPANY.address} · <a href={tel}>{COMPANY.phone}</a> · <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a> ·{' '}
+            <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer">
+                Instagram {COMPANY.instagramHandle}
+            </a>
         </p>
         <p>
             <Link to="/">Book a move →</Link>
@@ -43,6 +46,12 @@ export const ContactPage = () => (
         <h2>Email</h2>
         <p>
             <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>
+        </p>
+        <h2>Instagram</h2>
+        <p>
+            <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer">
+                {COMPANY.instagramHandle}
+            </a>
         </p>
         <h2>Address</h2>
         <p>

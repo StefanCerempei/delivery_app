@@ -58,6 +58,9 @@ const LegalLayout = ({ title, sections, children, showDate = true }) => {
                 <nav>
                     <Link to="/about">About</Link>
                     <Link to="/contact">Contact</Link>
+                    <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer">
+                        Instagram {COMPANY.instagramHandle}
+                    </a>
                     <Link to="/terms">Terms of Service</Link>
                     <Link to="/privacy">Privacy Policy</Link>
                     <a href={COMPANY.fmcsaRightsAndResponsibilities} target="_blank" rel="noopener noreferrer">
