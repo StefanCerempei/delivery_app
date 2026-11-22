@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import { config, configOk, configProblems } from './src/config.js';
 import { pool, migrate } from './src/db.js';
 import { loadUser } from './src/auth.js';
@@ -30,6 +31,8 @@ const distDir = path.resolve(__dirname, '../frontend-client/dist');
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1); // Hostinger rulează aplicația în spatele unui proxy
+// Comprimare gzip/brotli pentru HTML, JS, CSS, JSON (JavaScript-ul aplicației: ~520 KB → ~160 KB)
+app.use(compression());
 
 app.use(
     helmet({
@@ -152,7 +155,11 @@ if (fs.existsSync(distDir)) {
             index: false,
             setHeaders(res, filePath) {
                 if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+                    // fișierele din /assets au hash în nume: se pot păstra un an
                     res.set('Cache-Control', 'public, max-age=31536000, immutable');
+                } else if (/\.(png|jpe?g|svg|ico|webp|woff2?)$/.test(filePath)) {
+                    // iconițe, logo-uri: o săptămână (se reverifică după aceea)
+                    res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
                 }
                 // Aplicația șoferului: service worker-ul și manifestul trebuie verificate la fiecare deschidere
                 if (/((driver|admin)-sw\.js|\.webmanifest|pwa\.js)$/.test(filePath)) res.set('Cache-Control', 'no-cache');
