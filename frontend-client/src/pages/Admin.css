@@ -998,3 +998,15 @@ a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: no
     .crm-menu { padding-top: max(10px, env(safe-area-inset-top)); }
     .crm-record, .admin-login-layout { padding-top: max(20px, env(safe-area-inset-top)); }
 }
+
+/* ===== Ore / zile blocate ===== */
+.schedule-time { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.schedule-slot-toggle { padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: 10.5px; cursor: pointer; }
+.schedule-slot-toggle:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.schedule-slot.blocked .schedule-slot-toggle { border-color: var(--danger); color: var(--danger); }
+.schedule-blocked { padding: 7px 10px; border-radius: 10px; background: var(--danger-soft); color: var(--danger); font-size: 12px; font-weight: 600; }
+.schedule-day-block { padding: 6px 10px; border: 1px dashed var(--line-strong, var(--line)); border-radius: 10px; background: none; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.schedule-day-block:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.schedule-day-block.on { border-style: solid; border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.schedule-day-block:disabled, .schedule-slot-toggle:disabled { opacity: 0.5; cursor: default; }
+.schedule-notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(250, 204, 21, 0.08); color: #fde68a; font-size: 13px; }

@@ -13,7 +13,7 @@ import { notifyNewOrder } from '../emails.js';
 import { syncOrderPayment, markOrderPaid } from '../payments.js';
 import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.js';
 import { waitForMail } from '../mailer.js';
-import { takenSlots, withSlot } from '../slots.js';
+import { takenSlots, withSlot, isBlocked } from '../slots.js';
 import { searchAddresses, reverseGeocode } from '../geocode.js';
 import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
 import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
@@ -163,6 +163,14 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
 
     const id = crypto.randomUUID();
     let code = newOrderCode();
+
+    // Ora / ziua blocată de dispecer (ex. zi liberă): nu se poate rezerva
+    if (await isBlocked(schedule.scheduledFor)) {
+        return res.status(409).json({
+            error: 'Sorry, this arrival window is no longer available. Please pick another time.',
+            code: 'SLOT_TAKEN'
+        });
+    }
 
     // O singură comandă pe fereastră: verificarea și salvarea se fac cu ora blocată.
     const booked = await withSlot(schedule.scheduledFor, req.user.id, async (conn) => {

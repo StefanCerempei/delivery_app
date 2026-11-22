@@ -90,6 +90,10 @@ export const api = {
     adminRevenue: (from, to) => request(`/admin/revenue?from=${from}&to=${to}`),
     adminLabor: (code, action, extra = {}) =>
         request(`/admin/orders/${encodeURIComponent(code)}/labor`, { method: 'POST', body: { action, ...extra } }),
+    // Ore / zile blocate (slot '*' = toată ziua)
+    adminBlocks: (from, to) => request(`/admin/blocks?from=${from}&to=${to}`),
+    adminBlock: (date, slot) => request('/admin/blocks', { method: 'POST', body: { date, slot } }),
+    adminUnblock: (date, slot) => request('/admin/blocks', { method: 'DELETE', body: { date, slot } }),
     adminSchedule: (from, to) => request(`/admin/schedule?from=${from}&to=${to}`),
     adminSaveNotes: (code, notes) =>
         request(`/admin/orders/${encodeURIComponent(code)}/notes`, { method: 'PATCH', body: { notes } }),

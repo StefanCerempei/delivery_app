@@ -46,11 +46,20 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
 
     const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => addDays(start, i)), [start]);
 
+    // Ore / zile blocate de dispecer: { 'YYYY-MM-DD': { '09:00': '', '*': '' } }
+    const [blocks, setBlocks] = useState({});
+    const [busyKey, setBusyKey] = useState(null);
+    const [notice, setNotice] = useState('');
+
     const load = useCallback(async () => {
         setError('');
         try {
-            const { orders } = await api.adminSchedule(iso(days[0]), iso(days[DAYS - 1]));
+            const [{ orders }, { blocks }] = await Promise.all([
+                api.adminSchedule(iso(days[0]), iso(days[DAYS - 1])),
+                api.adminBlocks(iso(days[0]), iso(days[DAYS - 1]))
+            ]);
             setOrders(orders);
+            setBlocks(blocks || {});
         } catch (err) {
             setError(err.message);
         } finally {
@@ -75,7 +84,33 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
         return map;
     }, [orders, driverFilter, showCancelled]);
 
+    /** Blochează / deblochează o fereastră (slot '*' = toată ziua). */
+    const toggleBlock = async (dayIso, slot, block) => {
+        setError('');
+        setNotice('');
+        setBusyKey(`${dayIso} ${slot}`);
+        try {
+            if (block) {
+                const res = await api.adminBlock(dayIso, slot);
+                if (res.existingOrders?.length) {
+                    setNotice(
+                        `Blocked. Already booked: ${res.existingOrders.join(', ')} — those orders stay; cancel or move them if needed.`
+                    );
+                }
+            } else {
+                await api.adminUnblock(dayIso, slot);
+            }
+            const { blocks } = await api.adminBlocks(iso(days[0]), iso(days[DAYS - 1]));
+            setBlocks(blocks || {});
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setBusyKey(null);
+        }
+    };
+
     const active = orders.filter((o) => o.status !== 'cancelled');
+    const blockedCount = Object.values(blocks).reduce((n, b) => n + ('*' in b ? SLOTS.length : Object.keys(b).length), 0);
     const unassigned = active.filter((o) => !o.driver && o.status !== 'completed').length;
     const capacity = DAYS * SLOTS.length;
 
@@ -117,6 +152,11 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
                 <span>
                     <strong>{active.length}</strong> / {capacity} windows booked
                 </span>
+                {blockedCount > 0 && (
+                    <span>
+                        <strong>{blockedCount}</strong> blocked
+                    </span>
+                )}
                 {unassigned > 0 && (
                     <span className="schedule-warn">
                         <strong>{unassigned}</strong> without a driver
@@ -125,6 +165,7 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
             </div>
 
             {error && <p className="form-inline-error">{error}</p>}
+            {notice && <p className="schedule-notice">{notice}</p>}
 
             {loading && orders.length === 0 && <PageLoader label="Loading schedule…" compact />}
             <div className={`schedule-grid ${loading ? 'is-loading' : ''}`}>
@@ -132,6 +173,7 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
                     const dayIso = iso(day);
                     const isToday = dayIso === iso(today);
                     const isPast = day < today;
+                    const dayBlocked = '*' in (blocks[dayIso] || {});
                     return (
                         <section key={dayIso} className={`schedule-day ${isToday ? 'today' : ''} ${isPast ? 'past' : ''}`}>
                             <header>
@@ -140,13 +182,38 @@ const AdminSchedule = ({ drivers, onOpen, refreshKey }) => {
                                     {MONTHS[day.getUTCMonth()]} {day.getUTCDate()}
                                 </strong>
                             </header>
+                            {!isPast && (
+                                <button
+                                    type="button"
+                                    className={`schedule-day-block ${dayBlocked ? 'on' : ''}`}
+                                    disabled={busyKey !== null}
+                                    onClick={() => toggleBlock(dayIso, '*', !dayBlocked)}
+                                >
+                                    {dayBlocked ? '🔓 Unblock whole day' : '⛔ Block whole day'}
+                                </button>
+                            )}
                             {SLOTS.map((slot) => {
                                 const items = bySlot.get(`${dayIso} ${slot.id}`) || [];
+                                const slotBlocked = dayBlocked || slot.id in (blocks[dayIso] || {});
                                 return (
-                                    <div key={slot.id} className="schedule-slot">
-                                        <span className="schedule-time">{slot.label}</span>
+                                    <div key={slot.id} className={`schedule-slot ${slotBlocked ? 'blocked' : ''}`}>
+                                        <span className="schedule-time">
+                                            {slot.label}
+                                            {!isPast && !dayBlocked && (
+                                                <button
+                                                    type="button"
+                                                    className="schedule-slot-toggle"
+                                                    disabled={busyKey !== null}
+                                                    onClick={() => toggleBlock(dayIso, slot.id, !slotBlocked)}
+                                                    title={slotBlocked ? 'Make this window bookable again' : 'Customers can’t book this window'}
+                                                >
+                                                    {slotBlocked ? 'Unblock' : 'Block'}
+                                                </button>
+                                            )}
+                                        </span>
+                                        {slotBlocked && <span className="schedule-blocked">⛔ Blocked — not bookable</span>}
                                         {items.length === 0 ? (
-                                            <span className="schedule-free">Free</span>
+                                            !slotBlocked && <span className="schedule-free">Free</span>
                                         ) : (
                                             items.map((o) => (
                                                 <button

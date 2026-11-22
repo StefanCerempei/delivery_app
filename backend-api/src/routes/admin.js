@@ -5,7 +5,7 @@ import { statusSchema, driverSchema, assignDriverSchema, parseBody } from '../va
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from '../orders.js';
 import { notifyStatusChange, notifyOrderConfirmed, notifyDriverAssigned, notifyDriverRemoved } from '../emails.js';
 import { waitForMail } from '../mailer.js';
-import { slotTakenByOther } from '../slots.js';
+import { slotTakenByOther, blockedSlots } from '../slots.js';
 import { ensureDriverToken, jobUrl, stampStatus, sendDriverReminders, tomorrowDate } from '../jobs.js';
 import { parseDateOnly } from '../time.js';
 import { emailLoginLink } from './driverPortal.js';
@@ -200,6 +200,51 @@ router.post('/orders/:code/labor', async (req, res) => {
     else return res.status(400).json({ error: 'Unknown action.' });
     if (result.error) return res.status(result.status).json({ error: result.error });
     res.json({ order: await loadOrder(req.params.code) });
+});
+
+/* --------------------------- Ore / zile blocate (nu se pot rezerva) --------------------------- */
+
+const SLOT_IDS = ['07:00', '09:00', '11:00', '13:00', '15:00'];
+
+/** GET /admin/blocks?from&to → { blocks: { 'YYYY-MM-DD': { '09:00': 'motiv', '*': 'motiv' } } } */
+router.get('/blocks', async (req, res) => {
+    const from = parseDateOnly(req.query.from);
+    const to = parseDateOnly(req.query.to);
+    if (!from || !to || to < from) return res.status(400).json({ error: 'Invalid date range.' });
+    const iso = (d) => d.toISOString().slice(0, 10);
+    res.json({ blocks: await blockedSlots(iso(from), iso(to)) });
+});
+
+/** POST /admin/blocks { date, slot ('07:00'…'15:00' sau '*' = toată ziua), reason? } */
+router.post('/blocks', async (req, res) => {
+    const day = parseDateOnly(req.body?.date);
+    const slot = req.body?.slot;
+    if (!day || !(slot === '*' || SLOT_IDS.includes(slot))) return res.status(400).json({ error: 'Pick a valid day and arrival window.' });
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 120) || null : null;
+    const date = day.toISOString().slice(0, 10);
+    await pool.query('INSERT INTO blocked_slots (day, slot, reason) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE reason = VALUES(reason)', [
+        date,
+        slot,
+        reason
+    ]);
+    // Toată ziua blocată: blocările pe ore din acea zi devin inutile
+    if (slot === '*') await pool.query("DELETE FROM blocked_slots WHERE day = ? AND slot <> '*'", [date]);
+    // Comenzile deja rezervate pe acea oră / zi rămân (dispecerul le poate anula sau muta)
+    const [orders] = await pool.query(
+        `SELECT code FROM orders o WHERE DATE(o.scheduled_for) = ? ${slot === '*' ? '' : "AND TIME_FORMAT(o.scheduled_for, '%H:%i') = ?"}
+           AND o.status IN ('paid', 'confirmed', 'en_route')`,
+        slot === '*' ? [date] : [date, slot]
+    );
+    res.json({ ok: true, existingOrders: orders.map((o) => o.code) });
+});
+
+/** DELETE /admin/blocks { date, slot } — deblochează (slot '*' = ziua întreagă). */
+router.delete('/blocks', async (req, res) => {
+    const day = parseDateOnly(req.body?.date);
+    const slot = req.body?.slot;
+    if (!day || !(slot === '*' || SLOT_IDS.includes(slot))) return res.status(400).json({ error: 'Pick a valid day and arrival window.' });
+    await pool.query('DELETE FROM blocked_slots WHERE day = ? AND slot = ?', [day.toISOString().slice(0, 10), slot]);
+    res.json({ ok: true });
 });
 
 /** Notele interne ale dispecerului (apar și în emailurile către șofer). */

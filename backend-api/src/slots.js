@@ -7,6 +7,26 @@ import { pool } from './db.js';
 import { stripe } from './stripe.js';
 
 export const HOLD_MINUTES = 20;
+// Ferestrele de sosire (ora de start), aceleași ca în validation.js / pasul de rezervare
+export const ALL_SLOTS = ['07:00', '09:00', '11:00', '13:00', '15:00'];
+
+/** Ore / zile blocate de dispecer, ca { 'YYYY-MM-DD': { '09:00': 'motiv', '*': 'motiv' } }. */
+export async function blockedSlots(fromDate, toDate) {
+    const [rows] = await pool.query(
+        "SELECT DATE_FORMAT(day, '%Y-%m-%d') AS day, slot, reason FROM blocked_slots WHERE day BETWEEN ? AND ?",
+        [fromDate, toDate]
+    );
+    const out = {};
+    for (const r of rows) (out[r.day] ||= {})[r.slot] = r.reason || '';
+    return out;
+}
+
+/** Fereastra `scheduledFor` („YYYY-MM-DD HH:MM:00”) e blocată de dispecer? */
+export async function isBlocked(scheduledFor) {
+    const [day, time] = String(scheduledFor).split(' ');
+    const [rows] = await pool.query('SELECT 1 FROM blocked_slots WHERE day = ? AND slot IN (?, ?) LIMIT 1', [day, time.slice(0, 5), '*']);
+    return rows.length > 0;
+}
 
 const BLOCKING_SQL = `(
     o.status IN ('paid', 'confirmed', 'en_route', 'completed')
@@ -46,6 +66,12 @@ export async function takenSlots(fromDate, toDate, { exceptUserId = null } = {})
         if (!r.scheduled_for) continue;
         const day = dateOf(r.scheduled_for);
         (taken[day] ||= []).push(slotOf(r.scheduled_for));
+    }
+    // Orele și zilele blocate de dispecer nu se pot rezerva, la fel ca cele ocupate
+    const blocked = await blockedSlots(fromDate, toDate);
+    for (const [day, slots] of Object.entries(blocked)) {
+        const list = '*' in slots ? ALL_SLOTS : Object.keys(slots);
+        (taken[day] ||= []).push(...list);
     }
     for (const day of Object.keys(taken)) taken[day] = [...new Set(taken[day])].sort();
     return taken;

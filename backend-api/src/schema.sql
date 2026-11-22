@@ -152,3 +152,12 @@ CREATE TABLE IF NOT EXISTS app_settings (
     updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ore / zile blocate de dispecer (nu se mai pot rezerva). slot = '07:00' … '15:00' sau '*' pentru toată ziua.
+CREATE TABLE IF NOT EXISTS blocked_slots (
+    day         DATE         NOT NULL,
+    slot        VARCHAR(5)   NOT NULL,
+    reason      VARCHAR(120) NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (day, slot)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
