@@ -1,26 +1,20 @@
-import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import BookingPage from './pages/BookingPage';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminOrderDetail from './pages/AdminOrderDetail';
+import DriverJobPage from './pages/DriverJobPage';
+import DriverPortal from './pages/DriverPortal';
+import { AboutPage, ContactPage } from './pages/CompanyPages';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import { BookingProvider } from './context/BookingContext';
 import { AuthProvider } from './context/AuthContext';
+import AuthPage from './pages/AuthPage';
+import AccountPage from './pages/AccountPage';
+import AccountSettingsPage from './pages/AccountSettingsPage';
+import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
 import GlobalLoadingBar from './components/GlobalLoadingBar';
-import { PageLoader } from './components/Spinner';
-
-// Restul paginilor se descarcă doar când sunt deschise: prima pagină (rezervarea) încarcă mai puțin cod
-const AdminLogin = lazy(() => import('./pages/AdminLogin'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const AdminOrderDetail = lazy(() => import('./pages/AdminOrderDetail'));
-const DriverJobPage = lazy(() => import('./pages/DriverJobPage'));
-const DriverPortal = lazy(() => import('./pages/DriverPortal'));
-const AboutPage = lazy(() => import('./pages/CompanyPages').then((m) => ({ default: m.AboutPage })));
-const ContactPage = lazy(() => import('./pages/CompanyPages').then((m) => ({ default: m.ContactPage })));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
-const TermsOfService = lazy(() => import('./pages/TermsOfService'));
-const AuthPage = lazy(() => import('./pages/AuthPage'));
-const AccountPage = lazy(() => import('./pages/AccountPage'));
-const AccountSettingsPage = lazy(() => import('./pages/AccountSettingsPage'));
-const ForgotPasswordPage = lazy(() => import('./pages/PasswordResetPages').then((m) => ({ default: m.ForgotPasswordPage })));
-const ResetPasswordPage = lazy(() => import('./pages/PasswordResetPages').then((m) => ({ default: m.ResetPasswordPage })));
 import './App.css';
 
 function App() {
@@ -28,7 +22,6 @@ function App() {
         <Router>
             <AuthProvider>
             <GlobalLoadingBar />
-            <Suspense fallback={<PageLoader />}>
             <Routes>
                 {/* Fluxul Clientului */}
                 <Route
@@ -68,7 +61,6 @@ function App() {
                 {/* Orice altă rută nevalidă redirecționează la pagina principală */}
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-            </Suspense>
             </AuthProvider>
         </Router>
     );

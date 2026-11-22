@@ -1,15 +1,12 @@
-import React, { lazy, Suspense } from 'react';
+import React from 'react';
 import { useBooking } from '../context/BookingContext';
-// Harta (Leaflet) se încarcă imediat după pagină, nu înaintea ei: formularul apare mai repede
-const MapPreview = lazy(() => import('../components/MapPreview'));
+import MapPreview from '../components/MapPreview';
 import StepProgress from '../components/StepProgress';
 import Step1Route from '../features/booking/Step1Route';
 import Step2Vehicle from '../features/booking/Step2Vehicle';
 import Step3Time from '../features/booking/Step3Time';
 import Step4Items from '../features/booking/Step4Items';
-// Plata (Stripe, PayPal) se descarcă doar la ultimul pas: prima pagină nu mai încarcă scripturile de plată
-const Step5Pay = lazy(() => import('../features/booking/Step5Pay'));
-import { PageLoader } from '../components/Spinner';
+import Step5Pay from '../features/booking/Step5Pay';
 import BookingSuccess from '../features/booking/BookingSuccess';
 import './BookingPage.css';
 
@@ -34,11 +31,7 @@ const BookingPage = () => {
             case 4:
                 return <Step3Time />;
             case 5:
-                return (
-                    <Suspense fallback={<PageLoader compact label="Loading secure checkout…" />}>
-                        <Step5Pay />
-                    </Suspense>
-                );
+                return <Step5Pay />;
             default:
                 return <Step1Route />;
         }
@@ -48,9 +41,7 @@ const BookingPage = () => {
         <div className="booking-layout">
             {/* Pe telefon harta se mărește (~75% din ecran) cât timp clientul pune pinul */}
             <div className={`map-container ${pinMode ? 'pin-mode' : ''}`}>
-                <Suspense fallback={<div className="map-placeholder" aria-hidden="true" />}>
-                    <MapPreview />
-                </Suspense>
+                <MapPreview />
             </div>
 
             <aside className="wizard-container">
