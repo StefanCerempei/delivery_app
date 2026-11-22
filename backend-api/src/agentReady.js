@@ -69,12 +69,19 @@ function pages() {
         ['About RELOQ', '/about'],
         ['Contact', '/contact'],
         ['Terms of Service', '/terms'],
-        ['Privacy Policy', '/privacy']
+        ['Privacy Policy', '/privacy'],
+        ['RELOQ Moving Services website', COMPANY.website]
+    ];
+    // Linkuri oficiale obligatorii pentru firmele de mutări (FMCSA, 49 CFR 375.213) + profilul firmei la FMCSA
+    const fmcsaLinks = [
+        ['Your Rights and Responsibilities When You Move (FMCSA)', 'https://www.fmcsa.dot.gov/protect-your-move/consumer-rights'],
+        ['Ready to Move? brochure (FMCSA)', 'https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/ReadytoMoveBrochure_2022Update.pdf'],
+        [`RELOQ on FMCSA SAFER (USDOT ${COMPANY.usdot})`, sameAsLinks()[1]]
     ];
     return {
         '/': {
             title: 'Book Movers in Massachusetts — RELOQ Moving Services',
-            description: `Book a RELOQ moving crew online in minutes: courier, van or moving truck with movers, upfront pricing and crew updates by email. Serving ${SERVICE_AREA_LABEL}.`,
+            description: 'Book licensed movers online in Massachusetts, from Worcester east. Courier, van or moving truck with 1–3 movers and upfront transport pricing.',
             h1: 'Book movers and delivery online in Massachusetts',
             type: 'WebPage',
             sections: [
@@ -102,13 +109,47 @@ function pages() {
                     ],
                     list: vehicleLines()
                 },
+                {
+                    heading: 'Frequently asked questions',
+                    faq: [
+                        [
+                            'When can I book a move?',
+                            'Bookings open from tomorrow onward, in 2-hour arrival windows between 7:00 AM and 5:00 PM. Each window is booked by one customer only, so the crew arrives on time.'
+                        ],
+                        [
+                            'What do I pay when I book?',
+                            `At booking you pay the reservation fee, the ${usd(SERVICE_FEE_CENTS)} service fee and transportation for the miles between pickup and drop-off. You can pay by card, Apple Pay, Google Pay or Amazon Pay.`
+                        ],
+                        [
+                            'How is labor charged?',
+                            'Labor is billed after the job, per minute, for the time from the crew’s arrival at pickup until everything is delivered. Breaks are not billed. You get a payment request by email and in your account.'
+                        ],
+                        [
+                            'Which vehicle do I need?',
+                            'Pick your items and the app recommends a vehicle: a courier for boxes and small items, a van with one or two movers, or a 12–26 ft moving truck with two or three movers for larger moves.'
+                        ],
+                        [
+                            'Do you handle stairs and apartments?',
+                            'Yes. Add the floor, whether there is an elevator, the apartment number and any access notes for both addresses, so the crew comes prepared.'
+                        ],
+                        [
+                            'Can I cancel?',
+                            'Cancellation is free up to 24 hours before your arrival window. Call or email us with your order number.'
+                        ],
+                        [
+                            'Will the crew contact me?',
+                            'Yes. The crew calls you about 45 minutes before arrival, and you receive an email when they are on the way.'
+                        ]
+                    ]
+                },
                 { heading: 'Contact', paragraphs: [fullAddress, licenses], links: contactLinks },
+                { heading: 'Moving resources', links: fmcsaLinks },
                 { heading: 'More', links: footerLinks }
             ]
         },
         '/about': {
             title: 'About — RELOQ Moving Services',
-            description: `RELOQ Moving Services LLC is a licensed Massachusetts moving company (${licenses}) offering online booking for moves and deliveries.`,
+            description: 'RELOQ Moving Services LLC: licensed Massachusetts movers (USDOT 4182047) based in Ashland. Online booking for moves and deliveries.',
             h1: 'About RELOQ Moving Services',
             type: 'AboutPage',
             sections: [
@@ -121,12 +162,13 @@ function pages() {
                 { heading: 'Licenses', list: [`U.S. DOT No. ${COMPANY.usdot}`, `MC No. ${COMPANY.mc}`, `MA DPU No. ${COMPANY.madpu}`] },
                 { heading: 'Services', list: vehicleLines() },
                 { heading: 'Contact', paragraphs: [fullAddress], links: contactLinks },
+                { heading: 'Moving resources', links: fmcsaLinks },
                 { heading: 'More', links: footerLinks }
             ]
         },
         '/contact': {
             title: 'Contact — RELOQ Moving Services',
-            description: `Contact RELOQ Moving Services: call ${COMPANY.phone} or email ${COMPANY.email}. ${fullAddress}.`,
+            description: `Contact RELOQ Moving Services in Ashland, MA: call ${COMPANY.phone} or email ${COMPANY.email} about a booking, quote or change.`,
             h1: 'Contact RELOQ Moving Services',
             type: 'ContactPage',
             sections: [
@@ -143,7 +185,7 @@ function pages() {
         },
         '/terms': {
             title: 'Terms of Service — RELOQ Moving Services',
-            description: 'Terms of Service for booking moves and deliveries with RELOQ Moving Services: payments, labor billing, cancellations and liability.',
+            description: 'Terms of Service for RELOQ Moving Services bookings: payment at booking, labor billed after the job, cancellations and liability.',
             h1: 'Terms of Service',
             type: 'WebPage',
             sections: [
@@ -158,7 +200,7 @@ function pages() {
         },
         '/privacy': {
             title: 'Privacy Policy — RELOQ Moving Services',
-            description: 'How RELOQ Moving Services collects and uses personal data when you book a move: account, addresses, item details, photos and payments.',
+            description: 'How RELOQ Moving Services uses your data when you book a move: account, addresses, items, photos and payments. Card data stays with Stripe.',
             h1: 'Privacy Policy',
             type: 'WebPage',
             sections: [
@@ -278,6 +320,14 @@ export function jsonLd(base, path, page) {
             url: `${base}/`
         }
     ];
+    const faq = (page.sections || []).flatMap((sec) => sec.faq || []);
+    if (faq.length) {
+        graph.push({
+            '@type': 'FAQPage',
+            '@id': `${base}${path}#faq`,
+            mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } }))
+        });
+    }
     return { '@context': 'https://schema.org', '@graph': graph };
 }
 
@@ -292,7 +342,8 @@ function bodyHtml(page) {
         if (s.heading) parts.push(`<h2>${esc(s.heading)}</h2>`);
         for (const p of s.paragraphs || []) parts.push(`<p>${esc(p)}</p>`);
         if (s.list?.length) parts.push(`<ul>${s.list.map((li) => `<li>${esc(li)}</li>`).join('')}</ul>`);
-        if (s.links?.length) parts.push(`<p class="ssr-links">${s.links.map(linkHtml).join(' · ')}</p>`);
+        for (const [q, a] of s.faq || []) parts.push(`<h3>${esc(q)}</h3>\n<p>${esc(a)}</p>`);
+        if (s.links?.length) parts.push(`<ul class="ssr-links">${s.links.map((l) => `<li>${linkHtml(l)}</li>`).join('')}</ul>`);
         parts.push('</section>');
     }
     return `<main class="ssr-page">${parts.join('\n')}</main>`;
@@ -345,6 +396,7 @@ function pageMarkdown(page, base) {
         if (s.heading) out.push(`## ${s.heading}`, '');
         for (const p of s.paragraphs || []) out.push(p, '');
         if (s.list?.length) out.push(...s.list.map((li) => `- ${li}`), '');
+        for (const [q, a] of s.faq || []) out.push(`### ${q}`, '', a, '');
         if (s.links?.length) out.push(...s.links.map(([t, h]) => `- [${t}](${abs(h)})`), '');
     }
     return out.join('\n');
