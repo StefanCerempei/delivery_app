@@ -88,6 +88,7 @@ export const api = {
         request(`/admin/orders/${encodeURIComponent(code)}/driver`, { method: 'PATCH', body: { driverId, resend } }),
 
     adminRevenue: (from, to) => request(`/admin/revenue?from=${from}&to=${to}`),
+    adminUpdateOrder: (code, changes) => request(`/admin/orders/${encodeURIComponent(code)}`, { method: 'PATCH', body: changes }),
     adminLabor: (code, action, extra = {}) =>
         request(`/admin/orders/${encodeURIComponent(code)}/labor`, { method: 'POST', body: { action, ...extra } }),
     // Ore / zile blocate (slot '*' = toată ziua)

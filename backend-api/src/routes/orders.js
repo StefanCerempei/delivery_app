@@ -65,8 +65,8 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
 
-/** „Sat, Nov 14 • 10:00 AM – 11:00 AM” */
-function scheduleLabel(day, slot) {
+/** „Sat, Nov 14 • 10:00 AM – 11:00 AM” (folosit și la editarea comenzii din dispecerat) */
+export function scheduleLabel(day, slot) {
     const h = Number(slot.slice(0, 2));
     return `${WEEKDAYS[day.getUTCDay()]}, ${MONTHS[day.getUTCMonth()]} ${day.getUTCDate()} • ${hourLabel(h)} – ${hourLabel(h + 2)}`;
 }

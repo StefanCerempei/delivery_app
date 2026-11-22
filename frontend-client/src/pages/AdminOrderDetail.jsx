@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatMoney } from '../utils/formatters';
 import { api, orderPhotoUrl } from '../api/client';
 import PhotoGallery from '../components/PhotoGallery';
+import AdminOrderEditor from './AdminOrderEditor';
 import { PageLoader } from '../components/Spinner';
 import { STATUS_LABELS } from './AdminDashboard';
 import { describeDetails } from '../components/LocationDetails';
@@ -164,6 +165,10 @@ const AdminOrderDetail = () => {
     const [driverChoice, setDriverChoice] = useState('');
     const [driverMsg, setDriverMsg] = useState('');
 
+    // Editarea comenzii (adrese, dată / oră, vehicul, obiecte)
+    const [editing, setEditing] = useState(false);
+    const [editMsg, setEditMsg] = useState('');
+
     // Note interne
     const [notes, setNotes] = useState('');
     const [notesMsg, setNotesMsg] = useState('');
@@ -295,8 +300,36 @@ const AdminOrderDetail = () => {
                     <h1>{order.id}</h1>
                     <span className="record-sub">Created {new Date(order.createdAt).toLocaleString('en-US')}</span>
                 </div>
-                <span className={`status-badge ${order.status}`}>{STATUS_LABELS[order.status] || order.status}</span>
+                <div className="record-header-right">
+                    <span className={`status-badge ${order.status}`}>{STATUS_LABELS[order.status] || order.status}</span>
+                    {!editing && !['completed', 'cancelled'].includes(order.status) && (
+                        <button className="crm-ghost-btn" onClick={() => (setEditing(true), setEditMsg(''))}>
+                            ✏️ Edit order
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {editing && (
+                <AdminOrderEditor
+                    order={order}
+                    onCancel={() => setEditing(false)}
+                    onSaved={({ order: updated, changes, priceChange }) => {
+                        applyOrder(updated, { keepNotes: true });
+                        setEditing(false);
+                        setEditMsg(
+                            changes?.length
+                                ? `Saved: ${changes.join(', ')}.${
+                                      priceChange && !priceChange.applied
+                                          ? ` New price estimate ${formatMoney(priceChange.estimated)} vs paid ${formatMoney(priceChange.current)} — settle the difference manually.`
+                                          : ''
+                                  }`
+                                : 'No changes.'
+                        );
+                    }}
+                />
+            )}
+            {editMsg && <p className="driver-msg edit-msg">{editMsg}</p>}
 
             <div className="record-actions">
                 <span className="record-actions-label">Set status</span>

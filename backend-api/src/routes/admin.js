@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
-import { statusSchema, driverSchema, assignDriverSchema, parseBody } from '../validation.js';
+import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, parseBody } from '../validation.js';
+import { getTrip, priceFor, priceLines } from '../pricing.js';
+import { scheduleLabel } from './orders.js';
+import { businessTodayUTC } from '../time.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from '../orders.js';
-import { notifyStatusChange, notifyOrderConfirmed, notifyDriverAssigned, notifyDriverRemoved } from '../emails.js';
+import { notifyStatusChange, notifyOrderConfirmed, notifyDriverAssigned, notifyDriverRemoved, notifyOrderUpdated } from '../emails.js';
 import { waitForMail } from '../mailer.js';
 import { slotTakenByOther, blockedSlots } from '../slots.js';
 import { ensureDriverToken, jobUrl, stampStatus, sendDriverReminders, tomorrowDate } from '../jobs.js';
@@ -54,6 +57,119 @@ router.get('/orders/:code', async (req, res) => {
     const order = await loadOrder(req.params.code);
     if (!order) return res.status(404).json({ error: 'Order not found.' });
     res.json({ order });
+});
+
+/**
+ * PATCH /admin/orders/:code — dispecerul modifică comanda: adrese (+ etaj / lift / acces), data și ora,
+ * vehiculul, obiectele. Traseul se recalculează; prețul se recalculează doar dacă nu s-a plătit online
+ * (altfel se întoarce doar estimarea nouă, iar diferența se reglează manual).
+ */
+router.patch('/orders/:code', async (req, res) => {
+    const data = parseBody(adminOrderUpdateSchema, req, res);
+    if (!data) return;
+    const [rows] = await pool.query('SELECT * FROM orders WHERE code = ?', [req.params.code]);
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Order not found.' });
+    if (['completed', 'cancelled'].includes(row.status)) {
+        return res.status(409).json({ error: 'Completed or cancelled orders can’t be edited.' });
+    }
+
+    const sets = [];
+    const params = [];
+    const changes = [];
+    const set = (column, value) => {
+        sets.push(`${column} = ?`);
+        params.push(value);
+    };
+    const near = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
+
+    let pickup = { address: row.pickup_address, lat: Number(row.pickup_lat), lng: Number(row.pickup_lng) };
+    let dropoff = { address: row.dropoff_address, lat: Number(row.dropoff_lat), lng: Number(row.dropoff_lng) };
+    let routeChanged = false;
+    for (const [key, label] of [['pickup', 'pickup address'], ['dropoff', 'drop-off address']]) {
+        const loc = data[key];
+        const cur = key === 'pickup' ? pickup : dropoff;
+        if (loc && (loc.address !== cur.address || !near(loc.lat, cur.lat) || !near(loc.lng, cur.lng))) {
+            set(`${key}_address`, loc.address);
+            set(`${key}_lat`, loc.lat);
+            set(`${key}_lng`, loc.lng);
+            if (key === 'pickup') pickup = loc;
+            else dropoff = loc;
+            routeChanged = true;
+            changes.push(label);
+        }
+    }
+    for (const [key, column, label] of [['pickupDetails', 'pickup_details', 'pickup details'], ['dropoffDetails', 'dropoff_details', 'drop-off details']]) {
+        if (data[key] === undefined) continue;
+        const json = data[key] ? JSON.stringify(data[key]) : null;
+        if (json !== (row[column] || null)) {
+            set(column, json);
+            changes.push(label);
+        }
+    }
+
+    if (data.schedule) {
+        const day = parseDateOnly(data.schedule.date);
+        if (!day) return res.status(400).json({ error: 'Pick a valid date.' });
+        if (day < businessTodayUTC()) return res.status(400).json({ error: 'The new date is in the past.' });
+        const scheduledFor = `${data.schedule.date} ${data.schedule.slot}:00`;
+        const current = row.scheduled_for ? new Date(row.scheduled_for).toISOString().slice(0, 16).replace('T', ' ') : null;
+        if (current !== scheduledFor.slice(0, 16)) {
+            const other = await slotTakenByOther(row.id, scheduledFor);
+            if (other) return res.status(409).json({ error: `That arrival window is already booked by order ${other}.` });
+            set('schedule_type', 'scheduled');
+            set('scheduled_for', scheduledFor);
+            set('schedule_label', scheduleLabel(day, data.schedule.slot));
+            changes.push('arrival window');
+        }
+    }
+
+    const vehicle = data.vehicle || row.vehicle;
+    if (data.vehicle && data.vehicle !== row.vehicle) {
+        set('vehicle', data.vehicle);
+        routeChanged = true;
+        changes.push('vehicle');
+    }
+    if (data.itemsDescription !== undefined && data.itemsDescription !== row.items_description) {
+        set('items_description', data.itemsDescription);
+        changes.push('items');
+    }
+
+    // Traseu / vehicul schimbat: distanța, timpii și tariful de manoperă se recalculează
+    let priceChange = null;
+    if (routeChanged) {
+        const trip = await getTrip(pickup, dropoff);
+        const price = priceFor(vehicle, trip);
+        set('distance_miles', trip.distanceMiles);
+        set('duration_mins', trip.durationMins);
+        set('outbound_mins', trip.outboundMins);
+        set('return_mins', trip.returnMins);
+        if (!row.labor_status || row.labor_status === 'none') set('labor_cents_per_min', price.laborCentsPerMin);
+        // Plătit online (sau plata online pornită): suma plătită rămâne; altfel prețul se actualizează
+        const applied = !row.paid_at && !row.stripe_payment_intent_id && !row.paypal_capture_id;
+        if (applied) {
+            set('base_fare_cents', price.serviceFeeCents);
+            set('distance_cost_cents', price.transportationCents);
+            set('time_cost_cents', price.reservationFeeCents);
+            set('total_cents', price.totalCents);
+            set('pricing_version', 2);
+        }
+        priceChange = { current: row.total_cents / 100, estimated: priceLines(price).total, applied };
+    }
+
+    if (!sets.length) return res.json({ order: await loadOrder(req.params.code), changes: [], priceChange });
+    await pool.query(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`, [...params, row.id]);
+
+    let order = await loadOrder(req.params.code);
+    if (data.notify && changes.length && !['pending_payment'].includes(order.status)) {
+        const mails = [notifyOrderUpdated(order, changes)];
+        if (order.driver?.notifiedAt) {
+            order.jobUrl = jobUrl(await ensureDriverToken(order.id));
+            mails.push(notifyDriverAssigned(order, { updated: true }));
+        }
+        await waitForMail(Promise.all(mails));
+    }
+    res.json({ order, changes, priceChange });
 });
 
 /** Verifică șoferul ales; întoarce mesajul de eroare sau null. */

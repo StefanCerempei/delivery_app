@@ -114,6 +114,24 @@ export const createOrderSchema = z.object({
     photosCount: z.number().int().min(0).max(5).default(0)
 });
 
+/** Editarea unei comenzi din dispecerat: doar câmpurile trimise se schimbă. */
+export const adminOrderUpdateSchema = z.object({
+    pickup: locationSchema.optional(),
+    dropoff: locationSchema.optional(),
+    pickupDetails: locationDetailsSchema.nullable().optional(),
+    dropoffDetails: locationDetailsSchema.nullable().optional(),
+    schedule: z
+        .object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'Pick a valid date.' }),
+            slot: z.enum(ALLOWED_SLOTS, { error: 'Pick a valid arrival window.' })
+        })
+        .optional(),
+    vehicle: z.enum(Object.keys(VEHICLES)).optional(),
+    itemsDescription: z.string().trim().min(2, 'Please describe the items.').max(2000).optional(),
+    // anunță clientul și șoferul alocat despre modificări
+    notify: z.boolean().optional().default(true)
+});
+
 export const statusSchema = z.object({
     status: z.enum(['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled']),
     // Opțional: șoferul ales odată cu confirmarea (null = fără șofer)

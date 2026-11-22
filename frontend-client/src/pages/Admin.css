@@ -1010,3 +1010,20 @@ a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: no
 .schedule-day-block.on { border-style: solid; border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
 .schedule-day-block:disabled, .schedule-slot-toggle:disabled { opacity: 0.5; cursor: default; }
 .schedule-notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(250, 204, 21, 0.08); color: #fde68a; font-size: 13px; }
+
+/* ===== Editarea comenzii ===== */
+.record-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.order-edit { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; border-color: var(--accent-ring); }
+.order-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.order-edit-stop { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.crm-field-label { font-size: 12px; color: var(--muted); }
+.order-edit-address { position: relative; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.order-edit .address-dropdown { left: -1px; right: -1px; }
+.order-edit-row { display: grid; grid-template-columns: 1fr 1.3fr 1.6fr; gap: 12px; }
+.order-edit-price { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.order-edit-price.warn { background: rgba(250, 204, 21, 0.08); color: #fde68a; }
+.order-edit-notify { font-size: 13px; }
+.edit-msg { margin: -8px 0 16px; }
+@media (max-width: 760px) {
+    .order-edit-grid, .order-edit-row { grid-template-columns: 1fr; }
+}

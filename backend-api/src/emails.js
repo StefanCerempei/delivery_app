@@ -307,18 +307,20 @@ function driverRows(order) {
 }
 
 /** Email către șofer: i-a fost alocată o comandă. */
-export function notifyDriverAssigned(order) {
+export function notifyDriverAssigned(order, { updated = false } = {}) {
     const driver = order.driver;
     if (!driver?.email) return Promise.resolve(false);
     const rows = driverRows(order);
     const firstName = driver.fullName?.split(' ')[0] || 'there';
     return sendMailInBackground({
         to: driver.email,
-        subject: `New job: ${order.scheduleText} — ${order.pickup?.address?.split(',')[0] || ''} (#${order.id})`,
+        subject: `${updated ? 'Updated job' : 'New job'}: ${order.scheduleText} — ${order.pickup?.address?.split(',')[0] || ''} (#${order.id})`,
         html: layout({
-            preheader: `You're scheduled for ${order.scheduleText}.`,
-            title: 'You have a new job',
-            intro: `Hi ${esc(firstName)}, dispatch assigned you to the job below for <strong>${esc(order.scheduleText)}</strong>. Please call the customer about 45 minutes before you arrive.`,
+            preheader: updated ? `Job details changed — ${order.scheduleText}.` : `You're scheduled for ${order.scheduleText}.`,
+            title: updated ? 'Your job was updated' : 'You have a new job',
+            intro: updated
+                ? `Hi ${esc(firstName)}, dispatch changed the job below. Please check the time, addresses and details before you go.`
+                : `Hi ${esc(firstName)}, dispatch assigned you to the job below for <strong>${esc(order.scheduleText)}</strong>. Please call the customer about 45 minutes before you arrive.`,
             body: `${detailsTable(rows)}${button(order.jobUrl, 'Open job page')}${button(directionsUrl(order), 'Open route in Google Maps')}
 ${order.jobUrl ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">On the job page, tap <strong>On my way</strong> when you leave and <strong>Arrived</strong> at the pickup to start the labor timer. Pause it for breaks and <strong>Stop</strong> when everything is delivered.</p>` : ''}
 ${link('/driver') ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">All your jobs: <a href="${esc(link('/driver'))}" style="color:${BRAND.gray}">${esc(link('/driver'))}</a></p>` : ''}
@@ -441,5 +443,26 @@ export function notifyLaborPaid(order) {
             body: detailsTable(rows)
         }),
         text: `We received your labor payment. Thank you!\n\n${orderText(order, rows)}`
+    });
+}
+
+/** Clientul: rezervarea a fost modificată de dispecerat. */
+export function notifyOrderUpdated(order, changes = []) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = orderRows(order).filter(([k]) =>
+        ['Order', 'Arrival window', 'Vehicle', 'Pickup', 'Drop-off', 'Pickup details', 'Drop-off details', 'Items'].includes(k)
+    );
+    const what = changes.length ? ` (${changes.join(', ')})` : '';
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Your booking was updated — ${order.scheduleText} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ booking was updated${what}.`,
+            title: 'Your booking was updated',
+            intro: `Hi ${esc(firstName)}, our team updated your booking${esc(what)}. Here are the current details. If something doesn't look right, reply to this email or call us.`,
+            body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}`
+        }),
+        text: `Your RELOQ booking was updated${what}.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
     });
 }
