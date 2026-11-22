@@ -90,7 +90,8 @@ function pages() {
             sections: [
                 {
                     paragraphs: [
-                        `RELOQ Moving Services is a licensed moving company based in ${COMPANY.city}, Massachusetts. Book a crew online: enter your pickup and drop-off addresses, choose your items and vehicle, pick a 2-hour arrival window from tomorrow onward and pay securely online.`,
+                        `Book movers and delivery online in Massachusetts with RELOQ Moving Services, a licensed moving and delivery company based in ${COMPANY.city}, MA. Book movers online in a few minutes: enter your pickup and drop-off addresses, choose your items and vehicle, pick a 2-hour arrival window from tomorrow onward and pay securely online.`,
+                        'From a single delivery of boxes or a TV to a full apartment move, our movers bring the right vehicle, straps and moving blankets.',
                         `Service area: ${SERVICE_AREA_LABEL}.`
                     ]
                 },
