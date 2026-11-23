@@ -20,7 +20,7 @@
     --text: #f1f4f8;
     --text-2: #c3cbd6;
     --muted: #8a949e; /* gri-ul din logo */
-    --faint: #5f6a78;
+    --faint: #7b8694; /* contrast ≥ 4.5:1 pe panel */
 
     /* Brand Reloq */
     --brand-red: #ff3f34;
