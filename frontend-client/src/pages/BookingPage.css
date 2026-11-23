@@ -30,8 +30,8 @@
     z-index: 800;
     pointer-events: none;
     background:
-        radial-gradient(120% 90% at 40% 50%, transparent 55%, rgba(10, 15, 24, 0.55) 100%),
-        linear-gradient(to left, rgba(10, 15, 24, 0.5), transparent 18%);
+        radial-gradient(120% 90% at 40% 50%, transparent 70%, rgba(10, 15, 24, 0.18) 100%),
+        linear-gradient(to left, rgba(10, 15, 24, 0.35), transparent 10%);
 }
 
 /* ================= HUD PESTE HARTĂ ================= */
@@ -941,6 +941,23 @@
     color: var(--accent);
 }
 
+/* Zile fără ferestre libere */
+.day-chip.full,
+.day-chip:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.slots-empty {
+    margin: 4px 0 0;
+    padding: 14px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-sm);
+    color: var(--text-2);
+    font-size: 14px;
+    text-align: center;
+}
+
 /* ================= PASUL 4: OBIECTE ================= */
 .quick-chips-wrap {
     display: flex;
@@ -1592,10 +1609,17 @@
         min-height: 240px;
         position: sticky;
         top: 0;
+        transition: height 0.3s ease;
+    }
+
+    /* Marcare pe hartă: harta ocupă ~75% din ecran, ca pinul să se pună ușor cu degetul */
+    .map-container.pin-mode {
+        height: 75vh;
+        height: 75dvh;
     }
 
     .map-container::after {
-        background: linear-gradient(to top, rgba(10, 15, 24, 0.7), transparent 35%);
+        background: linear-gradient(to top, rgba(10, 15, 24, 0.45), transparent 22%);
     }
 
     .map-floating-hud {
@@ -2095,3 +2119,379 @@
     line-height: 1.45;
 }
 
+
+.slot-taken-back {
+    align-self: flex-start;
+    margin: 4px 0 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ===== Detalii locație: etaj, lift, apartament, acces ===== */
+.loc-details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+}
+.loc-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.loc-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.loc-field > span,
+.loc-elevator > span {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+.loc-field select,
+.loc-field input {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    background-color: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+    color-scheme: dark;
+}
+.loc-field select.loc-empty { color: var(--muted); border-color: var(--accent-ring); }
+.loc-field select:focus,
+.loc-field input:focus { border-color: var(--accent); }
+.loc-elevator { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.loc-elevator > span { margin-right: 4px; }
+.loc-choice {
+    padding: 8px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.loc-choice.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.dropdown-approx { font-size: 11.5px; color: #facc15; }
+.recap-addr-details { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+/* ===== Marcarea exactă pe hartă ===== */
+.pin-banner {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    z-index: 950;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    padding: 10px 10px 10px 16px;
+    border: 1px solid var(--accent-ring);
+    border-radius: 14px;
+    background: rgba(14, 21, 33, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6);
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.4;
+}
+.pin-banner button {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-ink, #fff);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.map-container .leaflet-marker-draggable { cursor: grab; }
+
+.pin-control { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; }
+.pin-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.pin-btn:hover { color: var(--text); border-color: var(--accent-ring); }
+.pin-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.pin-warn { font-size: 12px; color: #facc15; }
+.pin-hint { font-size: 12px; color: var(--muted); }
+
+.address-dropdown li.address-use-typed { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; }
+.address-use-typed .dropdown-pin { font-size: 14px; }
+.address-use-typed-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-ring);
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .pin-banner { bottom: 34px; font-size: 12.5px; }
+}
+@media (max-width: 480px) {
+    .loc-row { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 8px; }
+    .loc-field select { padding-right: 6px; }
+}
+.uploader-preparing { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.address-dropdown li.outside-area { opacity: 0.55; cursor: not-allowed; }
+.address-dropdown li.outside-area:hover { background: transparent; }
+.dropdown-outside { font-size: 11.5px; font-weight: 600; color: var(--danger); }
+.pin-error { flex-basis: 100%; font-size: 12.5px; line-height: 1.45; color: var(--danger); }
+
+/* ================= DESIGN REFRESH (client) ================= */
+
+/* Bara fixă de jos: doar butonul principal. Gradientul nu mai prinde apăsările. */
+.step-footer {
+    padding-top: 14px;
+    padding-bottom: 16px;
+    gap: 0;
+    background: linear-gradient(to top, var(--panel) 70%, rgba(14, 21, 33, 0));
+    pointer-events: none;
+}
+.step-footer > * {
+    pointer-events: auto;
+}
+.step-footer.card-field-full {
+    pointer-events: auto;
+}
+.step-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0 24px;
+}
+.step-notes .legal-inline-links {
+    line-height: 2;
+}
+.step-notes .legal-inline-links a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 4px 2px;
+}
+.step-notes .legal-inline-links a:hover {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+/* Buton dezactivat: discret, nu o cutie mare goală */
+.step-footer .lugg-btn:disabled {
+    min-height: 50px;
+    background-color: var(--surface);
+    border-style: dashed;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* Etichete: font normal în loc de monospace cu majuscule */
+.picker-section-label,
+.loc-field > span,
+.loc-elevator > span {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--muted);
+}
+
+/* Zone de apăsare ≥ 44px */
+.swap-route-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+}
+.field-clear-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+}
+.field-clear-btn::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+}
+
+/* Hartă mai mică după pasul 1 (pe telefon), ca formularul să fie în prim-plan */
+@media (max-width: 860px) {
+    .map-container.map-compact:not(.pin-mode) {
+        height: 22vh;
+        min-height: 150px;
+    }
+}
+
+/* ===== Obiecte: căutare + categorii + grilă pe 2 coloane, fără scroll lateral ===== */
+.item-search {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    background-color: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+}
+.item-search:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.item-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.item-group-title {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.item-empty {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+}
+.item-groups .item-grid {
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-rows: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    padding: 0;
+}
+.item-groups .item-chip {
+    min-height: 48px;
+    border-radius: var(--r-md);
+    white-space: normal;
+    padding: 8px 10px;
+}
+.item-groups .chip-label {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.25;
+}
+.item-groups .chip-minus {
+    width: 30px;
+    height: 30px;
+    font-size: 17px;
+}
+
+/* ===== Vehicule: carduri compacte, insigna în colț ===== */
+.vehicles-list .vehicle-card {
+    padding: 14px;
+}
+.vehicle-badge.corner {
+    position: absolute;
+    top: -9px;
+    left: 14px;
+}
+.vehicle-name {
+    display: block;
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--text);
+}
+.vehicles-list .vehicle-icon-box {
+    width: 64px;
+    height: 48px;
+}
+.vehicles-list .vehicle-icon-box img {
+    width: 52px;
+}
+.vehicles-list .vehicle-price-col {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+}
+.vehicles-list .vehicle-desc {
+    animation: fadeUp 0.25s var(--ease) both;
+}
+
+/* ===== Preț: totalul în față, detaliile la cerere ===== */
+.price-summary-card {
+    border-style: solid;
+}
+.price-summary-card .price-total-row {
+    padding-top: 0;
+    align-items: center;
+}
+.price-summary-card .price-total-row small {
+    color: var(--muted);
+}
+.price-labor-line {
+    margin: 10px 0 0;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-2);
+}
+.price-labor-line strong {
+    color: var(--text);
+}
+.price-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    margin-top: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.price-toggle-chev {
+    display: inline-block;
+    font-size: 18px;
+    transition: transform 0.2s var(--ease);
+}
+.price-toggle-chev.open {
+    transform: rotate(90deg);
+}
+.price-summary-card .price-rows {
+    margin-top: 6px;
+    padding-top: 12px;
+    padding-bottom: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: none;
+}
+.price-labor-detail {
+    margin: 4px 0 0;
+}

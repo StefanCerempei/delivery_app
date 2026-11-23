@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { setDriverCookie, publicDriver } from '../driverAuth.js';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { setSessionCookie, clearSessionCookie, publicUser, requireAuth } from '../auth.js';
@@ -64,6 +65,17 @@ router.post('/login', authLimiter, async (req, res) => {
     const ok = await bcrypt.compare(data.password, user?.password_hash || DUMMY_HASH);
 
     if (!user || !ok) {
+        // Un șofer care folosește pagina de login a clienților: îl ducem în panoul lui (/driver)
+        if (!user) {
+            const [drivers] = await pool.query('SELECT * FROM drivers WHERE email = ? AND active = 1 AND password_hash IS NOT NULL', [
+                data.email
+            ]);
+            if (drivers[0] && (await bcrypt.compare(data.password, drivers[0].password_hash))) {
+                await pool.query('UPDATE drivers SET last_login_at = UTC_TIMESTAMP() WHERE id = ?', [drivers[0].id]);
+                setDriverCookie(res, drivers[0]);
+                return res.json({ driver: publicDriver(drivers[0]), redirect: '/driver' });
+            }
+        }
         return res.status(401).json({ error: 'Incorrect email or password.' });
     }
 

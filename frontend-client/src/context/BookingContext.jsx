@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '../api/client';
+import { storePhotos, loadStoredPhotos, clearStoredPhotos } from '../utils/photos';
 
 // Parametrul pus în return_url când Stripe trimite clientul pe alt site (ex. Amazon Pay).
 // La întoarcere verificăm plata pe server și arătăm pagina de succes.
@@ -18,6 +19,9 @@ const EMPTY_BOOKING = {
     priceEstimate: null, // estimarea de la server pentru vehiculul ales
     items: [], // [{ id, label, size, qty }] alese din catalog
     itemsNotes: '', // note de acces opționale
+    // Etaj, lift, apartament, note de acces — pentru fiecare adresă
+    pickupDetails: { unit: '', floor: '', elevator: null, notes: '' },
+    dropoffDetails: { unit: '', floor: '', elevator: null, notes: '' },
     scheduledTime: null, // { dateStr, slotId, dateLabel, slotLabel } — doar programat, de mâine încolo
     itemsDescription: '',
     photos: []
@@ -66,6 +70,8 @@ function clearDraft() {
 }
 
 export const BookingProvider = ({ children }) => {
+    // Pozele (fișiere) nu încap în sessionStorage: le păstrăm separat, în IndexedDB
+    const photosRestored = useRef(false);
     const draft = readDraft();
     const [currentStep, setCurrentStep] = useState(draft?.step || 1);
     const [completedOrder, setCompletedOrderState] = useState(null);
@@ -74,6 +80,8 @@ export const BookingProvider = ({ children }) => {
         new URLSearchParams(window.location.search).get(PAYMENT_RETURN_PARAM) ? 'checking' : null
     );
     const [paymentNotice, setPaymentNotice] = useState('');
+    // Marcarea exactă pe hartă: 'pickup' | 'dropoff' | null (pinul se poate trage / harta atinsă)
+    const [pinMode, setPinMode] = useState(null);
 
     // Contul vine din AuthContext (global în aplicație)
     const { user, authChecked, registerUser, loginUser, logoutUser } = useAuth();
@@ -82,15 +90,32 @@ export const BookingProvider = ({ children }) => {
         if (!completedOrder) writeDraft(currentStep, bookingData);
     }, [currentStep, bookingData, completedOrder]);
 
-    const updateBookingData = useCallback((newData) => {
-        setBookingData((prev) => ({ ...prev, ...newData }));
+    // La deschidere: pozele alese înainte de o reîncărcare a paginii
+    useEffect(() => {
+        loadStoredPhotos().then((list) => {
+            if (list.length) setBookingData((prev) => (prev.photos?.length ? prev : { ...prev, photos: list }));
+            photosRestored.current = true;
+        });
     }, []);
 
-    const nextStep = () => setCurrentStep((p) => Math.min(p + 1, 5));
+    useEffect(() => {
+        if (photosRestored.current) storePhotos(bookingData.photos || []);
+    }, [bookingData.photos]);
+
+    // Primește un obiect sau o funcție (prev) => obiect, pentru actualizări care depind de starea curentă
+    const updateBookingData = useCallback((newData) => {
+        setBookingData((prev) => ({ ...prev, ...(typeof newData === 'function' ? newData(prev) : newData) }));
+    }, []);
+
+    const nextStep = () => {
+        setPinMode(null);
+        setCurrentStep((p) => Math.min(p + 1, 5));
+    };
     const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 1));
 
     const setCompletedOrder = (order) => {
         clearDraft();
+        clearStoredPhotos();
         setCompletedOrderState(order);
     };
 
@@ -126,6 +151,7 @@ export const BookingProvider = ({ children }) => {
     const resetBooking = () => {
         bookingData.photos?.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
         clearDraft();
+        clearStoredPhotos();
         setCurrentStep(1);
         setCompletedOrderState(null);
         setBookingData(EMPTY_BOOKING);
@@ -136,6 +162,8 @@ export const BookingProvider = ({ children }) => {
             value={{
                 currentStep,
                 setCurrentStep,
+                pinMode,
+                setPinMode,
                 nextStep,
                 prevStep,
                 bookingData,

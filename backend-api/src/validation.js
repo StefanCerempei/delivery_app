@@ -78,9 +78,27 @@ export const estimateSchema = z.object({
     dropoff: locationSchema
 });
 
+// Etajul la adresă: parter / casă, subsol sau etajul 2…10+ (cum se spune în SUA: „2nd floor”)
+export const FLOORS = ['ground', 'basement', '2', '3', '4', '5', '6', '7', '8', '9', '10+'];
+
+/** Detalii despre locație: apartament / unitate, etaj, lift, note de acces. */
+export const locationDetailsSchema = z
+    .object({
+        unit: z.string().trim().max(40).optional().default(''),
+        floor: z.enum(FLOORS, { error: 'Please choose the floor.' }),
+        // obligatoriu când nu e parter / casă
+        elevator: z.enum(['yes', 'no']).nullable().optional().default(null),
+        notes: z.string().trim().max(300).optional().default('')
+    })
+    .refine((d) => d.floor === 'ground' || d.elevator, { error: 'Please tell us if there is an elevator.', path: ['elevator'] })
+    .transform((d) => ({ ...d, elevator: d.floor === 'ground' ? null : d.elevator }));
+
 export const createOrderSchema = z.object({
     pickup: locationSchema,
     dropoff: locationSchema,
+    // Opționale pentru compatibilitate cu paginile deja deschise înainte de actualizare
+    pickupDetails: locationDetailsSchema.optional(),
+    dropoffDetails: locationDetailsSchema.optional(),
     vehicle: z.enum(Object.keys(VEHICLES)),
     // Doar rezervări programate (opțiunea „Now / ASAP” a fost scoasă)
     schedule: z.object(
@@ -96,8 +114,51 @@ export const createOrderSchema = z.object({
     photosCount: z.number().int().min(0).max(5).default(0)
 });
 
+/** Editarea unei comenzi din dispecerat: doar câmpurile trimise se schimbă. */
+export const adminOrderUpdateSchema = z.object({
+    pickup: locationSchema.optional(),
+    dropoff: locationSchema.optional(),
+    pickupDetails: locationDetailsSchema.nullable().optional(),
+    dropoffDetails: locationDetailsSchema.nullable().optional(),
+    schedule: z
+        .object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'Pick a valid date.' }),
+            slot: z.enum(ALLOWED_SLOTS, { error: 'Pick a valid arrival window.' })
+        })
+        .optional(),
+    vehicle: z.enum(Object.keys(VEHICLES)).optional(),
+    itemsDescription: z.string().trim().min(2, 'Please describe the items.').max(2000).optional(),
+    // anunță clientul și șoferul alocat despre modificări
+    notify: z.boolean().optional().default(true)
+});
+
 export const statusSchema = z.object({
-    status: z.enum(['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled'])
+    status: z.enum(['pending_payment', 'confirmed', 'paid', 'en_route', 'completed', 'cancelled']),
+    // Opțional: șoferul ales odată cu confirmarea (null = fără șofer)
+    driverId: z.number().int().positive().nullable().optional()
+});
+
+/** Șofer / angajat (dispecerat). Telefonul e liber (pot fi și numere din afara SUA). */
+export const driverSchema = z.object({
+    fullName: z.string().trim().min(2, 'Please enter the driver’s full name.').max(120),
+    email: emailField,
+    phone: z.string().trim().max(32).optional().nullable().transform((v) => v || null),
+    notes: z.string().trim().max(500).optional().nullable().transform((v) => v || null),
+    active: z.boolean().optional(),
+    // Parola de acces în panoul șoferului, setată de dispecer (gol = neschimbată)
+    password: z
+        .string()
+        .max(100)
+        .optional()
+        .nullable()
+        .transform((v) => (v ? v : undefined))
+        .refine((v) => v === undefined || v.length >= 8, { error: 'The driver password must have at least 8 characters.' })
+});
+
+export const assignDriverSchema = z.object({
+    driverId: z.number().int().positive().nullable(),
+    // Retrimite emailul chiar dacă e același șofer
+    resend: z.boolean().optional()
 });
 
 /** Rulează validarea și răspunde cu 400 dacă datele nu sunt bune. */

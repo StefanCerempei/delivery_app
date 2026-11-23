@@ -13,6 +13,19 @@ import { notifyNewOrder } from '../emails.js';
 import { syncOrderPayment, markOrderPaid } from '../payments.js';
 import { paypalEnabled, createPaypalOrder, capturePaypalOrder } from '../paypal.js';
 import { waitForMail } from '../mailer.js';
+import { takenSlots, withSlot, isBlocked } from '../slots.js';
+import { searchAddresses, reverseGeocode } from '../geocode.js';
+import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
+import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
+import { laborPaymentIntent, syncLaborPayment } from '../labor.js';
+
+/** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
+function outsideArea(data, res) {
+    const bad = ['pickup', 'dropoff'].filter((k) => !inServiceArea(data[k].lat, data[k].lng));
+    if (!bad.length) return false;
+    res.status(422).json({ error: OUTSIDE_AREA_MESSAGE, code: 'OUTSIDE_SERVICE_AREA', fields: bad });
+    return true;
+}
 
 const MAX_DAYS_AHEAD = 30;
 const DAY_MS = 24 * 3600e3;
@@ -29,6 +42,7 @@ router.post('/estimate', estimateLimiter, async (req, res) => {
     const data = parseBody(estimateSchema, req, res);
     if (!data) return;
 
+    if (outsideArea(data, res)) return;
     const route = await getTrip(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
@@ -51,8 +65,8 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
 
-/** „Sat, Nov 14 • 10:00 AM – 11:00 AM” */
-function scheduleLabel(day, slot) {
+/** „Sat, Nov 14 • 10:00 AM – 11:00 AM” (folosit și la editarea comenzii din dispecerat) */
+export function scheduleLabel(day, slot) {
     const h = Number(slot.slice(0, 2));
     return `${WEEKDAYS[day.getUTCDay()]}, ${MONTHS[day.getUTCMonth()]} ${day.getUTCDate()} • ${hourLabel(h)} – ${hourLabel(h + 2)}`;
 }
@@ -87,6 +101,49 @@ async function createPaymentIntent(params) {
     }
 }
 
+const geocodeLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60, standardHeaders: 'draft-7', legacyHeaders: false });
+
+/** GET /api/geocode?q=… — sugestii de adrese (registrul oficial al SUA + OpenStreetMap). */
+router.get('/geocode', geocodeLimiter, async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
+    if (q.length < 3) return res.json({ results: [] });
+    try {
+        res.json({ results: await searchAddresses(q) });
+    } catch (err) {
+        console.warn(`[reloq] Căutarea de adrese a eșuat: ${err.message}`);
+        res.status(503).json({ error: 'Address search is unavailable right now. Please try again.' });
+    }
+});
+
+/** GET /api/reverse-geocode?lat=…&lng=… — adresa pentru un pin pus manual pe hartă. */
+router.get('/reverse-geocode', geocodeLimiter, async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Invalid point.' });
+    try {
+        res.json({ result: await reverseGeocode(lat, lng) });
+    } catch (err) {
+        console.warn(`[reloq] Adresa pentru pin nu a putut fi găsită: ${err.message}`);
+        res.json({ result: null });
+    }
+});
+
+/**
+ * GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD — ferestrele deja rezervate,
+ * ca să nu mai poată fi alese de alți clienți. Nu conține nimic despre cine a rezervat.
+ */
+router.get('/availability', estimateLimiter, async (req, res) => {
+    const from = parseDateOnly(req.query.from);
+    const to = parseDateOnly(req.query.to);
+    if (!from || !to || to < from || (to - from) / DAY_MS > MAX_DAYS_AHEAD + 1) {
+        return res.status(400).json({ error: 'Invalid date range.' });
+    }
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const taken = await takenSlots(iso(from), iso(to), { exceptUserId: req.user?.id || null });
+    res.set('Cache-Control', 'no-store');
+    res.json({ taken });
+});
+
 /** POST /api/orders — creează comanda; prețul e recalculat aici. */
 router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => {
     const data = parseBody(createOrderSchema, req, res);
@@ -97,6 +154,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         return res.status(400).json({ error: 'Bookings are available from tomorrow onward. Please pick another date.' });
     }
 
+    if (outsideArea(data, res)) return;
     const route = await getTrip(data.pickup, data.dropoff);
     if (route.distanceMiles > MAX_DISTANCE_MILES) {
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
@@ -106,39 +164,60 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
     const id = crypto.randomUUID();
     let code = newOrderCode();
 
-    for (let attempt = 0; ; attempt++) {
-        try {
-            await pool.query(
-                `INSERT INTO orders (
-                    id, code, user_id, status,
-                    pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
-                    distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
-                    items_description, photos_count,
-                    base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
-                    pricing_version, outbound_mins, return_mins, labor_cents_per_min
-                ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?)`,
-                [
-                    id, code, req.user.id,
-                    data.pickup.address, data.pickup.lat, data.pickup.lng,
-                    data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
-                    route.distanceMiles, route.durationMins, data.vehicle,
-                    schedule.type, schedule.scheduledFor, schedule.label,
-                    data.itemsDescription, data.photosCount,
-                    // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
-                    // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
-                    price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
-                    config.currency,
-                    price.outboundMins, price.returnMins, price.laborCentsPerMin
-                ]
-            );
-            break;
-        } catch (err) {
-            if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
-                code = newOrderCode();
-                continue;
+    // Ora / ziua blocată de dispecer (ex. zi liberă): nu se poate rezerva
+    if (await isBlocked(schedule.scheduledFor)) {
+        return res.status(409).json({
+            error: 'Sorry, this arrival window is no longer available. Please pick another time.',
+            code: 'SLOT_TAKEN'
+        });
+    }
+
+    // O singură comandă pe fereastră: verificarea și salvarea se fac cu ora blocată.
+    const booked = await withSlot(schedule.scheduledFor, req.user.id, async (conn) => {
+        for (let attempt = 0; ; attempt++) {
+            try {
+                await conn.query(
+                    `INSERT INTO orders (
+                        id, code, user_id, status,
+                        pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
+                        distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
+                        items_description, photos_count,
+                        base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
+                        pricing_version, outbound_mins, return_mins, labor_cents_per_min,
+                        pickup_details, dropoff_details
+                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?)`,
+                    [
+                        id, code, req.user.id,
+                        data.pickup.address, data.pickup.lat, data.pickup.lng,
+                        data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
+                        route.distanceMiles, route.durationMins, data.vehicle,
+                        schedule.type, schedule.scheduledFor, schedule.label,
+                        // numărul real de poze se actualizează la încărcarea lor (/orders/:code/photos)
+                        data.itemsDescription, 0,
+                        // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
+                        // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
+                        price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
+                        config.currency,
+                        price.outboundMins, price.returnMins, price.laborCentsPerMin,
+                        data.pickupDetails ? JSON.stringify(data.pickupDetails) : null,
+                        data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null
+                    ]
+                );
+                break;
+            } catch (err) {
+                if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
+                    code = newOrderCode();
+                    continue;
+                }
+                throw err;
             }
-            throw err;
         }
+    });
+    if (!booked) {
+        return res.status(409).json({
+            error: 'Sorry, this arrival window was just booked by someone else. Please pick another time.',
+            code: 'SLOT_TAKEN'
+        });
     }
 
     let clientSecret = null;
@@ -236,6 +315,49 @@ router.post('/orders/:code/paypal/capture', requireAuth, paypalLimiter, async (r
             console.warn(`[reloq] Nu am putut anula PaymentIntent ${row.stripe_payment_intent_id}: ${err.message}`);
         });
     }
+    res.json({ order });
+});
+
+const photoLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+
+/** POST /api/orders/:code/photos — o poză (octeții imaginii în corp, Content-Type image/jpeg|png|webp). */
+router.post('/orders/:code/photos', requireAuth, photoLimiter, rawImageBody, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    if (['completed', 'cancelled'].includes(row.status)) {
+        return res.status(409).json({ error: 'Photos can no longer be added to this booking.' });
+    }
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        return res.status(400).json({ error: 'No photo received. Please try again.' });
+    }
+    const result = await savePhoto(row.id, req.body);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.status(201).json({ photoId: result.photoId });
+});
+
+/** GET /api/orders/:code/photos/:photoId — poza, pentru clientul comenzii sau dispecer. */
+router.get('/orders/:code/photos/:photoId', requireAuth, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    await sendPhoto(res, row.id, req.params.photoId);
+});
+
+/** POST /api/orders/:code/labor/intent — plata online a manoperei cerute după job. */
+router.post('/orders/:code/labor/intent', requireAuth, paypalLimiter, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    const result = await laborPaymentIntent(row, row.customer_email);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.json({ clientSecret: result.clientSecret, amount: row.labor_cents / 100, currency: row.currency });
+});
+
+/** POST /api/orders/:code/labor/confirm — verifică plata manoperei la Stripe. */
+router.post('/orders/:code/labor/confirm', requireAuth, async (req, res) => {
+    const row = await loadOwnOrder(req, res);
+    if (!row) return;
+    if (!stripe || !row.labor_payment_intent_id) return res.status(400).json({ error: 'No labor payment in progress.' });
+    const { order, paid, status } = await syncLaborPayment(row.labor_payment_intent_id);
+    if (!paid) return res.status(402).json({ error: 'The payment has not gone through yet.', status });
     res.json({ order });
 });
 

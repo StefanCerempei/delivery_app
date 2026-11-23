@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { api } from '../api/client';
+import { inServiceArea } from '../data/serviceArea';
 
 
-// Autocomplete cu Photon (OpenStreetMap): sugerează adrese pe măsură ce scrii.
-// Rezultatele sunt limitate la nord-estul SUA (raza de 300 mile din jurul Massachusetts)
-// și favorizează zona Ashland, MA.
+// Rezervă pentru căutare (dacă serverul nu răspunde): Photon (OpenStreetMap), direct din browser.
+// Zona deservită: Massachusetts, de la Worcester spre est; favorizăm zona Ashland, MA.
 const PHOTON_URL = 'https://photon.komoot.io/api/';
-const SERVICE_BBOX = '-80.6,38.8,-66.8,47.6'; // stânga, jos, dreapta, sus
+const SERVICE_BBOX = '-72.05,41.15,-69.75,42.95'; // stânga, jos, dreapta, sus
 const BIAS = { lat: 42.26, lon: -71.46 };
 
 /** „1 Beacon Street, Boston, MA 02108” din câmpurile Photon */
@@ -85,15 +86,24 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
                     lon: String(BIAS.lon),
                     bbox: SERVICE_BBOX
                 });
-                const res = await fetch(`${PHOTON_URL}?${params}`, { signal: controller.signal });
-                if (!res.ok) throw new Error(`Address search failed (${res.status})`);
-                const data = await res.json();
-                const seen = new Set();
-                const results = (data.features || [])
-                    .map(toSuggestion)
-                    .filter((s) => s.countrycode === 'US' && s.title && Number.isFinite(s.lat))
-                    .filter((s) => (seen.has(s.address) ? false : seen.add(s.address)))
-                    .slice(0, 5);
+                let results;
+                try {
+                    // Serverul caută în registrul oficial al SUA (numere de casă exacte) + OpenStreetMap
+                    ({ results } = await api.geocode(query.trim(), controller.signal));
+                } catch (err) {
+                    if (err.name === 'AbortError') throw err;
+                    // Rezervă: căutarea directă în OpenStreetMap, din browser
+                    const res = await fetch(`${PHOTON_URL}?${params}`, { signal: controller.signal });
+                    if (!res.ok) throw new Error(`Address search failed (${res.status})`);
+                    const data = await res.json();
+                    const seen = new Set();
+                    results = (data.features || [])
+                        .map(toSuggestion)
+                        .filter((s) => s.countrycode === 'US' && s.title && Number.isFinite(s.lat))
+                        .filter((s) => (seen.has(s.address) ? false : seen.add(s.address)))
+                        .slice(0, 5)
+                        .map((s) => ({ ...s, outside: !inServiceArea(s.lat, s.lng) }));
+                }
                 setSuggestions(results);
                 setSearchError('');
                 setSearched(true);
@@ -116,6 +126,7 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
     }, [query]);
 
     const handleSelectSuggestion = (item) => {
+        if (item.outside) return; // în afara zonei: nu se poate alege (mesajul e pe rând)
         skipNextSearch.current = true;
         const selectedLocation = { address: item.address, lat: item.lat, lng: item.lng };
         setQuery(item.address);
@@ -123,6 +134,44 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
         setIsOpen(false);
         onSelect(selectedLocation);
     };
+
+    // Adresa nu apare în sugestii: o folosim exact cum a fost scrisă. Poziția pe hartă e aproximată
+    // din cea mai apropiată potrivire (strada, apoi orașul); clientul o poate ajusta cu pinul.
+    const handleUseTyped = async () => {
+        const typed = query.trim();
+        skipNextSearch.current = true;
+        setSuggestions([]);
+        setIsOpen(false);
+
+        let guess = suggestions[0] || null;
+        if (!guess) {
+            setLoading(true);
+            const withoutNumber = typed.replace(/^\s*\d+[A-Za-z]?(-\d+)?\s+/, '');
+            const parts = typed.split(',').map((x) => x.trim()).filter(Boolean);
+            const tries = [withoutNumber, parts.slice(1).join(', '), parts[parts.length - 1]].filter(
+                (q, i, all) => q && q.length >= 3 && q !== typed && all.indexOf(q) === i
+            );
+            for (const q of tries) {
+                try {
+                    const { results } = await api.geocode(q);
+                    if (results?.[0]) {
+                        guess = results[0];
+                        break;
+                    }
+                } catch {
+                    break;
+                }
+            }
+            setLoading(false);
+        }
+        onSelect(
+            guess
+                ? { address: typed, lat: guess.lat, lng: guess.lng, approx: true }
+                : // nimic găsit: adresa rămâne, dar trebuie pus pinul pe hartă (altfel nu putem calcula traseul)
+                  { address: typed, lat: BIAS.lat, lng: BIAS.lon, approx: true, needsPin: true }
+        );
+    };
+    const canUseTyped = query.trim().length >= 6;
 
     const handleClear = () => {
         skipNextSearch.current = true;
@@ -161,21 +210,46 @@ const AddressInput = ({ name, label, placeholder, value, onSelect }) => {
 
             {isOpen && suggestions.length > 0 && (
                 <ul className="address-dropdown">
+                    {/* opțiunea „cum am scris” e la final, după sugestii */}
                     {suggestions.map((item) => (
-                        <li key={item.id} onClick={() => handleSelectSuggestion(item)}>
+                        <li
+                            key={item.id}
+                            className={item.outside ? 'outside-area' : ''}
+                            aria-disabled={item.outside || undefined}
+                            onClick={() => handleSelectSuggestion(item)}
+                        >
                             <span className="dropdown-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg></span>
                             <div className="dropdown-text">
                                 <strong>{item.title}</strong>
                                 {item.subtitle && <span>{item.subtitle}</span>}
+                                {item.outside ? (
+                                    <span className="dropdown-outside">Outside our service area</span>
+                                ) : (
+                                    item.approximate && <span className="dropdown-approx">Street found — pin placed on the street</span>
+                                )}
                             </div>
                         </li>
                     ))}
+                    {canUseTyped && (
+                        <li className="address-use-typed" onClick={handleUseTyped}>
+                            <span className="dropdown-pin">📍</span>
+                            <div className="dropdown-text">
+                                <strong>Not in the list? Use “{query.trim()}”</strong>
+                                <span>We’ll use your address as typed</span>
+                            </div>
+                        </li>
+                    )}
                 </ul>
             )}
 
             {isOpen && !loading && suggestions.length === 0 && (searched || searchError) && (
                 <div className="address-dropdown address-dropdown-empty" role="status">
-                    {searchError || 'No matching address. Try a street and town, e.g. “98 Mountain Gate Rd, Ashland”.'}
+                    {searchError || 'No matching address. Try the house number, street and town, e.g. “98 Mountain Gate Rd, Ashland, MA”.'}
+                    {canUseTyped && (
+                        <button type="button" className="address-use-typed-btn" onClick={handleUseTyped}>
+                            Use “{query.trim()}” as typed
+                        </button>
+                    )}
                 </div>
             )}
         </div>

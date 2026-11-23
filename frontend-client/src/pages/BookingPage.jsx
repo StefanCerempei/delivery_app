@@ -11,7 +11,7 @@ import BookingSuccess from '../features/booking/BookingSuccess';
 import './BookingPage.css';
 
 const BookingPage = () => {
-    const { currentStep, completedOrder, paymentReturn } = useBooking();
+    const { currentStep, completedOrder, paymentReturn, pinMode } = useBooking();
 
     const renderStep = () => {
         if (paymentReturn === 'checking') {
@@ -39,7 +39,8 @@ const BookingPage = () => {
 
     return (
         <div className="booking-layout">
-            <div className="map-container">
+            {/* Pe telefon harta se mărește (~75% din ecran) cât timp clientul pune pinul */}
+            <div className={`map-container ${pinMode ? 'pin-mode' : ''} ${currentStep > 1 && !completedOrder ? 'map-compact' : ''}`}>
                 <MapPreview />
             </div>
 

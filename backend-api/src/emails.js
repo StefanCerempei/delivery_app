@@ -1,5 +1,6 @@
 // Șabloanele emailurilor. Tot textul introdus de clienți e escapat (fără HTML injectat în emailuri).
 import { mailSettings, sendMailInBackground, sendMailNow } from './mailer.js';
+import { describeLocation } from './orders.js';
 
 const BRAND = {
     name: 'RELOQ Moving Services',
@@ -81,6 +82,18 @@ function layout({ preheader, title, intro, body }) {
 </body></html>`;
 }
 
+/** Rândurile cu detaliile unei locații (etaj, lift, acces), doar dacă au fost completate. */
+function stopRows(order) {
+    const rows = [];
+    for (const [key, label] of [['pickup', 'Pickup'], ['dropoff', 'Drop-off']]) {
+        const d = order[key]?.details;
+        if (!d) continue;
+        rows.push([`${label} details`, describeLocation(d)]);
+        if (d.notes) rows.push([`${label} access notes`, d.notes]);
+    }
+    return rows;
+}
+
 function orderRows(order, { forDispatcher = false } = {}) {
     const rows = [
         ['Order', `#${order.id}`],
@@ -88,6 +101,7 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ['Vehicle', `${order.vehicle?.name}${order.vehicle?.crewLabel ? ` (${order.vehicle.crewLabel})` : ''}`],
         ['Pickup', order.pickup?.address],
         ['Drop-off', order.dropoff?.address],
+        ...stopRows(order),
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
         ...(order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]),
@@ -98,7 +112,7 @@ function orderRows(order, { forDispatcher = false } = {}) {
     ];
     if (forDispatcher) {
         rows.splice(1, 0, ['Customer', order.customer?.fullName], ['Phone', order.customer?.phone], ['Email', order.customer?.email]);
-        rows.push(['Photos', order.photosCount ? `${order.photosCount} (not uploaded)` : '0']);
+        rows.push(['Photos', order.photosCount ? `${order.photosCount} — open the order in dispatch to see them` : 'None']);
     }
     return rows;
 }
@@ -264,5 +278,191 @@ export function notifyAccountDeleted({ to, fullName }) {
         subject: 'Your RELOQ account was deleted',
         html,
         text: `Your RELOQ account and personal details have been deleted. If this wasn't you, call ${BRAND.phone}.`
+    });
+}
+
+/** Link Google Maps cu traseul pickup → drop-off (se deschide în aplicația Maps pe telefon). */
+function directionsUrl(order) {
+    const q = (p) => encodeURIComponent(p?.address || `${p?.lat},${p?.lng}`);
+    return `https://www.google.com/maps/dir/?api=1&origin=${q(order.pickup)}&destination=${q(order.dropoff)}&travelmode=driving`;
+}
+
+/** Detaliile de care are nevoie șoferul (fără prețuri / plăți, cu contactul clientului). */
+function driverRows(order) {
+    return [
+        ['Order', `#${order.id}`],
+        ['Arrival window', order.scheduleText],
+        ['Vehicle', `${order.vehicle?.name}${order.vehicle?.crewLabel ? ` (${order.vehicle.crewLabel})` : ''}`],
+        ['Customer', order.customer?.fullName],
+        ['Customer phone', order.customer?.phone],
+        ['Pickup', order.pickup?.address],
+        ['Drop-off', order.dropoff?.address],
+        ...stopRows(order),
+        ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
+        ['Items', order.itemsDescription],
+        ['Labor rate', order.price?.labor ? `${order.price.labor.label} — from arrival at pickup to completion` : null],
+        ['Photos', order.photosCount ? `${order.photosCount} — on the job page` : null],
+        ['Dispatch notes', order.dispatchNotes || null]
+    ];
+}
+
+/** Email către șofer: i-a fost alocată o comandă. */
+export function notifyDriverAssigned(order, { updated = false } = {}) {
+    const driver = order.driver;
+    if (!driver?.email) return Promise.resolve(false);
+    const rows = driverRows(order);
+    const firstName = driver.fullName?.split(' ')[0] || 'there';
+    return sendMailInBackground({
+        to: driver.email,
+        subject: `${updated ? 'Updated job' : 'New job'}: ${order.scheduleText} — ${order.pickup?.address?.split(',')[0] || ''} (#${order.id})`,
+        html: layout({
+            preheader: updated ? `Job details changed — ${order.scheduleText}.` : `You're scheduled for ${order.scheduleText}.`,
+            title: updated ? 'Your job was updated' : 'You have a new job',
+            intro: updated
+                ? `Hi ${esc(firstName)}, dispatch changed the job below. Please check the time, addresses and details before you go.`
+                : `Hi ${esc(firstName)}, dispatch assigned you to the job below for <strong>${esc(order.scheduleText)}</strong>. Please call the customer about 45 minutes before you arrive.`,
+            body: `${detailsTable(rows)}${button(order.jobUrl, 'Open job page')}${button(directionsUrl(order), 'Open route in Google Maps')}
+${order.jobUrl ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">On the job page, tap <strong>On my way</strong> when you leave and <strong>Arrived</strong> at the pickup to start the labor timer. Pause it for breaks and <strong>Stop</strong> when everything is delivered.</p>` : ''}
+${link('/driver') ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">All your jobs: <a href="${esc(link('/driver'))}" style="color:${BRAND.gray}">${esc(link('/driver'))}</a></p>` : ''}
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Reply to this email or call dispatch at ${BRAND.phone} as soon as possible.</p>`
+        }),
+        text: `You have a new RELOQ job for ${order.scheduleText}.\n\n${orderText(order, rows)}\n\n${order.jobUrl ? `Job page (tap On my way / Arrived / Completed): ${order.jobUrl}\n` : ''}Route: ${directionsUrl(order)}\n\nPlease call the customer about 45 minutes before you arrive. Can't make it? Call dispatch at ${BRAND.phone}.`
+    });
+}
+
+/** Email către șofer: comanda i-a fost luată (realocată altcuiva sau anulată). */
+export function notifyDriverRemoved(order, driver, { cancelled = false } = {}) {
+    if (!driver?.email) return Promise.resolve(false);
+    const rows = driverRows(order).filter(([k]) => ['Order', 'Arrival window', 'Pickup', 'Drop-off'].includes(k));
+    const firstName = driver.fullName?.split(' ')[0] || 'there';
+    const title = cancelled ? 'Job cancelled' : 'Job removed from your schedule';
+    const why = cancelled ? 'this job was cancelled' : 'this job was reassigned';
+    return sendMailInBackground({
+        to: driver.email,
+        subject: `${title}: ${order.scheduleText} (#${order.id})`,
+        html: layout({
+            preheader: title,
+            title,
+            intro: `Hi ${esc(firstName)}, ${why}. You no longer need to go to it.`,
+            body: `${detailsTable(rows)}
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Questions? Call dispatch at ${BRAND.phone}.</p>`
+        }),
+        text: `${title}: ${why}. You no longer need to go to it.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone}`
+    });
+}
+
+/** Reamintirea de seară: joburile șoferului de mâine, în ordinea orelor. */
+export function notifyDriverReminder(driver, orders, date) {
+    if (!driver?.email || !orders.length) return Promise.resolve(false);
+    const firstName = driver.fullName?.split(' ')[0] || 'there';
+    const dayLabel = orders[0].scheduleText?.split(' • ')[0] || date;
+    const blocks = orders
+        .map(
+            (o, i) => `<h2 style="margin:24px 0 0;font-size:16px;color:#111827">${i + 1}. ${esc(o.scheduleText?.split(' • ')[1] || o.scheduleText)}</h2>
+${detailsTable(driverRows(o).filter(([k]) => k !== 'Arrival window'))}${button(o.jobUrl, 'Open job page')}`
+        )
+        .join('\n');
+    const text = orders
+        .map((o, i) => `${i + 1}. ${o.scheduleText}\n${orderText(o, driverRows(o))}${o.jobUrl ? `\nJob page: ${o.jobUrl}` : ''}\nRoute: ${directionsUrl(o)}`)
+        .join('\n\n');
+    return sendMailInBackground({
+        to: driver.email,
+        subject: `Tomorrow: ${orders.length} job${orders.length > 1 ? 's' : ''} — ${dayLabel}`,
+        html: layout({
+            preheader: `Your RELOQ schedule for ${dayLabel}.`,
+            title: `Your jobs for ${dayLabel}`,
+            intro: `Hi ${esc(firstName)}, here's your schedule for tomorrow (${orders.length} job${orders.length > 1 ? 's' : ''}). Please call each customer about 45 minutes before you arrive.`,
+            body: `${blocks}
+<p style="margin:20px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Can't make it? Call dispatch at ${BRAND.phone} as soon as possible.</p>`
+        }),
+        text: `Your RELOQ jobs for ${dayLabel}:\n\n${text}\n\nCan't make it? Call dispatch at ${BRAND.phone}.`
+    });
+}
+
+/** Linkul de autentificare în panoul șoferului (fără parolă). `invite`: trimis de dispecerat prima dată. */
+export function sendDriverLoginLink({ to, fullName, url, minutes, invite = false }) {
+    const firstName = String(fullName || '').trim().split(/\s+/)[0] || 'there';
+    const title = invite ? 'Your RELOQ driver account' : 'Log in to your RELOQ driver panel';
+    const html = layout({
+        preheader: invite ? 'Open your jobs on your phone' : 'Your login link',
+        title,
+        intro: invite
+            ? `Hi ${esc(firstName)}, dispatch created your RELOQ driver account. From your phone you can see today's and upcoming jobs, start the labor timer on site and mark jobs complete.`
+            : `Hi ${esc(firstName)}, tap the button below to open your RELOQ driver panel.`,
+        body: `${button(url, 'Open my driver panel')}
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">The link works once and expires in ${minutes} minutes. You'll stay logged in on this phone. Need a new link later? Go to ${esc(mailSettings.appUrl || '')}/driver and enter your email.</p>`
+    });
+    const text = `${title}\n\nOpen your driver panel: ${url}\n\nThe link works once and expires in ${minutes} minutes.`;
+    return sendMailNow({ to, subject: invite ? 'Your RELOQ driver account' : 'Your RELOQ driver login link', html, text });
+}
+
+/** Rândurile cu detaliile manoperei (timp, tarif, sumă). */
+function laborRows(order) {
+    const l = order.laborActual;
+    return [
+        ['Order', `#${order.id}`],
+        ['Move', order.scheduleText],
+        ['Labor time', l ? `${l.minutes} min${l.adjusted ? ' (reviewed by dispatch)' : ''}` : null],
+        ['Rate', order.price?.labor?.label || null],
+        ['Amount due', money2(order.laborBilling?.amount)]
+    ];
+}
+
+/** Cererea de plată pentru manoperă, după job. */
+export function notifyLaborPaymentRequest(order) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = laborRows(order);
+    const payUrl = link(`/account?pay=${encodeURIComponent(order.id)}`);
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Labor payment for your move — ${money2(order.laborBilling?.amount)} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ move is complete. Labor due: ${money2(order.laborBilling?.amount)}.`,
+            title: 'Thanks for moving with RELOQ',
+            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion (breaks not included).`,
+            body: `${detailsTable(rows)}${button(payUrl, `Pay ${money2(order.laborBilling?.amount)}`)}
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">You can pay by card, Apple Pay or Google Pay from your RELOQ account. Questions about the time? Reply to this email or call ${BRAND.phone}.</p>`
+        }),
+        text: `Your RELOQ move is complete.\n\n${orderText(order, rows)}\n\nPay here: ${payUrl || 'log in to your RELOQ account'}\n\nQuestions: ${BRAND.phone}`
+    });
+}
+
+/** Confirmare după plata online a manoperei (Stripe trimite separat chitanța). */
+export function notifyLaborPaid(order) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = laborRows(order).map(([k, v]) => (k === 'Amount due' ? ['Paid', v] : [k, v]));
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Payment received — thank you (#${order.id})`,
+        html: layout({
+            preheader: 'We received your labor payment.',
+            title: 'Payment received',
+            intro: `Hi ${esc(firstName)}, we received your labor payment. Thank you for choosing RELOQ!`,
+            body: detailsTable(rows)
+        }),
+        text: `We received your labor payment. Thank you!\n\n${orderText(order, rows)}`
+    });
+}
+
+/** Clientul: rezervarea a fost modificată de dispecerat. */
+export function notifyOrderUpdated(order, changes = []) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = orderRows(order).filter(([k]) =>
+        ['Order', 'Arrival window', 'Vehicle', 'Pickup', 'Drop-off', 'Pickup details', 'Drop-off details', 'Items'].includes(k)
+    );
+    const what = changes.length ? ` (${changes.join(', ')})` : '';
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Your booking was updated — ${order.scheduleText} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ booking was updated${what}.`,
+            title: 'Your booking was updated',
+            intro: `Hi ${esc(firstName)}, our team updated your booking${esc(what)}. Here are the current details. If something doesn't look right, reply to this email or call us.`,
+            body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}`
+        }),
+        text: `Your RELOQ booking was updated${what}.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
     });
 }

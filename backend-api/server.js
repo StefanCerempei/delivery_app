@@ -19,6 +19,10 @@ import orderRoutes from './src/routes/orders.js';
 import adminRoutes from './src/routes/admin.js';
 import accountRoutes from './src/routes/account.js';
 import stripeWebhookRoutes from './src/routes/stripeWebhook.js';
+import driverJobRoutes from './src/routes/driverJob.js';
+import driverPortalRoutes from './src/routes/driverPortal.js';
+import mcpRoutes, { serverCard } from './src/routes/mcp.js';
+import { classifyPath, baseUrl, renderHtml, renderMarkdown, robotsTxt, sitemapXml, llmsTxt } from './src/agentReady.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../frontend-client/dist');
@@ -120,9 +124,26 @@ app.get('/api/config', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api', orderRoutes);
+app.use('/api', driverJobRoutes);
+app.use('/api/driver', driverPortalRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'API route not found.' }));
+
+// ---- Pentru agenți (AI / motoare de căutare): robots, sitemap, llms.txt, MCP ----
+const publicCors = (req, res, next) => {
+    res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id' });
+    if (req.method === 'OPTIONS') return res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS').sendStatus(204);
+    next();
+};
+const sendText = (type, body) => (req, res) => res.type(type).set('Cache-Control', 'public, max-age=3600').send(body(baseUrl(req)));
+app.get('/robots.txt', sendText('text/plain; charset=utf-8', robotsTxt));
+app.get('/sitemap.xml', sendText('application/xml; charset=utf-8', sitemapXml));
+app.get('/llms.txt', publicCors, sendText('text/plain; charset=utf-8', llmsTxt));
+app.get(['/.well-known/mcp/server-card.json', '/.well-known/mcp.json'], publicCors, (req, res) => {
+    res.set('Cache-Control', 'public, max-age=3600').json(serverCard(baseUrl(req)));
+});
+app.use('/mcp', publicCors, mcpRoutes);
 
 // Site-ul React
 if (fs.existsSync(distDir)) {
@@ -133,13 +154,32 @@ if (fs.existsSync(distDir)) {
                 if (filePath.includes(`${path.sep}assets${path.sep}`)) {
                     res.set('Cache-Control', 'public, max-age=31536000, immutable');
                 }
+                // Aplicația șoferului: service worker-ul și manifestul trebuie verificate la fiecare deschidere
+                if (/((driver|admin)-sw\.js|\.webmanifest|pwa\.js)$/.test(filePath)) res.set('Cache-Control', 'no-cache');
+                if (filePath.endsWith('.webmanifest')) res.type('application/manifest+json');
             }
         })
     );
-    // Orice altă adresă (/admin/login etc.) încarcă aplicația React, care își face singură rutarea.
-    app.get(/.*/, (_req, res) => {
+    // Paginile aplicației: index.html cu titlu / descriere / canonical / JSON-LD și conținutul randat pe server
+    // (paginile publice), Markdown la `Accept: text/markdown`, 404 real pentru adresele care nu există.
+    let indexTemplate = null;
+    const template = () => (indexTemplate ??= fs.readFileSync(path.join(distDir, 'index.html'), 'utf8'));
+    app.get(/.*/, (req, res) => {
+        const pathname = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
+        const kind = classifyPath(pathname);
+        const base = baseUrl(req);
         res.set('Cache-Control', 'no-cache');
-        res.sendFile(path.join(distDir, 'index.html'));
+        res.set('Vary', 'Accept');
+        res.status(kind === 'missing' ? 404 : 200);
+        if (kind === 'public') {
+            const self = `${base}${pathname === '/' ? '/' : pathname}`;
+            res.set('Link', [`<${base}/llms.txt>; rel="describedby"; type="text/plain"`, `<${self}>; rel="alternate"; type="text/markdown"`, `<${base}/sitemap.xml>; rel="sitemap"; type="application/xml"`, `<${base}/.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"`].join(', '));
+        }
+        // Agenții care cer Markdown (și preferă Markdown față de HTML)
+        if (kind !== 'app' && req.accepts(['text/html', 'text/markdown']) === 'text/markdown') {
+            return res.type('text/markdown; charset=utf-8').send(renderMarkdown({ base, path: pathname, kind }));
+        }
+        res.type('html').send(renderHtml(template(), { base, path: pathname, kind }));
     });
 } else {
     app.get('/', (_req, res) => res.send('Reloq API is running. The frontend is not built (frontend-client/dist is missing).'));

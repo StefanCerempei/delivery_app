@@ -1,37 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import { stripePromise, stripeAppearance } from '../../utils/stripe';
 import { Link } from 'react-router-dom';
 import { useBooking, PAYMENT_RETURN_PARAM } from '../../context/BookingContext';
 import { VEHICLES } from '../../data/vehicles';
 import { formatPrice } from '../../utils/formatters';
 import { isValidEmail, isValidPhone, formatUsPhone } from '../../utils/validators';
-import { api, toLocation } from '../../api/client';
+import { api, toLocation, uploadOrderPhoto } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
+import { describeDetails } from '../../components/LocationDetails';
 import { useAuth } from '../../context/AuthContext';
 
-const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
+// Stripe și aspectul formularului: comune cu plata manoperei (utils/stripe.js)
 
-// Formularul Stripe preia aspectul aplicației.
-const stripeAppearance = {
-    theme: 'night',
-    variables: {
-        colorPrimary: '#ff3f34',
-        colorBackground: '#141c2a',
-        colorText: '#f1f4f8',
-        colorTextSecondary: '#8a949e',
-        colorDanger: '#ff7a7a',
-        borderRadius: '12px',
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-        spacingUnit: '4px'
-    },
-    rules: {
-        '.Input': { border: '1px solid rgba(255,255,255,0.13)', boxShadow: 'none' },
-        '.Input:focus': { border: '1px solid #ff3f34', boxShadow: '0 0 0 4px rgba(255,63,52,0.14)' }
-    }
-};
+/** Detaliile locației pentru server (lipsă = draft vechi, fără detalii). */
+function cleanDetails(d) {
+    if (!d?.floor) return undefined;
+    return {
+        unit: (d.unit || '').trim(),
+        floor: d.floor,
+        elevator: d.floor === 'ground' ? null : d.elevator,
+        notes: (d.notes || '').trim()
+    };
+}
 
 function schedulePayload(scheduledTime) {
     if (!scheduledTime || typeof scheduledTime !== 'object') return null;
@@ -44,10 +36,12 @@ function schedulePayload(scheduledTime) {
 }
 
 const Step5Pay = () => {
-    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder, paymentNotice, setPaymentNotice } =
+    const { bookingData, user, authChecked, registerUser, loginUser, logoutUser, setCompletedOrder, paymentNotice, setPaymentNotice, setCurrentStep } =
         useBooking();
 
     const [authMode, setAuthMode] = useState('register');
+    // Ora aleasă a fost rezervată între timp de alt client → buton înapoi la alegerea orei
+    const [slotTaken, setSlotTaken] = useState(false);
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [ageConfirmed, setAgeConfirmed] = useState(null);
@@ -62,6 +56,9 @@ const Step5Pay = () => {
     const [clientSecret, setClientSecret] = useState(null);
     const [orderError, setOrderError] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    // Încărcarea pozelor după crearea comenzii: { done, total } sau null
+    const [photoUpload, setPhotoUpload] = useState(null);
+    const [photoNotice, setPhotoNotice] = useState('');
     const { refresh } = useAuth();
     const verified = Boolean(user?.emailVerified);
 
@@ -121,15 +118,19 @@ const Step5Pay = () => {
 
         setIsCreating(true);
         setPaymentNotice('');
+        setSlotTaken(false);
         try {
             const res = await api.createOrder({
                 pickup: toLocation(bookingData.pickup),
                 dropoff: toLocation(bookingData.dropoff),
+                pickupDetails: cleanDetails(bookingData.pickupDetails),
+                dropoffDetails: cleanDetails(bookingData.dropoffDetails),
                 vehicle: bookingData.vehicle,
                 schedule,
                 itemsDescription: bookingData.itemsDescription,
                 photosCount: bookingData.photos?.length || 0
             });
+            await uploadPhotos(res.order.id);
             setOrder(res.order);
             if (res.clientSecret) {
                 setClientSecret(res.clientSecret);
@@ -138,9 +139,38 @@ const Step5Pay = () => {
             }
         } catch (err) {
             if (err.data?.code === 'EMAIL_NOT_VERIFIED') refresh();
+            if (err.data?.code === 'SLOT_TAKEN') setSlotTaken(true);
             setOrderError(err.message);
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    /** Trimite pozele alese la pasul cu obiectele. O poză eșuată nu oprește rezervarea. */
+    const uploadPhotos = async (code) => {
+        const photos = (bookingData.photos || []).filter((p) => p.blob || p.file);
+        setPhotoNotice('');
+        if (!photos.length) return;
+        let failed = 0;
+        setPhotoUpload({ done: 0, total: photos.length });
+        for (const [i, photo] of photos.entries()) {
+            try {
+                await uploadOrderPhoto(code, photo.blob || photo.file);
+            } catch {
+                // o a doua încercare (rețea mobilă instabilă)
+                try {
+                    await uploadOrderPhoto(code, photo.blob || photo.file);
+                } catch {
+                    failed += 1;
+                }
+            }
+            setPhotoUpload({ done: i + 1, total: photos.length });
+        }
+        setPhotoUpload(null);
+        if (failed) {
+            setPhotoNotice(
+                `${failed} of ${photos.length} photo${photos.length === 1 ? '' : 's'} couldn’t be uploaded. Your booking is fine — you can reply to the confirmation email with them.`
+            );
         }
     };
 
@@ -154,7 +184,7 @@ const Step5Pay = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>Account & Payment</h1>
-                <p className="subtitle">Create your RELOQ account for live crew tracking and complete your booking.</p>
+                <p className="subtitle">Sign in or create an account to confirm your booking.</p>
             </div>
 
             {/* 1. Rezumat comandă */}
@@ -172,11 +202,17 @@ const Step5Pay = () => {
                 <div className="recap-addresses">
                     <div className="recap-addr-line">
                         <span className="mini-dot blue" />
-                        <span>{bookingData.pickup?.address}</span>
+                        <span>
+                            {bookingData.pickup?.address}
+                            {describeDetails(bookingData.pickupDetails) && <small className="recap-addr-details">{describeDetails(bookingData.pickupDetails)}</small>}
+                        </span>
                     </div>
                     <div className="recap-addr-line">
                         <span className="mini-dot green" />
-                        <span>{bookingData.dropoff?.address}</span>
+                        <span>
+                            {bookingData.dropoff?.address}
+                            {describeDetails(bookingData.dropoffDetails) && <small className="recap-addr-details">{describeDetails(bookingData.dropoffDetails)}</small>}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -328,6 +364,7 @@ const Step5Pay = () => {
 
                 {clientSecret && stripePromise ? (
                     <>
+                        {photoNotice && <p className="form-inline-error">{photoNotice}</p>}
                         <PaymentMethodPicker
                             stripePromise={stripePromise}
                             appearance={stripeAppearance}
@@ -346,14 +383,27 @@ const Step5Pay = () => {
                 ) : (
                     <>
                         {(orderError || paymentNotice) && <p className="form-inline-error">{orderError || paymentNotice}</p>}
+                        {slotTaken && (
+                            <button type="button" className="slot-taken-back" onClick={() => setCurrentStep(4)}>
+                                ← Pick another arrival window
+                            </button>
+                        )}
                         <div className="step-footer">
-                            <Button onClick={handleCreateOrder} disabled={!user || !verified || isCreating || totalAmount == null}>
-                                {isCreating
+                            <Button
+                                onClick={handleCreateOrder}
+                                loading={isCreating}
+                                disabled={!user || !verified || totalAmount == null}
+                            >
+                                {photoUpload
+                                    ? `Uploading photos ${Math.min(photoUpload.done + 1, photoUpload.total)}/${photoUpload.total}…`
+                                    : isCreating
                                     ? 'Creating your booking…'
                                     : paymentsEnabled
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`
                                       : `Book RELOQ • ${formatPrice(totalAmount)}`}
                             </Button>
+                        </div>
+                        <div className="step-notes">
                             <p className="trust-note">
                                 {paymentsEnabled
                                     ? 'You pay the reservation fee, service fee and transportation now. '
@@ -363,7 +413,7 @@ const Step5Pay = () => {
                                 arrival to completion.
                             </p>
                             <p className="trust-note">
-                                Receipt and live tracking link will be sent to {user?.email || 'your email'}
+                                Your receipt and booking updates go to {user?.email || 'your email'}
                             </p>
                         </div>
                     </>

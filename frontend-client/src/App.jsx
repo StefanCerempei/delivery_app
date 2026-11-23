@@ -3,6 +3,9 @@ import BookingPage from './pages/BookingPage';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrderDetail from './pages/AdminOrderDetail';
+import DriverJobPage from './pages/DriverJobPage';
+import DriverPortal from './pages/DriverPortal';
+import { AboutPage, ContactPage } from './pages/CompanyPages';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import { BookingProvider } from './context/BookingContext';
@@ -11,12 +14,14 @@ import AuthPage from './pages/AuthPage';
 import AccountPage from './pages/AccountPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
+import GlobalLoadingBar from './components/GlobalLoadingBar';
 import './App.css';
 
 function App() {
     return (
         <Router>
             <AuthProvider>
+            <GlobalLoadingBar />
             <Routes>
                 {/* Fluxul Clientului */}
                 <Route
@@ -39,8 +44,15 @@ function App() {
                 {/* Pagini legale */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
 
                 {/* Zona de Administrare */}
+                <Route path="/job/:token" element={<DriverJobPage />} />
+                <Route path="/driver" element={<DriverPortal />} />
+                <Route path="/driver/login" element={<DriverPortal />} />
+                {/* aceeași pagină de job, dar în interiorul aplicației instalabile (scope /driver) */}
+                <Route path="/driver/job/:token" element={<DriverJobPage />} />
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />

@@ -34,7 +34,7 @@ const METHOD_LABELS = {
 const returnUrlFor = (order, param) => `${window.location.origin}/?${param}=${encodeURIComponent(order.id)}`;
 
 /** Confirmă plata la Stripe pe PaymentIntent-ul comenzii, apoi serverul verifică și marchează comanda. */
-function useConfirmPayment({ order, clientSecret, onPaid, returnParam }) {
+function useConfirmPayment({ order, clientSecret, onPaid, returnParam, confirmOnServer }) {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState('');
@@ -67,7 +67,7 @@ function useConfirmPayment({ order, clientSecret, onPaid, returnParam }) {
 
         try {
             // Serverul verifică la Stripe că plata chiar a intrat, abia apoi marchează comanda ca plătită.
-            const { order: updated } = await api.confirmPayment(order.id);
+            const { order: updated } = await (confirmOnServer || api.confirmPayment)(order.id);
             onPaid(updated);
         } catch (err) {
             setError(err.message);
@@ -95,7 +95,7 @@ const CARD_FIELD_OPTIONS = {
  * Plata cu cardul: câmpuri separate (număr / expirare / CVC), confirmate direct pe PaymentIntent.
  * Nu folosim Payment Element aici, ca să nu apară tab-urile Bank / Klarna sau Link.
  */
-const CardPanel = ({ order, clientSecret, onPaid }) => {
+const CardPanel = ({ order, clientSecret, onPaid, confirmOnServer }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState('');
@@ -117,7 +117,7 @@ const CardPanel = ({ order, clientSecret, onPaid }) => {
         }
 
         try {
-            const { order: updated } = await api.confirmPayment(order.id);
+            const { order: updated } = await (confirmOnServer || api.confirmPayment)(order.id);
             onPaid(updated);
         } catch (err) {
             setError(err.message);
@@ -173,7 +173,6 @@ const WalletPanel = ({ method, ...props }) => {
         return () => clearTimeout(timer);
     }, [method]);
 
-
     const handleReady = ({ availablePaymentMethods }) => {
         const shown = availablePaymentMethods && (method === 'amazonPay' || availablePaymentMethods[method] !== false);
         setStatus(shown ? 'ready' : 'unavailable');
@@ -220,7 +219,7 @@ const WalletPanel = ({ method, ...props }) => {
 
 /**
  * Metodele afișate: Card · Apple Pay · Google Pay · Amazon Pay (+ PayPal dacă e configurat), după dispozitiv:
- *   - Apple Pay doar pe dispozitive Apple (iPhone / iPad / Mac) — în altă parte nu poate funcționa;
+ *   - Apple Pay doar unde browserul îl are (window.ApplePaySession: Safari / iPhone / iPad / Mac);
  *   - Google Pay nu pe iPhone / iPad — acolo deschide un pop-up pe care Safari îl blochează (OR_BIBED_15).
  * Dacă metoda tot nu merge pe dispozitiv, panoul ei spune asta.
  */
@@ -228,15 +227,14 @@ function deviceKind() {
     const ua = navigator.userAgent || '';
     // iPadOS se prezintă ca „Macintosh”, dar are ecran tactil
     const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    const isApple = isIOS || /Macintosh|Mac OS X/.test(ua);
-    return { isIOS, isApple };
+    return { isIOS, hasApplePay: typeof window !== 'undefined' && Boolean(window.ApplePaySession) };
 }
 
 const methodsFor = (paypalClientId) => {
-    const { isIOS, isApple } = deviceKind();
+    const { isIOS, hasApplePay } = deviceKind();
     return [
         'card',
-        ...(isApple ? ['applePay'] : []),
+        ...(hasApplePay ? ['applePay'] : []),
         ...(!isIOS ? ['googlePay'] : []),
         'amazonPay',
         ...(paypalClientId ? ['paypal'] : [])
@@ -265,8 +263,16 @@ const MethodIcon = ({ method }) => {
     }
 }
 
-const PaymentMethodPicker = ({ stripePromise, appearance, order, clientSecret, paypalClientId, onPaid, returnParam }) => {
-    const methods = useMemo(() => methodsFor(paypalClientId), [paypalClientId]);
+/**
+ * `confirmOnServer(code)`: verificarea plății pe server (implicit plata rezervării; pentru manoperă alt endpoint).
+ * `exclude`: metode ascunse (ex. ['amazonPay', 'paypal'] la plata manoperei).
+ */
+const PaymentMethodPicker = ({ stripePromise, appearance, order, clientSecret, paypalClientId, onPaid, returnParam, confirmOnServer, exclude = [] }) => {
+    const excludeKey = exclude.join(',');
+    const methods = useMemo(
+        () => methodsFor(paypalClientId).filter((m) => !excludeKey.split(',').includes(m)),
+        [paypalClientId, excludeKey]
+    );
     const [selected, setSelected] = useState('card');
     const active = methods.includes(selected) ? selected : 'card';
 
@@ -286,7 +292,7 @@ const PaymentMethodPicker = ({ stripePromise, appearance, order, clientSecret, p
         [order.totalAmount, order.currency, active, appearance]
     );
 
-    const panelProps = { order, clientSecret, onPaid, returnParam };
+    const panelProps = { order, clientSecret, onPaid, returnParam, confirmOnServer };
 
     return (
         <div className="pm-picker">

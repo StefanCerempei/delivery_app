@@ -20,7 +20,7 @@
     --text: #f1f4f8;
     --text-2: #c3cbd6;
     --muted: #8a949e; /* gri-ul din logo */
-    --faint: #5f6a78;
+    --faint: #7b8694; /* contrast ≥ 4.5:1 pe panel */
 
     /* Brand Reloq */
     --brand-red: #ff3f34;
@@ -275,7 +275,7 @@ textarea {
 /* ================= Leaflet ================= */
 .leaflet-container {
     font-family: var(--font-body);
-    background: #0b111b !important;
+    background: #a3a3a1 !important;
 }
 
 .leaflet-control-attribution {
@@ -290,9 +290,9 @@ textarea {
     color: var(--muted) !important;
 }
 
-/* Hartă închisă, rece, cu contrast bun pentru traseul roșu */
+/* Hartă deschisă, estompată și ușor întunecată, ca să nu bată peste panoul închis */
 .leaflet-tile-pane {
-    filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%) saturate(35%);
+    filter: grayscale(40%) brightness(70%) contrast(92%) saturate(60%);
 }
 
 .custom-map-pin {
@@ -373,3 +373,129 @@ textarea {
     text-decoration: none;
     cursor: default;
 }
+
+/* ===== Încărcare: spinner, bară sus, loader de pagină ===== */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { flex-shrink: 0; animation: spin 0.8s linear infinite; }
+
+.global-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    height: 3px;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.global-loading-bar.visible { opacity: 1; }
+.global-loading-bar span {
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(90deg, transparent, var(--accent), #ff8a65);
+    box-shadow: 0 0 10px var(--accent);
+    animation: loading-slide 1.1s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+@keyframes loading-slide {
+    0% { left: -40%; width: 40%; }
+    60% { width: 55%; }
+    100% { left: 100%; width: 30%; }
+}
+
+.page-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 56px 16px;
+    color: var(--muted);
+    animation: loader-in 0.25s ease 0.15s both; /* nu apare deloc la încărcările foarte rapide */
+}
+.page-loader.compact { flex-direction: row; gap: 10px; padding: 22px 12px; }
+.page-loader-ring {
+    display: inline-flex;
+    padding: 12px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.page-loader.compact .page-loader-ring { padding: 0; background: none; }
+.page-loader-label { font-size: 14px; }
+@keyframes loader-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Butoane: spinner lângă text */
+.lugg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+.lugg-btn.is-loading { cursor: progress; }
+.lugg-btn.is-loading:disabled { opacity: 0.85; }
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 1.6s !important; animation-iteration-count: infinite !important; }
+    .global-loading-bar span { animation-duration: 2s !important; animation-iteration-count: infinite !important; }
+}
+
+/* ===== Galerie poze + vizualizare mare ===== */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.gallery-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+    cursor: zoom-in;
+}
+.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
+.gallery-thumb:hover img { transform: scale(1.04); }
+.gallery-broken { display: flex; align-items: center; justify-content: center; height: 100%; padding: 6px; font-size: 11px; color: var(--muted); text-align: center; }
+.gallery-empty { margin: 0; font-size: 13px; color: var(--muted); }
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 16px;
+    background: rgba(5, 8, 13, 0.94);
+    cursor: zoom-out;
+}
+.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; cursor: default; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.lightbox-close,
+.lightbox-nav {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: rgba(20, 28, 42, 0.8);
+    color: #fff;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+}
+.lightbox-close { top: 12px; right: 12px; }
+.lightbox-nav.prev { left: 12px; top: 50%; transform: translateY(-50%); }
+.lightbox-nav.next { right: 12px; top: 50%; transform: translateY(-50%); }
+.lightbox-count { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); color: #cbd2dc; font-size: 13px; font-family: var(--font-mono); }
+.lightbox-open { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: #cbd2dc; font-size: 13px; }
+
+/* ===== Instalare aplicație (PWA) ===== */
+.install-app { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border: 1px solid var(--accent-ring); border-radius: var(--r-lg, 16px); background: var(--surface); }
+.install-app img { flex-shrink: 0; border-radius: 10px; }
+.install-app-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.install-app-text strong { font-size: 14.5px; color: var(--text); }
+.install-app-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.install-btn { min-height: 40px; padding: 8px 16px; border: none; border-radius: 10px; background: var(--accent); color: var(--accent-ink, #fff); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.install-app-close { width: 32px; height: 32px; border: none; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+.install-copy { align-self: flex-start; margin-top: 6px; padding: 7px 12px; border: 1px solid var(--line-strong, var(--line)); border-radius: 10px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }

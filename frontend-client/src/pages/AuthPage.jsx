@@ -225,6 +225,11 @@ const AuthPage = ({ mode }) => {
             </div>
 
             <Link to="/" className="auth-back">← Back to booking</Link>
+            {!isSignup && (
+                <Link to="/driver" className="auth-back auth-driver-link">
+                    RELOQ driver? Log in to the driver panel →
+                </Link>
+            )}
         </div>
     );
 };

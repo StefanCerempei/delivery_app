@@ -41,22 +41,74 @@ function orderPrice(row, vehicle) {
     };
 }
 
+function parseDetails(raw) {
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+const ORDINAL = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10 > 3 || Math.floor((n % 100) / 10) === 1 ? 0 : n % 10] || 'th'}`;
+
+/** „Apt 4B · 3rd floor · no elevator” (+ notele de acces separat). */
+export function describeLocation(details) {
+    if (!details) return '';
+    const floor =
+        details.floor === 'ground'
+            ? 'Ground floor / house'
+            : details.floor === 'basement'
+              ? 'Basement'
+              : details.floor === '10+'
+                ? '10th floor or higher'
+                : details.floor
+                  ? `${ORDINAL(Number(details.floor))} floor`
+                  : '';
+    const elevator = details.floor && details.floor !== 'ground' ? (details.elevator === 'yes' ? 'elevator' : 'no elevator (stairs)') : '';
+    return [details.unit ? `Unit ${details.unit}` : '', floor, elevator].filter(Boolean).join(' · ');
+}
+
+/**
+ * Manopera reală: cronometrul pornit la sosire (Arrived) și oprit la final (Completed), fără pauze,
+ * rotunjită în sus la minut. Dispecerul poate corecta minutele (labor_minutes_override).
+ */
+export function laborActual(row) {
+    if (!row.labor_cents_per_min) return null;
+    let timed = null;
+    if (row.arrived_at && row.completed_at) {
+        const ms = new Date(row.completed_at) - new Date(row.arrived_at) - Number(row.labor_paused_secs || 0) * 1000;
+        if (ms > 0) timed = Math.ceil(ms / 60000);
+    }
+    const override = row.labor_minutes_override != null ? Number(row.labor_minutes_override) : null;
+    const minutes = override ?? timed;
+    if (minutes == null) return null;
+    return {
+        minutes,
+        timedMinutes: timed,
+        adjusted: override != null,
+        amount: cents(minutes * Number(row.labor_cents_per_min))
+    };
+}
+
 /** Transformă un rând din DB în obiectul trimis la frontend. */
-export function toOrderDto(row, { includeCustomer = false } = {}) {
+export function toOrderDto(row, { includeCustomer = false, includeDriver = false } = {}) {
     const vehicle = VEHICLES[row.vehicle];
     const dto = {
         id: row.code,
         status: row.status,
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
-        pickup: { address: row.pickup_address, lat: Number(row.pickup_lat), lng: Number(row.pickup_lng) },
-        dropoff: { address: row.dropoff_address, lat: Number(row.dropoff_lat), lng: Number(row.dropoff_lng) },
+        pickup: { address: row.pickup_address, lat: Number(row.pickup_lat), lng: Number(row.pickup_lng), details: parseDetails(row.pickup_details) },
+        dropoff: { address: row.dropoff_address, lat: Number(row.dropoff_lat), lng: Number(row.dropoff_lng), details: parseDetails(row.dropoff_details) },
         routeInfo: { distanceMiles: Number(row.distance_miles), durationMins: row.duration_mins },
         vehicle: { id: row.vehicle, name: vehicle?.name || row.vehicle, crewLabel: vehicle?.crewLabel || '' },
         schedule: { type: row.schedule_type, scheduledFor: row.scheduled_for, label: row.schedule_label },
         scheduleText: row.schedule_label,
         itemsDescription: row.items_description,
         photosCount: row.photos_count,
+        // Pozele încărcate (id-uri); fiecare pagină își construiește linkul (client / dispecer / șofer)
+        photoIds: row.photo_ids ? String(row.photo_ids).split(',').map(Number) : [],
         price: orderPrice(row, vehicle),
         totalAmount: cents(row.total_cents),
         currency: row.currency,
@@ -65,6 +117,42 @@ export function toOrderDto(row, { includeCustomer = false } = {}) {
         paidOnline: Boolean(row.paid_at) || row.status === 'paid',
         paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null)
     };
+
+    // Momentele jobului (raportate de șofer sau de dispecer) și manopera calculată din ele
+    const iso = (v) => (v ? new Date(v).toISOString() : null);
+    dto.timeline = {
+        enRouteAt: iso(row.en_route_at),
+        arrivedAt: iso(row.arrived_at),
+        completedAt: iso(row.completed_at),
+        // pauza în curs (dacă e pe pauză) și totalul pauzelor terminate, în secunde
+        pausedAt: iso(row.labor_paused_at),
+        pausedSecs: Number(row.labor_paused_secs || 0)
+    };
+    dto.laborActual = laborActual(row);
+    // Plata manoperei după job (vezi labor.js): starea și suma cerută / plătită
+    dto.laborBilling = {
+        status: row.labor_status || 'none',
+        amount: row.labor_cents != null ? cents(row.labor_cents) : dto.laborActual?.amount ?? null,
+        requestedAt: iso(row.labor_requested_at),
+        paidAt: iso(row.labor_paid_at),
+        method: row.labor_payment_method || null
+    };
+
+    // Șoferul alocat și notele interne: doar în dispecerat (și în emailurile trimise de acolo).
+    if (includeDriver) {
+        dto.dispatchNotes = row.dispatch_notes || '';
+        dto.driver = row.driver_id
+            ? {
+                  id: row.driver_id,
+                  fullName: row.driver_name ?? null,
+                  email: row.driver_email ?? null,
+                  phone: row.driver_phone ?? null,
+                  notifiedAt: row.driver_notified_at ? new Date(row.driver_notified_at).toISOString() : null,
+                  // Linkul paginii de job a șoferului (dispecerul îl poate copia / deschide)
+                  jobPath: row.driver_token ? `/driver/job/${row.driver_token}` : null
+              }
+            : null;
+    }
 
     if (includeCustomer || row.customer_email) {
         dto.customer = {
@@ -77,6 +165,9 @@ export function toOrderDto(row, { includeCustomer = false } = {}) {
 }
 
 export const ORDER_WITH_CUSTOMER_SQL = `
-    SELECT o.*, u.full_name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
+    SELECT o.*, u.full_name AS customer_name, u.email AS customer_email, u.phone AS customer_phone,
+           d.full_name AS driver_name, d.email AS driver_email, d.phone AS driver_phone,
+           (SELECT GROUP_CONCAT(p.id ORDER BY p.id) FROM order_photos p WHERE p.order_id = o.id) AS photo_ids
     FROM orders o
-    JOIN users u ON u.id = o.user_id`;
+    JOIN users u ON u.id = o.user_id
+    LEFT JOIN drivers d ON d.id = o.driver_id`;

@@ -10,8 +10,10 @@ export const COMPANY = {
     privacyEmail: 'info@reloqmove.com',
     website: 'reloqmove.com',
     websiteUrl: 'https://www.reloqmove.com',
+    instagram: 'https://www.instagram.com/myreloq/',
+    instagramHandle: '@myreloq',
     governingLaw: 'the Commonwealth of Massachusetts, USA',
-    serviceArea: 'Massachusetts',
+    serviceArea: 'Massachusetts, from Worcester east (including Cape Cod and the Islands)',
     effectiveDate: 'November 12, 2026',
 
     // Licențe — trebuie afișate pe site (cerință FMCSA)

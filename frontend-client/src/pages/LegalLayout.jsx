@@ -10,7 +10,7 @@ export const Field = ({ value, label }) =>
 
 export const CompanyName = () => <Field value={COMPANY.legalName} label="Company legal name" />;
 
-const LegalLayout = ({ title, sections, children }) => {
+const LegalLayout = ({ title, sections, children, showDate = true }) => {
     useEffect(() => {
         document.title = `${title} — ${COMPANY.brand}`;
         window.scrollTo(0, 0);
@@ -30,7 +30,7 @@ const LegalLayout = ({ title, sections, children }) => {
             <main className="legal-main">
                 <div className="legal-title-block">
                     <h1>{title}</h1>
-                    <p className="legal-meta">Effective date: {COMPANY.effectiveDate}</p>
+                    {showDate && <p className="legal-meta">Effective date: {COMPANY.effectiveDate}</p>}
                 </div>
 
                 {sections?.length > 0 && (
@@ -56,6 +56,11 @@ const LegalLayout = ({ title, sections, children }) => {
                     <span>{LICENSE_LINE}</span>
                 </div>
                 <nav>
+                    <Link to="/about">About</Link>
+                    <Link to="/contact">Contact</Link>
+                    <a href={COMPANY.instagram} target="_blank" rel="noopener noreferrer">
+                        Instagram {COMPANY.instagramHandle}
+                    </a>
                     <Link to="/terms">Terms of Service</Link>
                     <Link to="/privacy">Privacy Policy</Link>
                     <a href={COMPANY.fmcsaRightsAndResponsibilities} target="_blank" rel="noopener noreferrer">

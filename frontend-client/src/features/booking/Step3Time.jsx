@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBooking } from '../../context/BookingContext';
+import { api } from '../../api/client';
 import Button from '../../components/Button';
 import { COMPANY } from '../../data/company';
 
@@ -63,6 +64,57 @@ const Step3Time = () => {
     const [selectedDate, setSelectedDate] = useState(savedValid ? saved.dateStr : upcomingDays[0].dateStr);
     const [selectedSlot, setSelectedSlot] = useState(savedSlotValid ? saved.slotId : null);
 
+    // Ferestrele deja rezervate de alți clienți: { 'YYYY-MM-DD': ['09:00', ...] }. Ele nu mai apar la alegere.
+    const [taken, setTaken] = useState({});
+    const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
+    const [notice, setNotice] = useState('');
+
+    const loadAvailability = useCallback(async () => {
+        try {
+            // în fundal (la fiecare minut): fără bara de încărcare
+            const { taken } = await api.availability(upcomingDays[0].dateStr, upcomingDays[upcomingDays.length - 1].dateStr, {
+                quiet: true
+            });
+            setTaken(taken || {});
+        } catch {
+            // Fără răspuns: serverul verifică oricum la rezervare.
+        } finally {
+            setAvailabilityLoaded(true);
+        }
+    }, [upcomingDays]);
+
+    // La deschidere, apoi la fiecare minut și când clientul revine în tab
+    useEffect(() => {
+        loadAvailability();
+        const timer = setInterval(loadAvailability, 60000);
+        const onFocus = () => document.visibilityState === 'visible' && loadAvailability();
+        document.addEventListener('visibilitychange', onFocus);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onFocus);
+        };
+    }, [loadAvailability]);
+
+    const freeSlots = (dateStr) => TIME_SLOTS.filter((s) => !(taken[dateStr] || []).includes(s.id));
+    const isFull = (dateStr) => freeSlots(dateStr).length === 0;
+    const visibleSlots = freeSlots(selectedDate);
+
+    // Dacă ora aleasă a fost între timp rezervată de altcineva, o scoatem
+    useEffect(() => {
+        if (selectedSlot && (taken[selectedDate] || []).includes(selectedSlot)) {
+            setSelectedSlot(null);
+            setNotice('The arrival window you picked was just booked. Please choose another one.');
+        }
+    }, [taken, selectedDate, selectedSlot]);
+
+    // Prima zi afișată plină → trecem la prima zi cu locuri libere
+    useEffect(() => {
+        if (!availabilityLoaded || !isFull(selectedDate)) return;
+        const firstFree = upcomingDays.find((d) => !isFull(d.dateStr));
+        if (firstFree && !selectedSlot) setSelectedDate(firstFree.dateStr);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availabilityLoaded, taken]);
+
     const handleContinue = () => {
         const dayObj = upcomingDays.find((d) => d.dateStr === selectedDate);
         const slotObj = TIME_SLOTS.find((s) => s.id === selectedSlot);
@@ -85,50 +137,68 @@ const Step3Time = () => {
             <div className="step-heading">
                 <h1>When should we arrive?</h1>
                 <p className="subtitle">
-                    Pick a date and a 2-hour arrival window. Bookings open from tomorrow onward.
+                    Pick a day and a 2-hour arrival window.
                 </p>
             </div>
 
             <div className="schedule-picker-box">
                 <span className="picker-section-label">SELECT DATE</span>
                 <div className="days-strip">
-                    {upcomingDays.map((day) => (
-                        <button
-                            key={day.dateStr}
-                            type="button"
-                            className={`day-chip ${selectedDate === day.dateStr ? 'active' : ''}`}
-                            onClick={() => setSelectedDate(day.dateStr)}
-                            aria-pressed={selectedDate === day.dateStr}
-                        >
-                            <span className="day-name">{day.dayName}</span>
-                            <strong className="day-num">{day.dayNumber}</strong>
-                            <span className="day-month">{day.monthName}</span>
-                        </button>
-                    ))}
+                    {upcomingDays.map((day) => {
+                        const full = isFull(day.dateStr);
+                        return (
+                            <button
+                                key={day.dateStr}
+                                type="button"
+                                className={`day-chip ${selectedDate === day.dateStr ? 'active' : ''} ${full ? 'full' : ''}`}
+                                onClick={() => {
+                                    setSelectedDate(day.dateStr);
+                                    setNotice('');
+                                    if (selectedSlot && (taken[day.dateStr] || []).includes(selectedSlot)) setSelectedSlot(null);
+                                }}
+                                disabled={full}
+                                aria-pressed={selectedDate === day.dateStr}
+                            >
+                                <span className="day-name">{day.dayName}</span>
+                                <strong className="day-num">{day.dayNumber}</strong>
+                                <span className="day-month">{full ? 'Full' : day.monthName}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <span className="picker-section-label" style={{ marginTop: '18px' }}>
                     ARRIVAL WINDOW
                 </span>
-                <div className="slots-grid">
-                    {TIME_SLOTS.map((slot) => (
-                        <button
-                            key={slot.id}
-                            type="button"
-                            className={`slot-chip ${selectedSlot === slot.id ? 'active' : ''}`}
-                            onClick={() => setSelectedSlot(slot.id)}
-                            aria-pressed={selectedSlot === slot.id}
-                        >
-                            {slot.label}
-                        </button>
-                    ))}
-                </div>
+                {visibleSlots.length === 0 ? (
+                    <p className="slots-empty">This day is fully booked. Please pick another date.</p>
+                ) : (
+                    <div className="slots-grid">
+                        {visibleSlots.map((slot) => (
+                            <button
+                                key={slot.id}
+                                type="button"
+                                className={`slot-chip ${selectedSlot === slot.id ? 'active' : ''}`}
+                                onClick={() => {
+                                    setSelectedSlot(slot.id);
+                                    setNotice('');
+                                }}
+                                aria-pressed={selectedSlot === slot.id}
+                            >
+                                {slot.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {notice && <p className="form-inline-error">{notice}</p>}
             </div>
 
             <div className="step-footer">
                 <Button onClick={handleContinue} disabled={!selectedSlot}>
                     {selectedSlot ? 'Continue to payment →' : 'Pick an arrival window'}
                 </Button>
+            </div>
+            <div className="step-notes">
                 <p className="trust-note">
                     Our crew calls you about 45 minutes before arrival
                 </p>

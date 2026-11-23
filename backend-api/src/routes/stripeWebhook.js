@@ -10,6 +10,7 @@ import express, { Router } from 'express';
 import { stripe } from '../stripe.js';
 import { config } from '../config.js';
 import { syncOrderPayment } from '../payments.js';
+import { syncLaborPayment } from '../labor.js';
 
 const router = Router();
 
@@ -28,7 +29,11 @@ router.post('/', express.raw({ type: 'application/json', limit: '1mb' }), async 
     }
 
     try {
-        if (event.type === 'payment_intent.succeeded') {
+        if (event.type === 'payment_intent.succeeded' && event.data.object.metadata?.kind === 'labor') {
+            // Plata manoperei după job
+            const { order, paid } = await syncLaborPayment(event.data.object.id);
+            if (order && paid) console.log(`[reloq] Webhook: manopera comenzii ${order.id} plătită.`);
+        } else if (event.type === 'payment_intent.succeeded') {
             const { order, justPaid } = await syncOrderPayment(event.data.object.id);
             if (!order) {
                 console.warn(`[reloq] Webhook: nicio comandă pentru ${event.data.object.id}`);
