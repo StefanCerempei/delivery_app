@@ -40,7 +40,7 @@ const BookingPage = () => {
     return (
         <div className="booking-layout">
             {/* Pe telefon harta se mărește (~75% din ecran) cât timp clientul pune pinul */}
-            <div className={`map-container ${pinMode ? 'pin-mode' : ''} ${currentStep > 1 && !completedOrder ? 'map-compact' : ''}`}>
+            <div className={`map-container ${pinMode ? 'pin-mode' : ''}`}>
                 <MapPreview />
             </div>
 

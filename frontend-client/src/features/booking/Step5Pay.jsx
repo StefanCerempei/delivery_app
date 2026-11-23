@@ -184,7 +184,7 @@ const Step5Pay = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>Account & Payment</h1>
-                <p className="subtitle">Sign in or create an account to confirm your booking.</p>
+                <p className="subtitle">Create your RELOQ account for live crew tracking and complete your booking.</p>
             </div>
 
             {/* 1. Rezumat comandă */}
@@ -402,8 +402,6 @@ const Step5Pay = () => {
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`
                                       : `Book RELOQ • ${formatPrice(totalAmount)}`}
                             </Button>
-                        </div>
-                        <div className="step-notes">
                             <p className="trust-note">
                                 {paymentsEnabled
                                     ? 'You pay the reservation fee, service fee and transportation now. '
@@ -413,7 +411,7 @@ const Step5Pay = () => {
                                 arrival to completion.
                             </p>
                             <p className="trust-note">
-                                Your receipt and booking updates go to {user?.email || 'your email'}
+                                Receipt and live tracking link will be sent to {user?.email || 'your email'}
                             </p>
                         </div>
                     </>

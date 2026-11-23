@@ -91,7 +91,8 @@ const Step1Route = () => {
             <div className="step-heading">
                 <h1>Where are we moving?</h1>
                 <p className="subtitle">
-                    Instant price for moves from Worcester east to Cape Cod &amp; the Islands.
+                    Enter your pickup and dropoff addresses for an instant route estimate. We serve Massachusetts from Worcester
+                    east, including Cape Cod and the Islands.
                 </p>
             </div>
 
@@ -180,8 +181,6 @@ const Step1Route = () => {
                           ? 'Add floor & elevator info'
                           : 'Choose your items →'}
                 </Button>
-            </div>
-            <div className="step-notes">
                 <p className="trust-note">
                     Background-checked movers • Loading & unloading included
                 </p>
