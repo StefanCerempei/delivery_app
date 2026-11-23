@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useBooking } from '../../context/BookingContext';
 import PhotoUploader from '../../components/PhotoUploader';
 import Button from '../../components/Button';
-import { ITEM_CATALOG, itemsToText } from '../../data/itemCatalog';
+import { ALL_ITEMS, itemsToText } from '../../data/itemCatalog';
 
 /** Combină obiectele alese cu notele scrise, pentru câmpul itemsDescription al comenzii. */
 function buildDescription(items, notes) {
@@ -12,6 +12,16 @@ function buildDescription(items, notes) {
     return list || extra;
 }
 
+/** Amestec stabil (Fisher–Yates) — obiectele apar în ordine aleatorie, dar fixă per vizită. */
+function shuffled(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
 const Step4Items = () => {
     const { bookingData, updateBookingData, nextStep } = useBooking();
     const [items, setItems] = useState(bookingData.items || []);
@@ -19,15 +29,7 @@ const Step4Items = () => {
     // Pozele stau în rezervare (și în IndexedDB), ca să nu se piardă la reîncărcare sau la intrarea în cont
     const photos = bookingData.photos || [];
     const setPhotos = (list) => updateBookingData({ photos: list });
-    const [query, setQuery] = useState('');
-    // Obiectele pe categorii; căutarea filtrează după nume
-    const groups = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        return ITEM_CATALOG.map((g) => ({
-            ...g,
-            items: q ? g.items.filter((it) => it.label.toLowerCase().includes(q)) : g.items
-        })).filter((g) => g.items.length > 0);
-    }, [query]);
+    const deck = useMemo(() => shuffled(ALL_ITEMS), []);
 
     const qtyOf = (id) => items.find((it) => it.id === id)?.qty || 0;
     const totalCount = items.reduce((n, it) => n + it.qty, 0);
@@ -58,64 +60,43 @@ const Step4Items = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>What are we moving?</h1>
-                <p className="subtitle">Tap what you're moving — we'll pick the right vehicle.</p>
+                <p className="subtitle">Tap your items — we'll recommend the right vehicle. Swipe sideways for more.</p>
             </div>
 
-            <input
-                type="search"
-                className="item-search"
-                name="item-search"
-                placeholder="Search items (sofa, boxes, fridge…)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search items"
-            />
-
-            <div className="item-groups">
-                {groups.length === 0 && (
-                    <p className="item-empty">No match — describe it in the notes below and we'll bring the right gear.</p>
-                )}
-                {groups.map((group) => (
-                    <section key={group.category} className="item-group">
-                        <h2 className="item-group-title">{group.category}</h2>
-                        <div className="item-grid">
-                            {group.items.map((item) => {
-                                const qty = qtyOf(item.id);
-                                return (
-                                    <div
-                                        key={item.id}
-                                        className={`item-chip ${qty > 0 ? 'active' : ''}`}
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-pressed={qty > 0}
-                                        onClick={() => changeQty(item, 1)}
-                                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && changeQty(item, 1)}
+            <div className="item-grid">
+                {deck.map((item) => {
+                    const qty = qtyOf(item.id);
+                    return (
+                        <div
+                            key={item.id}
+                            className={`item-chip ${qty > 0 ? 'active' : ''}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => changeQty(item, 1)}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && changeQty(item, 1)}
+                        >
+                            <span className="chip-emoji" aria-hidden="true">{item.emoji}</span>
+                            <span className="chip-label">{item.label}</span>
+                            {qty > 0 && (
+                                <span className="chip-controls">
+                                    <button
+                                        type="button"
+                                        className="chip-minus"
+                                        onClick={(e) => { e.stopPropagation(); changeQty(item, -1); }}
+                                        aria-label={`Remove one ${item.label}`}
                                     >
-                                        <span className="chip-emoji" aria-hidden="true">{item.emoji}</span>
-                                        <span className="chip-label">{item.label}</span>
-                                        {qty > 0 && (
-                                            <span className="chip-controls">
-                                                <button
-                                                    type="button"
-                                                    className="chip-minus"
-                                                    onClick={(e) => { e.stopPropagation(); changeQty(item, -1); }}
-                                                    aria-label={`Remove one ${item.label}`}
-                                                >
-                                                    −
-                                                </button>
-                                                <span className="chip-qty">{qty}</span>
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                        −
+                                    </button>
+                                    <span className="chip-qty">{qty}</span>
+                                </span>
+                            )}
                         </div>
-                    </section>
-                ))}
+                    );
+                })}
             </div>
 
             <div className="items-textarea-group">
-                <label htmlFor="items-notes" className="picker-section-label">Anything else? (optional)</label>
+                <label htmlFor="items-notes" className="picker-section-label">ACCESS NOTES (OPTIONAL)</label>
                 <textarea
                     id="items-notes"
                     className="items-textarea"
@@ -132,8 +113,6 @@ const Step4Items = () => {
                 <Button onClick={handleContinue} disabled={totalCount === 0}>
                     {totalCount === 0 ? 'Add at least one item' : 'See recommended vehicle →'}
                 </Button>
-            </div>
-            <div className="step-notes">
                 <p className="trust-note">
                     {totalCount > 0
                         ? `${totalCount} item${totalCount > 1 ? 's' : ''} selected`

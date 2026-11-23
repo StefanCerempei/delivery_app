@@ -137,7 +137,7 @@ const Step3Time = () => {
             <div className="step-heading">
                 <h1>When should we arrive?</h1>
                 <p className="subtitle">
-                    Pick a day and a 2-hour arrival window.
+                    Pick a date and a 2-hour arrival window. Bookings open from tomorrow onward.
                 </p>
             </div>
 
@@ -197,8 +197,6 @@ const Step3Time = () => {
                 <Button onClick={handleContinue} disabled={!selectedSlot}>
                     {selectedSlot ? 'Continue to payment →' : 'Pick an arrival window'}
                 </Button>
-            </div>
-            <div className="step-notes">
                 <p className="trust-note">
                     Our crew calls you about 45 minutes before arrival
                 </p>

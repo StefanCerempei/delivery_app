@@ -13,12 +13,6 @@ const Step2Vehicle = () => {
 
     const recommendedId = useMemo(() => recommendVehicle(bookingData.items), [bookingData.items]);
 
-    // Recomandarea apare prima, restul în ordinea obișnuită
-    const ordered = useMemo(
-        () => [...VEHICLES].sort((a, b) => (b.id === recommendedId) - (a.id === recommendedId)),
-        [recommendedId]
-    );
-
     const selectedVehicleId = bookingData.vehicle;
     const selectedVehicle = VEHICLES.find((v) => v.id === selectedVehicleId);
     const selectedEstimate = selectedVehicleId ? estimates?.[selectedVehicleId] : null;
@@ -57,14 +51,14 @@ const Step2Vehicle = () => {
             <div className="step-heading">
                 <h1>Choose your vehicle</h1>
                 <p className="subtitle">
-                    We picked the best fit for your items — tap another to switch.
+                    Based on your items we recommend the highlighted option. You can change it.
                 </p>
             </div>
 
             {error && <p className="form-inline-error">{error}</p>}
 
             <div className={`vehicles-list ${loading ? 'is-loading' : ''}`}>
-                {ordered.map((vehicle) => {
+                {VEHICLES.map((vehicle) => {
                     const isSelected = selectedVehicleId === vehicle.id;
                     const isRecommended = recommendedId === vehicle.id;
                     const estimate = estimates?.[vehicle.id];
@@ -76,22 +70,22 @@ const Step2Vehicle = () => {
                             onClick={() => handleSelectVehicle(vehicle.id)}
                             role="button"
                             tabIndex={0}
-                            aria-pressed={isSelected}
-                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelectVehicle(vehicle.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSelectVehicle(vehicle.id)}
                         >
-                            {isRecommended ? (
-                                <span className="vehicle-badge rec corner">Best fit</span>
-                            ) : (
-                                vehicle.badge && <span className="vehicle-badge corner">{vehicle.badge}</span>
-                            )}
                             <div className="vehicle-icon-box">
                                 <img src={vehicle.icon} alt={vehicle.name} />
                             </div>
 
                             <div className="vehicle-info">
-                                <strong className="vehicle-name">{vehicle.name}</strong>
-                                <span className="vehicle-meta">{vehicle.crewLabel}</span>
-                                {isSelected && <p className="vehicle-desc">{vehicle.description}</p>}
+                                <div className="vehicle-title-row">
+                                    <strong>{vehicle.name}</strong>
+                                    {isRecommended && <span className="vehicle-badge rec">Recommended</span>}
+                                    {!isRecommended && vehicle.badge && <span className="vehicle-badge">{vehicle.badge}</span>}
+                                </div>
+                                <span className="vehicle-meta">
+                  {vehicle.crewLabel} • {vehicle.dimensions}
+                </span>
+                                <p className="vehicle-desc">{vehicle.description}</p>
                             </div>
 
                             <div className="vehicle-price-col">
