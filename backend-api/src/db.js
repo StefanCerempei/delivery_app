@@ -33,6 +33,7 @@ export async function migrate() {
     await addColumnIfMissing('users', 'password_changed_at', 'DATETIME NULL AFTER email_verified_at');
     await addColumnIfMissing('users', 'session_version', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER password_changed_at');
     await addColumnIfMissing('users', 'deleted_at', 'DATETIME NULL AFTER session_version');
+    await addColumnIfMissing('users', 'stripe_customer_id', 'VARCHAR(64) NULL AFTER deleted_at');
     await addColumnIfMissing('orders', 'paid_at', 'DATETIME NULL AFTER card_last4');
     await addColumnIfMissing('orders', 'payment_method', 'VARCHAR(20) NULL AFTER paid_at');
     await addColumnIfMissing('orders', 'paypal_order_id', 'VARCHAR(64) NULL AFTER payment_method');

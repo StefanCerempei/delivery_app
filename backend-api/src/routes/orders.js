@@ -6,7 +6,7 @@ import { requireAuth, requireVerifiedEmail } from '../auth.js';
 import { getTrip, allPrices, priceFor, priceLines, MAX_DISTANCE_MILES, VEHICLES } from '../pricing.js';
 import { estimateSchema, createOrderSchema, parseBody } from '../validation.js';
 import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
-import { stripe } from '../stripe.js';
+import { stripe, customerFields } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
 import { notifyNewOrder } from '../emails.js';
@@ -222,12 +222,14 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
 
     let clientSecret = null;
     if (stripe) {
+        const { customer, meta } = await customerFields(req.user.id, { name: req.user.fullName, email: req.user.email });
         const intent = await createPaymentIntent({
+            ...(customer ? { customer } : {}),
             amount: price.totalCents,
             currency: config.currency,
             receipt_email: req.user.email,
             description: `RELOQ ${VEHICLES[data.vehicle].name} — ${code}`,
-            metadata: { order_code: code, order_id: id, user_id: String(req.user.id) }
+            metadata: { order_code: code, order_id: id, user_id: String(req.user.id), ...meta }
         });
         await pool.query('UPDATE orders SET stripe_payment_intent_id = ? WHERE id = ?', [intent.id, id]);
         clientSecret = intent.client_secret;

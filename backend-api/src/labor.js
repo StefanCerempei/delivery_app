@@ -7,7 +7,7 @@
 //   paid_cash      — plătit cash (bifat de șofer sau de dispecer)
 //   waived         — fără taxă de manoperă (decizia dispecerului)
 import { pool } from './db.js';
-import { stripe } from './stripe.js';
+import { stripe, customerFields } from './stripe.js';
 import { config } from './config.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from './orders.js';
 import { getSetting } from './settings.js';
@@ -134,14 +134,16 @@ export async function laborPaymentIntent(row, email) {
             return { clientSecret: existing.client_secret };
         }
     }
+    const { customer, meta } = await customerFields(row.user_id, { name: row.customer_name, email });
     const intent = await stripe.paymentIntents.create({
+        ...(customer ? { customer } : {}),
         amount: row.labor_cents,
         currency: config.currency,
         // card include Apple Pay și Google Pay; fără metode cu redirect (Amazon Pay) pentru această plată
         payment_method_types: ['card'],
         receipt_email: email,
         description: `RELOQ labor — ${row.code}`,
-        metadata: { kind: 'labor', order_code: row.code, order_id: row.id }
+        metadata: { kind: 'labor', order_code: row.code, order_id: row.id, ...meta }
     });
     await pool.query('UPDATE orders SET labor_payment_intent_id = ? WHERE id = ?', [intent.id, row.id]);
     return { clientSecret: intent.client_secret };
