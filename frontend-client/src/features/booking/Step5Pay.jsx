@@ -375,7 +375,7 @@ const Step5Pay = () => {
                             returnParam={PAYMENT_RETURN_PARAM}
                         />
                         <p className="trust-note">
-                            This payment covers the reservation fee, service fee and transportation. Labor is billed after the job
+                            This is your booking price. Labor is billed after the job
                             {order?.price?.labor ? ` (${order.price.labor.label})` : ''}, based on actual time from crew arrival to completion.
                         </p>
                         <p className="trust-note">Payments are processed securely by Stripe and PayPal — card details never touch RELOQ servers.</p>
@@ -404,7 +404,7 @@ const Step5Pay = () => {
                             </Button>
                             <p className="trust-note">
                                 {paymentsEnabled
-                                    ? 'You pay the reservation fee, service fee and transportation now. '
+                                    ? 'You pay the booking price now. '
                                     : ''}
                                 Labor is billed after the job
                                 {bookingData.priceEstimate?.labor ? ` (${bookingData.priceEstimate.labor.label})` : ''}, based on actual time from crew

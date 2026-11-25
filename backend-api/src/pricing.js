@@ -1,7 +1,7 @@
 // Prețul se calculează DOAR aici, pe server. Ce trimite browserul nu contează.
 //
 // Specificația RELOQ (secțiunea 3) — patru componente, fiecare afișată separat, în USD:
-//   3.1 Reservation Fee  (la rezervare) = (minute garaj → pickup + minute destinație → garaj) × $2.50
+//   3.1 Reservation Fee  (la rezervare) = (minute garaj → pickup + minute destinație → garaj) × $2.10
 //   3.2 Service Fee      (la rezervare) = $29 fix, o dată pe rezervare
 //   3.3 Transportation   (la rezervare) = mile pickup → destinație × tariful pe milă al vehiculului
 //   3.4 Labor            (după job)     = minute reale de la sosirea echipei la pickup până la final × tariful echipei
@@ -15,7 +15,7 @@ export const GARAGE = {
     lng: Number(process.env.GARAGE_LNG) || -71.1744
 };
 
-export const RESERVATION_CENTS_PER_MIN = 250; // $2.50 / minut de condus
+export const RESERVATION_CENTS_PER_MIN = 210; // $2.10 / minut de condus
 export const SERVICE_FEE_CENTS = 2900; // $29.00 / rezervare
 
 // Manopera: tarif pe minut în funcție de numărul de muncitori.

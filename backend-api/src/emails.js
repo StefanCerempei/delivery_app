@@ -104,7 +104,8 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ...stopRows(order),
         ['Distance', order.routeInfo ? `${order.routeInfo.distanceMiles} mi • ~${order.routeInfo.durationMins} min` : null],
         ['Items', order.itemsDescription],
-        ...(order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]),
+        // Defalcarea (reservation / service / transportation) doar pentru dispecer; clientul vede totalul
+        ...(forDispatcher ? (order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]) : []),
         order.paidOnline
             ? ['Paid at booking', `${money2(order.totalAmount)} (${paidWith(order)})`]
             : ['Due', `${money2(order.totalAmount)} (pay after the job)`],
