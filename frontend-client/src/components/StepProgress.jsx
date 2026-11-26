@@ -1,6 +1,7 @@
 import React from 'react';
 import { useBooking } from '../context/BookingContext';
 import Logo from './Logo';
+import { AccountChip } from './MapPreview';
 
 const STEP_LABELS = ['Route', 'Items', 'Vehicle', 'Schedule', 'Payment'];
 
@@ -33,9 +34,18 @@ const StepProgress = () => {
                     </div>
                 )}
 
+                <span className="step-header-right">
+                    {/* Pe telefon harta (cu butonul de cont) e doar la pasul 1: de la pasul 2 contul e aici */}
+                    {currentStep > 1 && (
+                        <span className="header-account">
+                            <AccountChip />
+                        </span>
+                    )}
                 <span className="step-counter">
-          {STEP_LABELS[currentStep - 1]} • {currentStep}/5
-        </span>
+                    <span className="step-counter-label">{STEP_LABELS[currentStep - 1]} • </span>
+                    {currentStep}/5
+                </span>
+                </span>
             </div>
 
             <div className="progress-segments">

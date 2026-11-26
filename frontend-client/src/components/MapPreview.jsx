@@ -13,16 +13,15 @@ const DEFAULT_CENTER = [42.3601, -71.0589]; // Boston, MA (zona de operare)
 // Pinii de pe hartă, ca pe Google Maps: cerc albastru = pornire (pickup), pin roșu = destinație (drop-off).
 // Vârful pinului e exact pe adresă (iconAnchor jos, la mijloc).
 const pinIcon = (color, w) => {
-    const h = Math.round((w * 52) / 34);
+    const h = Math.round((w * 40) / 28);
     return L.divIcon({
         className: 'custom-map-pin',
-        html: `<svg width="${w}" height="${h}" viewBox="0 0 34 52" style="display:block;overflow:visible;filter:drop-shadow(0 6px 8px rgba(0,0,0,0.45))">
-<ellipse cx="17" cy="49" rx="7" ry="2.6" fill="rgba(0,0,0,0.35)"/>
-<path d="M17 47C17 47 31.5 30.5 31.5 17.5A14.5 14.5 0 0 0 2.5 17.5C2.5 30.5 17 47 17 47Z" fill="${color}" stroke="#ffffff" stroke-width="2.5"/>
-<circle cx="17" cy="17.5" r="6" fill="#ffffff"/>
+        html: `<svg width="${w}" height="${h}" viewBox="0 0 28 40" style="display:block;overflow:visible;filter:drop-shadow(0 3px 4px rgba(0,0,0,0.35))">
+<path d="M14 39C14 39 26 23.5 26 13.5A12 12 0 0 0 2 13.5C2 23.5 14 39 14 39Z" fill="${color}" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
+<circle cx="14" cy="13.5" r="4.6" fill="rgba(0,0,0,0.35)"/>
 </svg>`,
         iconSize: [w, h],
-        iconAnchor: [w / 2, Math.round((w * 47) / 34)]
+        iconAnchor: [w / 2, Math.round((h * 39) / 40)]
     });
 };
 
@@ -37,10 +36,10 @@ const startDot = (size) =>
 
 // Destinația (drop-off): pinul roșu
 const pickupIcon = startDot(20);
-const dropoffIcon = pinIcon('#ea3b2e', 30);
+const dropoffIcon = pinIcon('#ea4335', 28);
 // Mai mari, ușor de prins cu degetul, cât timp e în modul de marcare
 const pickupIconBig = startDot(28);
-const dropoffIconBig = pinIcon('#ea3b2e', 40);
+const dropoffIconBig = pinIcon('#ea4335', 38);
 
 // Pe telefon harta nu mai „zboară”: mutări instant, fără animații (totul stă mai fix)
 const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
@@ -236,7 +235,7 @@ const MapPreview = () => {
 
 
 /** Butonul de cont din colțul hărții: „Log in” sau avatarul clientului. */
-const AccountChip = () => {
+export const AccountChip = () => {
     const { user, authChecked } = useAuth();
     if (!authChecked) return null;
     if (!user) {

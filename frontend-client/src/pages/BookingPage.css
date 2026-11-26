@@ -2599,3 +2599,40 @@
     .wizard-container { overscroll-behavior: contain; }
 }
 html, body { overscroll-behavior-y: none; }
+
+/* ===== Semnele adreselor din panou (aceleași ca pe hartă) ===== */
+.dot-dropoff,
+.mini-dot.green {
+    width: 12px;
+    height: 16px;
+    border: none;
+    border-radius: 0;
+    transform: none;
+    background: center / contain no-repeat
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 40'%3E%3Cpath d='M14 39C14 39 26 23.5 26 13.5A12 12 0 0 0 2 13.5C2 23.5 14 39 14 39Z' fill='%23ea4335'/%3E%3Ccircle cx='14' cy='13.5' r='4.6' fill='rgba(0,0,0,0.35)'/%3E%3C/svg%3E");
+}
+.mini-dot.green { width: 10px; height: 14px; }
+
+/* ===== Header pas: contul pe telefon ===== */
+.step-header-right { display: inline-flex; align-items: center; gap: 12px; }
+.header-account { display: none; }
+
+/* ===== Telefon: harta doar la pasul 1, apoi meniul de sus rămâne fix ===== */
+@media (max-width: 860px) {
+    .booking-layout.past-route .map-container { display: none; }
+    .booking-layout.past-route .wizard-container { border-radius: 0; margin-top: 0; box-shadow: none; }
+    .booking-layout.past-route .lugg-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background-color: var(--panel);
+        padding-top: calc(14px + env(safe-area-inset-top));
+    }
+    .booking-layout.past-route .header-account { display: inline-flex; }
+    .header-account .hud-account { position: static; height: 36px; padding: 0 12px; font-size: 13px; box-shadow: none; }
+    .header-account .hud-account.signed-in { padding: 0 12px 0 4px; }
+    .header-account .hud-account-avatar { width: 28px; height: 28px; font-size: 11px; }
+}
+@media (max-width: 860px) {
+    .booking-layout.past-route .step-counter-label { display: none; }
+}
