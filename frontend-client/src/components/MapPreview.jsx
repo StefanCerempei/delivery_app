@@ -10,7 +10,7 @@ import { useAuth, initials } from '../context/AuthContext';
 
 const DEFAULT_CENTER = [42.3601, -71.0589]; // Boston, MA (zona de operare)
 
-// Pinii de pe hartă (formă clasică de „map pin”): roșu = pickup, verde = drop-off.
+// Pinii de pe hartă, ca pe Google Maps: cerc albastru = pornire (pickup), pin roșu = destinație (drop-off).
 // Vârful pinului e exact pe adresă (iconAnchor jos, la mijloc).
 const pinIcon = (color, w) => {
     const h = Math.round((w * 52) / 34);
@@ -26,11 +26,21 @@ const pinIcon = (color, w) => {
     });
 };
 
-const pickupIcon = pinIcon('#ff3f34', 30);
-const dropoffIcon = pinIcon('#22b98f', 30);
-// Pinul mare, ușor de prins cu degetul, cât timp e în modul de marcare
-const pickupIconBig = pinIcon('#ff3f34', 40);
-const dropoffIconBig = pinIcon('#22b98f', 40);
+// Pornirea (pickup): cercul albastru ca pe Google Maps, centrat pe adresă
+const startDot = (size) =>
+    L.divIcon({
+        className: 'custom-map-pin',
+        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-sizing:border-box;box-shadow:0 0 0 ${Math.round(size / 2.2)}px rgba(26,115,232,0.22),0 3px 8px rgba(0,0,0,0.45)"></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
+    });
+
+// Destinația (drop-off): pinul roșu
+const pickupIcon = startDot(20);
+const dropoffIcon = pinIcon('#ea3b2e', 30);
+// Mai mari, ușor de prins cu degetul, cât timp e în modul de marcare
+const pickupIconBig = startDot(28);
+const dropoffIconBig = pinIcon('#ea3b2e', 40);
 
 const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     const map = useMap();

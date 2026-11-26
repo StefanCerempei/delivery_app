@@ -2519,3 +2519,30 @@
     .map-container:not(.pin-mode) .leaflet-control-zoom { display: none; }
     .map-container .leaflet-bottom.leaflet-right { bottom: 16px; }
 }
+
+/* ===== Semnele adreselor, ca pe Google Maps: pornire = cerc albastru, destinație = pin roșu ===== */
+.dot-pickup {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background-color: #1a73e8;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.25);
+}
+.dot-dropoff,
+.mini-dot.green {
+    width: 12px;
+    height: 12px;
+    border-radius: 50% 50% 50% 0;
+    background-color: #ea3b2e;
+    border: 2px solid #fff;
+    box-shadow: none;
+    transform: rotate(-45deg);
+}
+.mini-dot.blue {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #1a73e8;
+    border: 2px solid #fff;
+}
