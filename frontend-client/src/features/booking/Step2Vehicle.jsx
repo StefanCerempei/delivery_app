@@ -57,6 +57,23 @@ const Step2Vehicle = () => {
 
             {error && <p className="form-inline-error">{error}</p>}
 
+            {selectedVehicle?.photoLarge && (
+                <figure className="vehicle-hero">
+                    <img
+                        src={selectedVehicle.photoLarge}
+                        srcSet={`${selectedVehicle.photo} 800w, ${selectedVehicle.photoLarge} 1600w`}
+                        sizes="(max-width: 860px) 100vw, 480px"
+                        alt={`RELOQ ${selectedVehicle.name}: ${selectedVehicle.crewLabel}`}
+                        width="1600"
+                        height="900"
+                    />
+                    <figcaption>
+                        <strong>{selectedVehicle.name}</strong>
+                        <span>{selectedVehicle.crewLabel}</span>
+                    </figcaption>
+                </figure>
+            )}
+
             <div className={`vehicles-list ${loading ? 'is-loading' : ''}`}>
                 {VEHICLES.map((vehicle) => {
                     const isSelected = selectedVehicleId === vehicle.id;
@@ -72,8 +89,8 @@ const Step2Vehicle = () => {
                             tabIndex={0}
                             onKeyDown={(e) => e.key === 'Enter' && handleSelectVehicle(vehicle.id)}
                         >
-                            <div className="vehicle-icon-box">
-                                <img src={vehicle.icon} alt={vehicle.name} />
+                            <div className={`vehicle-icon-box ${vehicle.photo ? 'has-photo' : ''}`}>
+                                <img src={vehicle.photo || vehicle.icon} alt="" loading="lazy" width="800" height="450" />
                             </div>
 
                             <div className="vehicle-info">

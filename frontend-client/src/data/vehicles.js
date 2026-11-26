@@ -2,6 +2,18 @@ import courierIcon from '../assets/icons/courier.svg';
 import vanIcon from '../assets/icons/van.svg';
 import boxTruckIcon from '../assets/icons/box-truck.svg';
 import largeTruckIcon from '../assets/icons/large-truck.svg';
+// Ilustrațiile flotei RELOQ (fundal transparent): 800 px pentru carduri, 1600 px pentru imaginea mare
+import courierPhoto from '../assets/fleet/courier-800.webp';
+import courierPhotoLg from '../assets/fleet/courier.webp';
+import vanSoloPhoto from '../assets/fleet/van_solo-800.webp';
+import vanSoloPhotoLg from '../assets/fleet/van_solo.webp';
+import vanTeamPhoto from '../assets/fleet/van_team-800.webp';
+import vanTeamPhotoLg from '../assets/fleet/van_team.webp';
+import truckPhoto from '../assets/fleet/truck-800.webp';
+import truckPhotoLg from '../assets/fleet/truck.webp';
+import largeTruckPhoto from '../assets/fleet/large_truck-800.webp';
+import largeTruckPhotoLg from '../assets/fleet/large_truck.webp';
+
 
 // Cele 5 opțiuni din specificația RELOQ. Id-urile trebuie să fie identice
 // cu cheile din backend-api/src/pricing.js (altfel estimarea de preț nu se potrivește).
@@ -14,7 +26,9 @@ export const VEHICLES = [
         badge: null,
         dimensions: 'Standard vehicle',
         description: 'Boxes, luggage, store pickups, TVs or small parcels.',
-        icon: courierIcon
+        icon: courierIcon,
+        photo: courierPhoto,
+        photoLarge: courierPhotoLg
     },
     {
         id: 'van_solo',
@@ -24,7 +38,9 @@ export const VEHICLES = [
         badge: null,
         dimensions: 'Cargo van',
         description: 'A few medium items moved with a van and one mover.',
-        icon: vanIcon
+        icon: vanIcon,
+        photo: vanSoloPhoto,
+        photoLarge: vanSoloPhotoLg
     },
     {
         id: 'van_team',
@@ -34,7 +50,9 @@ export const VEHICLES = [
         badge: 'Popular',
         dimensions: 'Cargo van',
         description: 'Studio / 1-bedroom moves, sofas, appliances.',
-        icon: vanIcon
+        icon: vanIcon,
+        photo: vanTeamPhoto,
+        photoLarge: vanTeamPhotoLg
     },
     {
         id: 'truck',
@@ -44,7 +62,9 @@ export const VEHICLES = [
         badge: null,
         dimensions: '12–20 ft box truck',
         description: '1–2 bedroom moves with a box truck.',
-        icon: boxTruckIcon
+        icon: boxTruckIcon,
+        photo: truckPhoto,
+        photoLarge: truckPhotoLg
     },
     {
         id: 'large_truck',
@@ -54,6 +74,8 @@ export const VEHICLES = [
         badge: 'Max',
         dimensions: '26 ft truck',
         description: 'Large homes and full moves with a 3-person crew.',
-        icon: largeTruckIcon
+        icon: largeTruckIcon,
+        photo: largeTruckPhoto,
+        photoLarge: largeTruckPhotoLg
     }
 ];

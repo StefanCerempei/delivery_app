@@ -2273,3 +2273,55 @@
 .address-dropdown li.outside-area:hover { background: transparent; }
 .dropdown-outside { font-size: 11.5px; font-weight: 600; color: var(--danger); }
 .pin-error { flex-basis: 100%; font-size: 12.5px; line-height: 1.45; color: var(--danger); }
+
+/* ===== Ilustrațiile flotei RELOQ ===== */
+/* Scena deschisă la culoare, ca ilustrațiile 3D să iasă bine pe tema închisă */
+.vehicle-hero {
+    position: relative;
+    margin: 0;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 30%, #f7f9fc 0%, #e6ebf1 70%, #d9e0e8 100%);
+    border: 1px solid var(--line-strong);
+    animation: fadeUp 0.3s var(--ease) both;
+}
+.vehicle-hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+}
+.vehicle-hero figcaption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #0b1f3b;
+    color: #fff;
+    line-height: 1.25;
+}
+.vehicle-hero figcaption strong { font-size: 14px; font-weight: 700; }
+.vehicle-hero figcaption span { font-size: 12px; color: #c3cbd6; }
+
+.vehicle-icon-box.has-photo {
+    width: 96px;
+    height: 58px;
+    padding: 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f4f6f9, #dfe4ea);
+    border-color: transparent;
+}
+.vehicle-icon-box.has-photo img,
+.vehicle-card:hover .vehicle-icon-box.has-photo img,
+.vehicle-card.selected .vehicle-icon-box.has-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform: none;
+}
+@media (max-width: 380px) {
+    .vehicle-icon-box.has-photo { width: 80px; height: 48px; }
+    .vehicle-icon-box.has-photo img { width: 100%; }
+}
