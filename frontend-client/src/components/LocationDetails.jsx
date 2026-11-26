@@ -8,16 +8,16 @@ export const FLOOR_OPTIONS = [
     { id: '2', label: '2nd floor' },
     { id: '3', label: '3rd floor' },
     { id: '4', label: '4th floor' },
-    { id: '5', label: '5th floor' }
-];
-// Valori din comenzi mai vechi (nu mai apar în formular, doar dacă erau deja alese)
-const LEGACY_FLOORS = [
-    { id: 'basement', label: 'Basement' },
+    { id: '5', label: '5th floor' },
     { id: '6', label: '6th floor' },
     { id: '7', label: '7th floor' },
     { id: '8', label: '8th floor' },
     { id: '9', label: '9th floor' },
-    { id: '10+', label: '10th floor or higher' }
+    { id: '10+', label: '10th floor or above' }
+];
+// Valori din comenzi mai vechi (nu mai apar în formular, doar dacă erau deja alese)
+const LEGACY_FLOORS = [
+    { id: 'basement', label: 'Basement' }
 ];
 const floorLabel = (id) => [...FLOOR_OPTIONS, ...LEGACY_FLOORS].find((f) => f.id === id)?.label || '';
 
