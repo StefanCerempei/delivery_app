@@ -2384,3 +2384,11 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+
+/* Butonul + de lângă cantitate (obiecte) */
+.chip-plus {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+.chip-plus:hover { background-color: var(--accent-hover); }

@@ -88,6 +88,14 @@ const Step4Items = () => {
                                         −
                                     </button>
                                     <span className="chip-qty">{qty}</span>
+                                    <button
+                                        type="button"
+                                        className="chip-minus chip-plus"
+                                        onClick={(e) => { e.stopPropagation(); changeQty(item, 1); }}
+                                        aria-label={`Add one more ${item.label}`}
+                                    >
+                                        +
+                                    </button>
                                 </span>
                             )}
                         </div>
