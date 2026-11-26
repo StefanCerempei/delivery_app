@@ -28,7 +28,7 @@ const businessToday = () =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
 /** Comandă nouă din dispecerat (client la telefon). Prețul îl calculează serverul, ca pe site. */
-const AdminOrderCreate = ({ onCreated, onCancel }) => {
+const AdminOrderCreate = ({ drivers = [], onCreated, onCancel }) => {
     // Clientul
     const [mode, setMode] = useState('existing');
     const [query, setQuery] = useState('');
@@ -51,6 +51,9 @@ const AdminOrderCreate = ({ onCreated, onCancel }) => {
 
     // Plata și restul
     const [payment, setPayment] = useState('link');
+    // 'auto' = cel mai liber șofer în ziua mutării · '' = fără șofer acum · altfel id-ul șoferului
+    const [driver, setDriver] = useState('auto');
+    const activeDrivers = drivers.filter((d) => d.active !== false);
     const [discountCode, setDiscountCode] = useState('');
     const [notes, setNotes] = useState('');
     const [notify, setNotify] = useState(true);
@@ -121,6 +124,7 @@ const AdminOrderCreate = ({ onCreated, onCancel }) => {
                 schedule: { date, slot },
                 itemsDescription: items.trim(),
                 payment,
+                driverId: driver === 'auto' ? 'auto' : driver ? Number(driver) : null,
                 ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
                 ...(notes.trim() ? { dispatchNotes: notes.trim() } : {}),
                 notify
@@ -301,9 +305,36 @@ const AdminOrderCreate = ({ onCreated, onCancel }) => {
                 )}
             </section>
 
-            {/* 3. Plata */}
+            {/* 3. Șoferul */}
             <section className="order-create-section">
-                <strong>3. Payment</strong>
+                <strong>3. Driver</strong>
+                <div className="order-edit-row">
+                    <label className="crm-field">
+                        <span>Assign to</span>
+                        <select className="crm-select" name="newDriver" value={driver} onChange={(e) => setDriver(e.target.value)}>
+                            <option value="auto">Auto-assign (least busy driver that day)</option>
+                            <option value="">No driver yet</option>
+                            {activeDrivers.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                    {d.fullName}
+                                    {d.phone ? ` · ${d.phone}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                <small className="job-muted">
+                    {activeDrivers.length === 0
+                        ? 'No active drivers yet — add them on the Drivers page.'
+                        : payment === 'link'
+                          ? 'The driver gets the job email once the customer pays.'
+                          : 'The driver gets the job email right away.'}
+                </small>
+            </section>
+
+            {/* 4. Plata */}
+            <section className="order-create-section">
+                <strong>4. Payment</strong>
                 <div className="order-create-payments">
                     {PAYMENTS.map(([id, label, hint]) => (
                         <label key={id} className={`order-create-pay ${payment === id ? 'on' : ''}`}>

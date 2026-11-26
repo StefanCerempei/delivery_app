@@ -346,6 +346,7 @@ const AdminDashboard = () => {
                     {/* ---------- COMANDĂ NOUĂ (telefon) ---------- */}
                     {view === 'new_order' && (
                         <AdminOrderCreate
+                            drivers={drivers}
                             onCreated={({ order }) => {
                                 load();
                                 openOrder(order.id);

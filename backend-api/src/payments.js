@@ -31,6 +31,17 @@ export async function markOrderPaid(orderId, payment) {
         // „Order submitted” către client + „New order to confirm” către dispecer.
         // Înainte de răspunsul HTTP — pe Hostinger orice lucru după răspuns e oprit.
         await waitForMail(order.createdBy ? notifyOrderConfirmed(order) : notifyNewOrder(order));
+        // Comandă creată de dispecer cu șofer deja alocat: șoferul primește jobul după plată
+        if (order.createdBy && order.driver && !order.driver.notifiedAt) {
+            const { ensureDriverToken, jobUrl } = await import('./jobs.js');
+            const { notifyDriverAssigned } = await import('./emails.js');
+            order.jobUrl = jobUrl(await ensureDriverToken(order.id));
+            await waitForMail(
+                notifyDriverAssigned(order).then(async (sent) => {
+                    if (sent) await pool.query('UPDATE orders SET driver_notified_at = UTC_TIMESTAMP() WHERE id = ?', [orderId]);
+                })
+            );
+        }
     }
     return { order, justPaid };
 }

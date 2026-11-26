@@ -766,6 +766,22 @@ router.get('/customers', async (req, res) => {
     res.json({ customers: rows.map((r) => ({ id: r.id, fullName: r.full_name, email: r.email, phone: r.phone })) });
 });
 
+/**
+ * Alocare automată: șoferul activ cu cele mai puține joburi în ziua mutării (apoi cu cele mai puține
+ * joburi viitoare). Pe o fereastră e o singură comandă, deci la ora aleasă orice șofer e liber.
+ */
+async function pickDriver(date) {
+    const [rows] = await pool.query(
+        `SELECT d.id, d.full_name,
+                (SELECT COUNT(*) FROM orders o WHERE o.driver_id = d.id AND DATE(o.scheduled_for) = ? AND o.status <> 'cancelled') AS day_jobs,
+                (SELECT COUNT(*) FROM orders o WHERE o.driver_id = d.id AND o.scheduled_for >= UTC_DATE() AND o.status NOT IN ('cancelled', 'completed')) AS upcoming
+         FROM drivers d WHERE d.active = 1
+         ORDER BY day_jobs ASC, upcoming ASC, d.id ASC LIMIT 1`,
+        [date]
+    );
+    return rows[0]?.id || null;
+}
+
 /** POST /admin/orders — dispecerul creează o comandă; prețul se calculează pe server, la fel ca pe site. */
 router.post('/orders', async (req, res) => {
     const data = parseBody(adminCreateOrderSchema, req, res);
@@ -776,6 +792,11 @@ router.post('/orders', async (req, res) => {
     if (!day || day < businessTodayUTC()) return res.status(400).json({ error: 'Pick today or a future date.' });
     for (const loc of [data.pickup, data.dropoff]) {
         if (!inServiceArea(loc.lat, loc.lng)) return res.status(422).json({ error: OUTSIDE_AREA_MESSAGE });
+    }
+
+    if (typeof data.driverId === 'number') {
+        const problem = await driverProblem(data.driverId);
+        if (problem) return res.status(409).json({ error: problem });
     }
 
     const customer = await resolveCustomer(data);
@@ -819,7 +840,16 @@ router.post('/orders', async (req, res) => {
         await pool.query("UPDATE orders SET paid_at = UTC_TIMESTAMP(), payment_method = 'offline' WHERE id = ?", [id]);
     }
     if (data.dispatchNotes) await pool.query('UPDATE orders SET dispatch_notes = ? WHERE id = ?', [data.dispatchNotes, id]);
-    await logChanges(id, [{ field: 'created', oldValue: null, newValue: `by dispatch · payment: ${data.payment}` }], { actor: req.user });
+    const driverId = data.driverId === 'auto' ? await pickDriver(data.schedule.date) : data.driverId || null;
+    if (driverId) await pool.query('UPDATE orders SET driver_id = ? WHERE id = ?', [driverId, id]);
+    await logChanges(
+        id,
+        [
+            { field: 'created', oldValue: null, newValue: `by dispatch · payment: ${data.payment}` },
+            ...(driverId ? [{ field: 'driver', oldValue: null, newValue: `${await driverName(driverId)}${data.driverId === 'auto' ? ' (auto-assigned)' : ''}` }] : [])
+        ],
+        { actor: req.user }
+    );
 
     let order = await loadOrder(code);
     let paymentLink = null;
@@ -832,11 +862,17 @@ router.post('/orders', async (req, res) => {
         } else if (data.notify) {
             await waitForMail(notifyOrderConfirmed(order));
         }
+        // Comanda e confirmată: șoferul alocat primește jobul acum (la plata prin link, după plată)
+        if (order.driver && order.status === 'confirmed') {
+            const { mails, driverNotified } = await sendDriverEmails({ driver: null, status: 'new' }, order);
+            await waitForMail(Promise.all(mails));
+            if (driverNotified) order = await loadOrder(code);
+        }
     } catch (err) {
         console.warn(`[reloq] Comanda ${code}: linkul de plată / emailul a eșuat: ${err.message}`);
         return res.status(201).json({ order, paymentLink: null, warning: `The order was created, but the payment link failed: ${err.message}` });
     }
-    res.status(201).json({ order, paymentLink, customerCreated: Boolean(customer.created) });
+    res.status(201).json({ order, paymentLink, customerCreated: Boolean(customer.created), autoAssigned: data.driverId === 'auto' ? order.driver?.fullName || null : undefined });
 });
 
 /** POST /admin/orders/:code/payment-link — trimite din nou linkul de plată (îl recreează dacă a expirat). */

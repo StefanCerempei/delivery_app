@@ -214,6 +214,8 @@ export const adminCreateOrderSchema = z
         itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
         // link = email cu link de plată Stripe · paid = plătit deja (cash / telefon) · later = se încasează mai târziu
         payment: z.enum(['link', 'paid', 'later']),
+        // șoferul: un id, 'auto' (cel mai liber în ziua respectivă) sau nimic (se alocă mai târziu)
+        driverId: z.union([z.number().int().positive(), z.literal('auto')]).nullable().optional(),
         discountCode: z.string().trim().max(40).optional(),
         dispatchNotes: z.string().trim().max(2000).optional(),
         notify: z.boolean().optional().default(true)
