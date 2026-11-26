@@ -2,6 +2,7 @@
 // Servește API-ul (/api/...) și site-ul React compilat (frontend-client/dist)
 // de pe același domeniu, deci nu e nevoie de CORS și cookie-urile de sesiune sunt sigure.
 
+import { applePayAssociation, ensureWalletDomain } from './src/wallets.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -140,6 +141,16 @@ const sendText = (type, body) => (req, res) => res.type(type).set('Cache-Control
 app.get('/robots.txt', sendText('text/plain; charset=utf-8', robotsTxt));
 app.get('/sitemap.xml', sendText('application/xml; charset=utf-8', sitemapXml));
 app.get('/llms.txt', publicCors, sendText('text/plain; charset=utf-8', llmsTxt));
+// Verificarea Apple Pay (Stripe o cere la înregistrarea domeniului)
+app.get('/.well-known/apple-developer-merchantid-domain-association', async (_req, res) => {
+    try {
+        res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(await applePayAssociation());
+    } catch (err) {
+        console.warn(`[reloq] Fișierul Apple Pay nu e disponibil: ${err.message}`);
+        res.status(503).type('text/plain').send('Apple Pay domain association file is temporarily unavailable.');
+    }
+});
+
 app.get(['/.well-known/mcp/server-card.json', '/.well-known/mcp.json'], publicCors, (req, res) => {
     res.set('Cache-Control', 'public, max-age=3600').json(serverCard(baseUrl(req)));
 });
@@ -198,6 +209,7 @@ if (!configOk) {
 } else try {
     await migrate();
     console.log('[reloq] Baza de date este pregătită.');
+    ensureWalletDomain(); // în fundal: nu întârzie pornirea
 } catch (err) {
     console.error('[reloq] Nu mă pot conecta la baza de date. Verifică DB_HOST / DB_USER / DB_PASSWORD / DB_NAME.');
     console.error(err.message);
