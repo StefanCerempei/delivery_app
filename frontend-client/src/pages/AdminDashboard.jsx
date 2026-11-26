@@ -6,6 +6,7 @@ import Logo from '../components/Logo';
 import AdminDrivers from './AdminDrivers';
 import AdminSchedule from './AdminSchedule';
 import AdminRevenue from './AdminRevenue';
+import AdminDiscounts from './AdminDiscounts';
 import InstallApp from '../components/InstallApp';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
@@ -181,6 +182,7 @@ const AdminDashboard = () => {
         { id: 'orders', label: 'Orders', icon: '☰' },
         { id: 'drivers', label: 'Drivers', icon: '⛟' },
         { id: 'revenue', label: 'Revenue', icon: '$' },
+        { id: 'discounts', label: 'Discounts', icon: '%' },
         { id: 'customers', label: 'Customers', icon: '◎' }
     ];
 
@@ -334,6 +336,9 @@ const AdminDashboard = () => {
 
                     {/* ---------- REVENUE ---------- */}
                     {view === 'revenue' && <AdminRevenue refreshKey={refreshKey} />}
+
+                    {/* ---------- DISCOUNTS ---------- */}
+                    {view === 'discounts' && <AdminDiscounts />}
 
                     {/* ---------- DRIVERS ---------- */}
                     {view === 'drivers' && (

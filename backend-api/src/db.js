@@ -70,6 +70,10 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'labor_paid_at', 'DATETIME NULL AFTER labor_requested_at');
     await addColumnIfMissing('orders', 'labor_payment_method', 'VARCHAR(20) NULL AFTER labor_paid_at');
     await addColumnIfMissing('orders', 'labor_payment_intent_id', 'VARCHAR(255) NULL AFTER labor_payment_method');
+    // Cod de discount: total_cents e deja redus; discount_cents = cât s-a scăzut
+    await addColumnIfMissing('orders', 'discount_code', 'VARCHAR(40) NULL AFTER total_cents');
+    await addColumnIfMissing('orders', 'discount_percent', 'TINYINT UNSIGNED NULL AFTER discount_code');
+    await addColumnIfMissing('orders', 'discount_cents', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER discount_percent');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

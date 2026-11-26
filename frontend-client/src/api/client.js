@@ -67,6 +67,10 @@ export const api = {
     availability: (from, to, { quiet = false } = {}) => request(`/availability?from=${from}&to=${to}`, { quiet }),
     estimate: (pickup, dropoff) => request('/estimate', { method: 'POST', body: { pickup, dropoff } }),
     createOrder: (payload) => request('/orders', { method: 'POST', body: payload }),
+    checkDiscount: (code) => request('/discounts/check', { method: 'POST', body: { code } }),
+    adminDiscounts: () => request('/admin/discounts'),
+    adminCreateDiscount: (payload) => request('/admin/discounts', { method: 'POST', body: payload }),
+    adminToggleDiscount: (id, active) => request(`/admin/discounts/${id}`, { method: 'PATCH', body: { active } }),
     confirmPayment: (code) => request(`/orders/${encodeURIComponent(code)}/confirm-payment`, { method: 'POST' }),
     paypalCreate: (code) => request(`/orders/${encodeURIComponent(code)}/paypal/create`, { method: 'POST' }),
     paypalCapture: (code, paypalOrderId) =>

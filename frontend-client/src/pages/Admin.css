@@ -1027,3 +1027,10 @@ a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: no
 @media (max-width: 760px) {
     .order-edit-grid, .order-edit-row { grid-template-columns: 1fr; }
 }
+
+/* ===== Coduri de discount ===== */
+.discount-admin-hint { margin: -4px 0 12px; font-size: 13px; color: var(--muted); }
+.discount-code-cell { font-family: var(--font-mono); letter-spacing: 0.04em; }
+.discount-status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.discount-status.on { background: rgba(45, 212, 167, 0.14); color: #2dd4a7; }
+.discount-status.off { background: rgba(255, 255, 255, 0.06); color: var(--muted); }

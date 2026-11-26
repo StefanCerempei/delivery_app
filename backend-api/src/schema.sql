@@ -161,3 +161,15 @@ CREATE TABLE IF NOT EXISTS blocked_slots (
     created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (day, slot)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Coduri de discount create de dispecer (procent din prețul plătit la rezervare; o dată per client)
+CREATE TABLE IF NOT EXISTS discount_codes (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(40)  NOT NULL,
+    percent     TINYINT UNSIGNED NOT NULL DEFAULT 10,
+    active      TINYINT(1)   NOT NULL DEFAULT 1,
+    note        VARCHAR(200) NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_discount_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -56,6 +56,11 @@ const Step5Pay = () => {
     const [clientSecret, setClientSecret] = useState(null);
     const [orderError, setOrderError] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    // Cod de discount (verificat pe server; o dată per client)
+    const [discountInput, setDiscountInput] = useState('');
+    const [discount, setDiscount] = useState(null);
+    const [discountError, setDiscountError] = useState('');
+    const [discountBusy, setDiscountBusy] = useState(false);
     // Încărcarea pozelor după crearea comenzii: { done, total } sau null
     const [photoUpload, setPhotoUpload] = useState(null);
     const [photoNotice, setPhotoNotice] = useState('');
@@ -72,7 +77,27 @@ const Step5Pay = () => {
     }, []);
 
     const selectedVehicle = VEHICLES.find((v) => v.id === bookingData.vehicle);
-    const totalAmount = order?.totalAmount ?? bookingData.priceEstimate?.total ?? null;
+    const baseTotal = bookingData.priceEstimate?.total ?? null;
+    // Același calcul ca pe server: reducerea rotunjită la cent
+    const discountAmount =
+        discount && baseTotal != null ? Math.round(Math.round(baseTotal * 100) * discount.percent / 100) / 100 : 0;
+    const totalAmount = order?.totalAmount ?? (baseTotal != null ? Math.round((baseTotal - discountAmount) * 100) / 100 : null);
+
+    const applyDiscount = async (e) => {
+        e?.preventDefault();
+        setDiscountError('');
+        if (!discountInput.trim()) return setDiscountError('Please enter a discount code.');
+        if (!user) return setDiscountError('Sign in or create your account below first, then apply the code.');
+        setDiscountBusy(true);
+        try {
+            setDiscount(await api.checkDiscount(discountInput.trim()));
+        } catch (err) {
+            setDiscount(null);
+            setDiscountError(err.message);
+        } finally {
+            setDiscountBusy(false);
+        }
+    };
 
     const scheduleText =
         bookingData.scheduledTime && typeof bookingData.scheduledTime === 'object'
@@ -128,7 +153,8 @@ const Step5Pay = () => {
                 vehicle: bookingData.vehicle,
                 schedule,
                 itemsDescription: bookingData.itemsDescription,
-                photosCount: bookingData.photos?.length || 0
+                photosCount: bookingData.photos?.length || 0,
+                ...(discount ? { discountCode: discount.code } : {})
             });
             await uploadPhotos(res.order.id);
             setOrder(res.order);
@@ -140,6 +166,10 @@ const Step5Pay = () => {
         } catch (err) {
             if (err.data?.code === 'EMAIL_NOT_VERIFIED') refresh();
             if (err.data?.code === 'SLOT_TAKEN') setSlotTaken(true);
+            if (err.data?.code === 'DISCOUNT_INVALID') {
+                setDiscount(null);
+                setDiscountError(err.message);
+            }
             setOrderError(err.message);
         } finally {
             setIsCreating(false);
@@ -199,6 +229,50 @@ const Step5Pay = () => {
                         <small className="recap-price-note">due at booking</small>
                     </span>
                 </div>
+                {/* Cod de discount */}
+                {order ? (
+                    order.discount && (
+                        <div className="discount-applied">
+                            <span>
+                                <strong>{order.discount.code}</strong> · {order.discount.percent}% off
+                            </span>
+                            <span>−{formatPrice(order.discount.amount)}</span>
+                        </div>
+                    )
+                ) : discount ? (
+                    <div className="discount-applied">
+                        <span>
+                            <strong>{discount.code}</strong> · {discount.percent}% off
+                        </span>
+                        <span className="discount-applied-right">
+                            −{formatPrice(discountAmount)}
+                            <button type="button" className="discount-remove" onClick={() => setDiscount(null)} aria-label="Remove discount code">
+                                Remove
+                            </button>
+                        </span>
+                    </div>
+                ) : (
+                    <form className="discount-form" onSubmit={applyDiscount} noValidate>
+                        <input
+                            name="discount-code"
+                            value={discountInput}
+                            onChange={(e) => {
+                                setDiscountInput(e.target.value.toUpperCase());
+                                setDiscountError('');
+                            }}
+                            placeholder="Discount code"
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            maxLength={40}
+                            aria-label="Discount code"
+                        />
+                        <button type="submit" className="discount-apply" disabled={discountBusy}>
+                            {discountBusy ? 'Checking…' : 'Apply'}
+                        </button>
+                    </form>
+                )}
+                {discountError && !discount && <p className="discount-error">{discountError}</p>}
+
                 <div className="recap-addresses">
                     <div className="recap-addr-line">
                         <span className="mini-dot blue" />

@@ -18,6 +18,7 @@ import { searchAddresses, reverseGeocode } from '../geocode.js';
 import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
 import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { laborPaymentIntent, syncLaborPayment } from '../labor.js';
+import { checkDiscount, discountCents } from '../discounts.js';
 
 /** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
 function outsideArea(data, res) {
@@ -34,6 +35,8 @@ const router = Router();
 
 const estimateLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
 const createLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+// Verificarea codurilor de discount: limită separată, ca să nu se poată ghici coduri la nesfârșit
+const discountLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
 
 const toDollars = (p) => ({ vehicleId: p.vehicleId, ...priceLines(p) });
 
@@ -144,6 +147,13 @@ router.get('/availability', estimateLimiter, async (req, res) => {
     res.json({ taken });
 });
 
+/** POST /api/discounts/check — verifică un cod de discount pentru clientul logat. */
+router.post('/discounts/check', requireAuth, discountLimiter, async (req, res) => {
+    const result = await checkDiscount(req.body?.code, req.user.id);
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result);
+});
+
 /** POST /api/orders — creează comanda; prețul e recalculat aici. */
 router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => {
     const data = parseBody(createOrderSchema, req, res);
@@ -160,6 +170,15 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
     }
     const price = priceFor(data.vehicle, route);
+
+    // Cod de discount (o dată per client): reduce doar prețul plătit la rezervare
+    let discount = null;
+    if (data.discountCode) {
+        discount = await checkDiscount(data.discountCode, req.user.id);
+        if (discount.error) return res.status(400).json({ error: discount.error, code: 'DISCOUNT_INVALID' });
+        discount.cents = discountCents(price.totalCents, discount.percent);
+    }
+    const totalCents = price.totalCents - (discount?.cents || 0);
 
     const id = crypto.randomUUID();
     let code = newOrderCode();
@@ -184,8 +203,8 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         items_description, photos_count,
                         base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
                         pricing_version, outbound_mins, return_mins, labor_cents_per_min,
-                        pickup_details, dropoff_details
-                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?)`,
+                        pickup_details, dropoff_details, discount_code, discount_percent, discount_cents
+                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         id, code, req.user.id,
                         data.pickup.address, data.pickup.lat, data.pickup.lng,
@@ -196,11 +215,12 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         data.itemsDescription, 0,
                         // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
                         // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
-                        price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
+                        price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, totalCents,
                         config.currency,
                         price.outboundMins, price.returnMins, price.laborCentsPerMin,
                         data.pickupDetails ? JSON.stringify(data.pickupDetails) : null,
-                        data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null
+                        data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null,
+                        discount?.code || null, discount?.percent || null, discount?.cents || 0
                     ]
                 );
                 break;
@@ -225,7 +245,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         const { customer, meta } = await customerFields(req.user.id, { name: req.user.fullName, email: req.user.email });
         const intent = await createPaymentIntent({
             ...(customer ? { customer } : {}),
-            amount: price.totalCents,
+            amount: totalCents,
             currency: config.currency,
             receipt_email: req.user.email,
             description: `RELOQ ${VEHICLES[data.vehicle].name} — ${code}`,

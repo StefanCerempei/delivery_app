@@ -17,7 +17,7 @@ const cents = (v) => Math.round(Number(v)) / 100;
 /** Liniile de preț ale unei comenzi salvate (model v2), sau cele vechi pentru comenzile dinainte. */
 function orderPrice(row, vehicle) {
     if (Number(row.pricing_version) >= 2) {
-        return priceLines({
+        const p = priceLines({
             reservationFeeCents: Number(row.time_cost_cents),
             serviceFeeCents: Number(row.base_fare_cents),
             transportationCents: Number(row.distance_cost_cents),
@@ -29,6 +29,16 @@ function orderPrice(row, vehicle) {
             returnMins: Number(row.return_mins),
             distanceMiles: Number(row.distance_miles)
         });
+        // Reducerea apare ca linie separată (totalul salvat e deja redus)
+        if (Number(row.discount_cents) > 0) {
+            p.lines.push({
+                key: 'discount',
+                label: `Discount ${row.discount_code} (${row.discount_percent}%)`,
+                detail: 'Discount code',
+                amount: -Number(row.discount_cents) / 100
+            });
+        }
+        return p;
     }
     return {
         lines: [
@@ -120,6 +130,9 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
         photoIds: row.photo_ids ? String(row.photo_ids).split(',').map(Number) : [],
         price: orderPrice(row, vehicle),
         totalAmount: cents(row.total_cents),
+        discount: Number(row.discount_cents) > 0
+            ? { code: row.discount_code, percent: Number(row.discount_percent), amount: cents(row.discount_cents) }
+            : null,
         currency: row.currency,
         cardLast4: row.card_last4 || null,
         // Plătit online (transportul). Comenzile plătite înainte de coloana paid_at au status 'paid'.

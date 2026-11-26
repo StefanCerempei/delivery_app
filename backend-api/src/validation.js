@@ -114,7 +114,19 @@ export const createOrderSchema = z.object({
         { error: 'Please pick a date and arrival window.' }
     ),
     itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
-    photosCount: z.number().int().min(0).max(5).default(0)
+    photosCount: z.number().int().min(0).max(5).default(0),
+    discountCode: z.string().trim().max(40).optional()
+});
+
+/** Cod de discount creat de dispecer: litere, cifre, - și _; procent 1–100. */
+export const discountCodeSchema = z.object({
+    code: z
+        .string()
+        .trim()
+        .transform((s) => s.toUpperCase().replace(/\s+/g, ''))
+        .pipe(z.string().regex(/^[A-Z0-9_-]{3,40}$/, 'Use 3–40 letters, digits, - or _.')),
+    percent: z.coerce.number().int().min(1, 'Percent must be 1–100.').max(100, 'Percent must be 1–100.').default(10),
+    note: z.string().trim().max(200).optional().default('')
 });
 
 /** Editarea unei comenzi din dispecerat: doar câmpurile trimise se schimbă. */

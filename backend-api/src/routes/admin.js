@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
-import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, parseBody } from '../validation.js';
+import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, discountCodeSchema, parseBody } from '../validation.js';
+import { listDiscounts } from '../discounts.js';
 import { getTrip, priceFor, priceLines } from '../pricing.js';
 import { scheduleLabel } from './orders.js';
 import { businessTodayUTC } from '../time.js';
@@ -151,10 +152,14 @@ router.patch('/orders/:code', async (req, res) => {
             set('base_fare_cents', price.serviceFeeCents);
             set('distance_cost_cents', price.transportationCents);
             set('time_cost_cents', price.reservationFeeCents);
-            set('total_cents', price.totalCents);
+            // Discountul comenzii (dacă are) se păstrează: același procent din noul preț
+            const off = row.discount_percent ? Math.round((price.totalCents * Number(row.discount_percent)) / 100) : 0;
+            set('total_cents', price.totalCents - off);
+            if (row.discount_percent) set('discount_cents', off);
             set('pricing_version', 2);
         }
-        priceChange = { current: row.total_cents / 100, estimated: priceLines(price).total, applied };
+        const offEst = row.discount_percent ? Math.round((price.totalCents * Number(row.discount_percent)) / 100) : 0;
+        priceChange = { current: row.total_cents / 100, estimated: (price.totalCents - offEst) / 100, applied };
     }
 
     if (!sets.length) return res.json({ order: await loadOrder(req.params.code), changes: [], priceChange });
@@ -671,6 +676,32 @@ router.delete('/drivers/:id', async (req, res) => {
     }
     await pool.query('DELETE FROM drivers WHERE id = ?', [id]);
     res.json({ deleted: true });
+});
+
+/* ================= Coduri de discount ================= */
+router.get('/discounts', async (_req, res) => {
+    res.json({ discounts: await listDiscounts() });
+});
+
+router.post('/discounts', async (req, res) => {
+    const data = parseBody(discountCodeSchema, req, res);
+    if (!data) return;
+    try {
+        await pool.query('INSERT INTO discount_codes (code, percent, note) VALUES (?, ?, ?)', [data.code, data.percent, data.note || null]);
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'This code already exists.' });
+        throw err;
+    }
+    res.status(201).json({ discounts: await listDiscounts() });
+});
+
+/** Pornește / oprește un cod (codurile folosite nu se șterg, ca să rămână istoricul). */
+router.patch('/discounts/:id', async (req, res) => {
+    const active = req.body?.active;
+    if (typeof active !== 'boolean') return res.status(400).json({ error: 'Send active: true or false.' });
+    const [r] = await pool.query('UPDATE discount_codes SET active = ? WHERE id = ?', [active ? 1 : 0, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Discount code not found.' });
+    res.json({ discounts: await listDiscounts() });
 });
 
 export default router;
