@@ -42,6 +42,9 @@ const dropoffIcon = pinIcon('#ea3b2e', 30);
 const pickupIconBig = startDot(28);
 const dropoffIconBig = pinIcon('#ea3b2e', 40);
 
+// Pe telefon harta nu mai „zboară”: mutări instant, fără animații (totul stă mai fix)
+const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
+
 const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     const map = useMap();
 
@@ -52,11 +55,11 @@ const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
         const timer = setTimeout(() => {
             map.invalidateSize();
             if (target?.lat) {
-                map.flyTo([target.lat, target.lng], 18, { duration: 0.6 });
+                isPhone() ? map.setView([target.lat, target.lng], 18, { animate: false }) : map.flyTo([target.lat, target.lng], 18, { duration: 0.6 });
             } else if (routeCoords?.length) {
-                map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80] });
+                map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80], animate: !isPhone() });
             } else if (pickup?.lat && dropoff?.lat) {
-                map.fitBounds(L.latLngBounds([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]]), { padding: [80, 80] });
+                map.fitBounds(L.latLngBounds([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]]), { padding: [80, 80], animate: !isPhone() });
             }
         }, 320); // după animația de înălțime
         return () => clearTimeout(timer);
@@ -66,19 +69,19 @@ const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     useEffect(() => {
         if (pinMode) return;
         if (routeCoords && routeCoords.length > 0) {
-            map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80] });
+            map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80], animate: !isPhone() });
         } else if (pickup?.lat && dropoff?.lat) {
             map.fitBounds(
                 L.latLngBounds([
                     [pickup.lat, pickup.lng],
                     [dropoff.lat, dropoff.lng]
                 ]),
-                { padding: [80, 80] }
+                { padding: [80, 80], animate: !isPhone() }
             );
         } else if (pickup?.lat) {
-            map.flyTo([pickup.lat, pickup.lng], 15);
+            map.setView([pickup.lat, pickup.lng], 15, { animate: !isPhone() });
         } else if (dropoff?.lat) {
-            map.flyTo([dropoff.lat, dropoff.lng], 15);
+            map.setView([dropoff.lat, dropoff.lng], 15, { animate: !isPhone() });
         }
     }, [map, pickup, dropoff, routeCoords, pinMode]);
 
@@ -184,13 +187,15 @@ const MapPreview = () => {
                 zoom={11}
                 style={{ width: '100%', height: '100%', backgroundColor: '#a3a3a1' }}
                 zoomControl={false}
+                bounceAtZoomLimits={false}
+                inertia={!isPhone()}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {/* Butoanele + / − (zoom), jos în dreapta */}
-                <ZoomControl position="bottomright" zoomInTitle="Zoom in" zoomOutTitle="Zoom out" />
+                {/* Butoanele + / − (zoom): jos în dreapta pe laptop, sus în dreapta pe telefon (CSS) */}
+                <ZoomControl position="topright" zoomInTitle="Zoom in" zoomOutTitle="Zoom out" />
 
                 <MapViewportUpdater pickup={pickup} dropoff={dropoff} routeCoords={routeCoords} pinMode={pinMode} />
                 <PinClickHandler pinMode={pinMode} onPin={(latlng) => movePin(pinMode, latlng)} />

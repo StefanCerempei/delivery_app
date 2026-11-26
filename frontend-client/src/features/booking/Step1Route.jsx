@@ -32,7 +32,7 @@ const Step1Route = () => {
         if (pinMode && pinMode !== kind) confirmPin(updateBookingData, pinMode, bookingData[pinMode]);
         setPinMode(kind);
         // pe telefon harta e sus
-        if (window.matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (window.matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0, behavior: 'auto' });
     };
 
     const selectAddress = (kind, loc) => {

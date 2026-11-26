@@ -2493,7 +2493,7 @@
 }
 
 /* ===== Zoom + / − pe hartă, în stilul aplicației ===== */
-.map-container .leaflet-bottom.leaflet-right { bottom: 28px; right: 12px; }
+.map-container .leaflet-top.leaflet-right { top: auto; bottom: 48px; right: 12px; }
 .map-container .leaflet-control-zoom {
     border: 1px solid var(--line-strong) !important;
     border-radius: 14px !important;
@@ -2517,7 +2517,6 @@
 /* Pe telefon harta e mică și se mărește cu două degete: butoanele doar când marchezi pinul */
 @media (max-width: 860px) {
     .map-container:not(.pin-mode) .leaflet-control-zoom { display: none; }
-    .map-container .leaflet-bottom.leaflet-right { bottom: 16px; }
 }
 
 /* ===== Semnele adreselor, ca pe Google Maps: pornire = cerc albastru, destinație = pin roșu ===== */
@@ -2571,3 +2570,32 @@
 @media (max-width: 480px) {
     .step-heading .google-rating-extra { display: none; }
 }
+
+/* ===== Telefon: totul mai fix, fără suprapuneri ===== */
+@media (max-width: 860px) {
+    /* fără animația de înălțime a hărții (nu mai „sare” ecranul) */
+    .map-container { transition: none !important; }
+
+    /* zoom + / −: sus în dreapta, sub „My account”, ca să nu acopere banda „Done” de jos */
+    .map-container .leaflet-top.leaflet-right { top: 76px; bottom: auto; right: 12px; }
+    .map-container .leaflet-control-zoom a { width: 40px !important; height: 40px !important; line-height: 38px !important; }
+
+    /* banda de marcare: pe toată lățimea, deasupra atribuirii hărții */
+    .pin-banner {
+        left: 12px;
+        right: 12px;
+        transform: none;
+        width: auto;
+        max-width: none;
+        bottom: 22px;
+        justify-content: space-between;
+    }
+    .pin-banner button { padding: 10px 18px; }
+
+    /* cât timp marchezi pinul, butonul de jos al pasului nu mai plutește peste text */
+    .booking-layout.pin-active .step-footer { position: static; background: none; }
+
+    /* panoul nu se mai „trage” elastic peste hartă */
+    .wizard-container { overscroll-behavior: contain; }
+}
+html, body { overscroll-behavior-y: none; }
