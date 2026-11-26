@@ -2325,3 +2325,62 @@
     .vehicle-icon-box.has-photo { width: 80px; height: 48px; }
     .vehicle-icon-box.has-photo img { width: 100%; }
 }
+
+/* ===== Butonul Back din pașii rezervării ===== */
+.step-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 4px 16px 4px 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background-color: var(--surface);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 0.18s, background-color 0.18s, transform 0.18s var(--ease);
+}
+.step-back-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    transition: transform 0.22s var(--ease), background-color 0.18s, color 0.18s;
+}
+.step-back-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.1;
+}
+.step-back-text span {
+    font-size: 14px;
+    font-weight: 700;
+}
+.step-back-text small {
+    margin-top: 2px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted);
+}
+.step-back-btn:hover {
+    border-color: var(--accent-ring);
+    background-color: var(--surface-2);
+}
+.step-back-btn:hover .step-back-icon {
+    transform: translateX(-2px);
+    background-color: var(--accent);
+    color: var(--accent-ink);
+}
+.step-back-btn:active {
+    transform: scale(0.97);
+}
+.step-back-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
