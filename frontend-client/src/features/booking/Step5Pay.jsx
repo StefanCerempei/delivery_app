@@ -476,7 +476,7 @@ const Step5Pay = () => {
                                     </Link>
                                     . I understand that my labor charge is calculated after the service is completed, based on the actual time
                                     from crew arrival at pickup until the job is completed at destination. Time is billed in 5-minute increments.
-                                    Waiting time and access delays during this period are included. My final labor charge may be lower or higher
+                                    Waiting time and access delays during this period are included; crew breaks are not billed. My final labor charge may be lower or higher
                                     depending on the actual time required.
                                 </span>
                             </label>

@@ -431,7 +431,7 @@ export function notifyLaborPaymentRequest(order) {
         html: layout({
             preheader: `Your RELOQ move is complete. Labor due: ${money2(order.laborBilling?.amount)}.`,
             title: 'Thanks for moving with RELOQ',
-            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion, billed in 5-minute increments.`,
+            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion (crew breaks not billed), in 5-minute increments.`,
             body: `${detailsTable(rows)}${button(payUrl, `Pay ${money2(order.laborBilling?.amount)}`)}
 <p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">You can pay by card, Apple Pay or Google Pay from your RELOQ account. Questions about the time? Reply to this email or call ${BRAND.phone}.</p>`
         }),
