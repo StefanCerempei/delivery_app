@@ -2483,3 +2483,39 @@
 .terms-accept a { color: var(--text); }
 
 .vehicles-hidden-note { margin: -4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); text-align: center; }
+
+/* ===== Panoul de rezervare mai lat pe laptop / desktop ===== */
+@media (min-width: 1280px) {
+    .wizard-container { width: 540px; }
+}
+@media (min-width: 1600px) {
+    .wizard-container { width: 600px; }
+}
+
+/* ===== Zoom + / − pe hartă, în stilul aplicației ===== */
+.map-container .leaflet-bottom.leaflet-right { bottom: 28px; right: 12px; }
+.map-container .leaflet-control-zoom {
+    border: 1px solid var(--line-strong) !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7) !important;
+}
+.map-container .leaflet-control-zoom a {
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 42px !important;
+    font-size: 22px !important;
+    font-weight: 600;
+    background-color: rgba(14, 21, 33, 0.92) !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--line-strong) !important;
+    transition: background-color 0.15s, color 0.15s;
+}
+.map-container .leaflet-control-zoom a:last-child { border-bottom: none !important; }
+.map-container .leaflet-control-zoom a:hover { background-color: var(--accent-strong) !important; color: #fff !important; }
+.map-container .leaflet-control-zoom a.leaflet-disabled { opacity: 0.45; }
+/* Pe telefon harta e mică și se mărește cu două degete: butoanele doar când marchezi pinul */
+@media (max-width: 860px) {
+    .map-container:not(.pin-mode) .leaflet-control-zoom { display: none; }
+    .map-container .leaflet-bottom.leaflet-right { bottom: 16px; }
+}

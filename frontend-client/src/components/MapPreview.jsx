@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
@@ -182,6 +182,8 @@ const MapPreview = () => {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                {/* Butoanele + / − (zoom), jos în dreapta */}
+                <ZoomControl position="bottomright" zoomInTitle="Zoom in" zoomOutTitle="Zoom out" />
 
                 <MapViewportUpdater pickup={pickup} dropoff={dropoff} routeCoords={routeCoords} pinMode={pinMode} />
                 <PinClickHandler pinMode={pinMode} onPin={(latlng) => movePin(pinMode, latlng)} />
