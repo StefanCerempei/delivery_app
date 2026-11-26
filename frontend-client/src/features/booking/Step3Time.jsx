@@ -197,6 +197,8 @@ const Step3Time = () => {
                 <Button onClick={handleContinue} disabled={!selectedSlot}>
                     {selectedSlot ? 'Continue to payment →' : 'Pick an arrival window'}
                 </Button>
+            </div>
+            <div className="step-notes">
                 <p className="trust-note">
                     Our crew calls you about 45 minutes before arrival
                 </p>

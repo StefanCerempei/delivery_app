@@ -186,10 +186,16 @@ const Step1Route = () => {
                         ? 'Address outside our service area'
                         : needsPin(bookingData.pickup) || needsPin(bookingData.dropoff)
                         ? 'Mark the address on the map'
-                        : addressesReady && !detailsReady
-                          ? 'Add property & access info'
-                          : 'Choose your items →'}
+                        : !bookingData.pickup?.lat
+                          ? 'Enter the pickup address above ↑'
+                          : !bookingData.dropoff?.lat
+                            ? 'Enter the drop-off address above ↑'
+                            : addressesReady && !detailsReady
+                              ? 'Add property & access info above ↑'
+                              : 'Choose your items →'}
                 </Button>
+            </div>
+            <div className="step-notes">
                 <p className="trust-note">
                     Background-checked movers • Loading & unloading included
                 </p>

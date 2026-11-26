@@ -121,6 +121,8 @@ const Step4Items = () => {
                 <Button onClick={handleContinue} disabled={totalCount === 0}>
                     {totalCount === 0 ? 'Add at least one item' : 'See recommended vehicle →'}
                 </Button>
+            </div>
+            <div className="step-notes">
                 <p className="trust-note">
                     {totalCount > 0
                         ? `${totalCount} item${totalCount > 1 ? 's' : ''} selected`

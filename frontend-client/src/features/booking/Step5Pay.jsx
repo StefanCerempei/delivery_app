@@ -498,6 +498,8 @@ const Step5Pay = () => {
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`
                                       : `Book RELOQ • ${formatPrice(totalAmount)}`}
                             </Button>
+                        </div>
+                        <div className="step-notes">
                             <p className="trust-note">
                                 {paymentsEnabled
                                     ? 'You pay the booking price now. '

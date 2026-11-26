@@ -2636,3 +2636,23 @@ html, body { overscroll-behavior-y: none; }
 @media (max-width: 860px) {
     .booking-layout.past-route .step-counter-label { display: none; }
 }
+
+/* ===== Bara fixă de jos: doar butonul; notele, linkurile și licențele stau în pagină ===== */
+.step-footer {
+    padding-top: 14px;
+    padding-bottom: 16px;
+    gap: 0;
+    pointer-events: none;
+}
+.step-footer > * { pointer-events: auto; }
+.step-footer.card-field-full { pointer-events: auto; }
+.step-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0 24px;
+}
+@media (max-width: 860px) {
+    /* harta un pic mai mică la pasul 1, ca adresele să se vadă din prima */
+    .map-container:not(.pin-mode) { height: 30vh; min-height: 200px; }
+}
