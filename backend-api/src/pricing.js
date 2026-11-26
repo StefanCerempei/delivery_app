@@ -50,31 +50,52 @@ function estimateLeg(a, b) {
     return { miles, mins: Math.max(1, Math.round((miles / 25) * 60)) };
 }
 
+/** Ruta nu a putut fi calculată: nu ghicim distanța (specificația RELOQ, secțiunea 9). */
+export class RouteUnavailableError extends Error {
+    constructor() {
+        super("We couldn't calculate the driving route right now. Please try again in a minute, or call us and we'll quote it for you.");
+        this.code = 'ROUTE_UNAVAILABLE';
+        this.status = 503;
+    }
+}
+
+// Doar pentru dezvoltare / teste locale fără acces la serviciul de rute. Pe site rămâne oprit.
+const ALLOW_ESTIMATE = process.env.ROUTE_ESTIMATE_FALLBACK === '1' && process.env.NODE_ENV !== 'production';
+
+async function osrmTrip(points) {
+    const url = `https://router.project-osrm.org/route/v1/driving/${points}?overview=false`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+    const legs = data.code === 'Ok' ? data.routes?.[0]?.legs : null;
+    if (legs?.length !== 3) return null;
+    const [outbound, main, back] = legs;
+    return {
+        distanceMiles: toMiles(main.distance),
+        durationMins: toMinutes(main.duration),
+        outboundMins: toMinutes(outbound.duration),
+        returnMins: toMinutes(back.duration),
+        source: 'osrm'
+    };
+}
+
 /**
  * Cele trei segmente ale cursei, într-un singur apel OSRM: garaj → pickup → destinație → garaj.
- * Dacă serviciul nu răspunde, folosește o estimare.
+ * Dacă serviciul nu răspunde (după o reîncercare), aruncă RouteUnavailableError — fără distanțe ghicite.
  */
 export async function getTrip(pickup, dropoff) {
     const points = [GARAGE, pickup, dropoff, GARAGE].map((p) => `${p.lng},${p.lat}`).join(';');
-    const url = `https://router.project-osrm.org/route/v1/driving/${points}?overview=false`;
-    try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-        const data = await res.json();
-        const legs = data.code === 'Ok' ? data.routes?.[0]?.legs : null;
-        if (legs?.length === 3) {
-            const [outbound, main, back] = legs;
-            return {
-                distanceMiles: toMiles(main.distance),
-                durationMins: toMinutes(main.duration),
-                outboundMins: toMinutes(outbound.duration),
-                returnMins: toMinutes(back.duration),
-                source: 'osrm'
-            };
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const trip = await osrmTrip(points);
+            if (trip) return trip;
+        } catch {
+            // reîncercăm o dată
         }
-    } catch {
-        // cade pe estimare
     }
-
+    if (!ALLOW_ESTIMATE) {
+        console.warn('[reloq] Serviciul de rute nu a răspuns; cererea a fost refuzată (fără estimare).');
+        throw new RouteUnavailableError();
+    }
     const outbound = estimateLeg(GARAGE, pickup);
     const main = estimateLeg(pickup, dropoff);
     const back = estimateLeg(dropoff, GARAGE);

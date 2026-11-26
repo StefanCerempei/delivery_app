@@ -40,7 +40,9 @@ const LaborPayment = ({ order, onPaid, autoOpen = false }) => {
                     <span className="labor-pay-label">Labor payment due</span>
                     <strong>{formatMoney(amount)}</strong>
                     <small>
-                        {order.laborActual ? `${order.laborActual.minutes} min` : ''}
+                        {order.laborActual
+                            ? `${order.laborActual.elapsedMinutes ?? order.laborActual.minutes} min → ${order.laborActual.minutes} min billed (5-min increments)`
+                            : ''}
                         {order.price?.labor ? ` · ${order.price.labor.label}` : ''} · #{order.id}
                     </small>
                 </div>

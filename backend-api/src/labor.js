@@ -7,6 +7,7 @@
 //   paid_cash      — plătit cash (bifat de șofer sau de dispecer)
 //   waived         — fără taxă de manoperă (decizia dispecerului)
 import { pool } from './db.js';
+import { logChanges } from './audit.js';
 import { stripe, customerFields } from './stripe.js';
 import { config } from './config.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from './orders.js';
@@ -108,11 +109,18 @@ export async function reopenLabor(code) {
 }
 
 /** Dispecerul corectează minutele (null = revine la timpul măsurat). */
-export async function setLaborMinutes(code, minutes) {
+export async function setLaborMinutes(code, minutes, { actor = null, reason = null } = {}) {
     const row = await loadRow(code);
     if (!row) return { error: 'Order not found.', status: 404 };
     if (!['none', ...UNPAID_LABOR].includes(row.labor_status)) return { error: 'Labor for this job is already settled.', status: 409 };
+    const before = laborActual(row);
     await pool.query('UPDATE orders SET labor_minutes_override = ? WHERE id = ?', [minutes, row.id]);
+    // Corectura se păstrează în jurnal: minutele de dinainte, cele noi, cine și de ce
+    await logChanges(
+        row.id,
+        [{ field: 'labor_minutes', oldValue: before ? `${before.elapsedMinutes} min${before.adjusted ? ' (corrected)' : ' (measured)'}` : null, newValue: minutes == null ? 'measured time' : `${minutes} min` }],
+        { actor, reason }
+    );
     const updated = await loadRow(code);
     const amount = laborCents(updated);
     if (row.labor_status !== 'none') {
@@ -144,6 +152,9 @@ export async function laborPaymentIntent(row, email) {
         receipt_email: email,
         description: `RELOQ labor — ${row.code}`,
         metadata: { kind: 'labor', order_code: row.code, order_id: row.id, ...meta }
+    }, {
+        // o cheie per cerere de plată (sumă + momentul cererii): dublu-click nu creează două plăți
+        idempotencyKey: `labor-${row.id}-${row.labor_cents}-${new Date(row.labor_requested_at || 0).getTime()}`
     });
     await pool.query('UPDATE orders SET labor_payment_intent_id = ? WHERE id = ?', [intent.id, row.id]);
     return { clientSecret: intent.client_secret };

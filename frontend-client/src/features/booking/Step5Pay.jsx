@@ -61,6 +61,8 @@ const Step5Pay = () => {
     const [discount, setDiscount] = useState(null);
     const [discountError, setDiscountError] = useState('');
     const [discountBusy, setDiscountBusy] = useState(false);
+    // Acceptarea termenilor și a plății manoperei după job (salvată pe comandă)
+    const [acceptTerms, setAcceptTerms] = useState(false);
     // Încărcarea pozelor după crearea comenzii: { done, total } sau null
     const [photoUpload, setPhotoUpload] = useState(null);
     const [photoNotice, setPhotoNotice] = useState('');
@@ -138,6 +140,7 @@ const Step5Pay = () => {
         if (!verified) return setOrderError('Please verify your email first.');
         const schedule = schedulePayload(bookingData.scheduledTime);
         if (!schedule) return setOrderError('Please go back and pick a date and arrival window.');
+        if (!acceptTerms) return setOrderError('Please accept the booking terms to continue.');
         if (paymentsEnabled && !stripePromise)
             return setOrderError('Online payments are not fully configured yet. Please try again later.');
 
@@ -154,7 +157,8 @@ const Step5Pay = () => {
                 schedule,
                 itemsDescription: bookingData.itemsDescription,
                 photosCount: bookingData.photos?.length || 0,
-                ...(discount ? { discountCode: discount.code } : {})
+                ...(discount ? { discountCode: discount.code } : {}),
+                acceptTerms: true
             });
             await uploadPhotos(res.order.id);
             setOrder(res.order);
@@ -462,11 +466,26 @@ const Step5Pay = () => {
                                 ← Pick another arrival window
                             </button>
                         )}
+                        {user && verified && (
+                            <label className="terms-accept">
+                                <input type="checkbox" name="acceptTerms" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
+                                <span>
+                                    I agree to the{' '}
+                                    <Link to="/terms" target="_blank" rel="noopener">
+                                        Terms of Service
+                                    </Link>
+                                    . I understand that my labor charge is calculated after the service is completed, based on the actual time
+                                    from crew arrival at pickup until the job is completed at destination. Time is billed in 5-minute increments.
+                                    Waiting time and access delays during this period are included. My final labor charge may be lower or higher
+                                    depending on the actual time required.
+                                </span>
+                            </label>
+                        )}
                         <div className="step-footer">
                             <Button
                                 onClick={handleCreateOrder}
                                 loading={isCreating}
-                                disabled={!user || !verified || totalAmount == null}
+                                disabled={!user || !verified || totalAmount == null || !acceptTerms}
                             >
                                 {photoUpload
                                     ? `Uploading photos ${Math.min(photoUpload.done + 1, photoUpload.total)}/${photoUpload.total}…`

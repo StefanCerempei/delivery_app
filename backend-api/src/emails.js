@@ -398,13 +398,22 @@ export function sendDriverLoginLink({ to, fullName, url, minutes, invite = false
     return sendMailNow({ to, subject: invite ? 'Your RELOQ driver account' : 'Your RELOQ driver login link', html, text });
 }
 
+/** Ora în fusul firmei, ex. „Nov 27, 9:42 AM”. */
+const fmtTime = (iso) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(
+        new Date(iso)
+    );
+
 /** Rândurile cu detaliile manoperei (timp, tarif, sumă). */
 function laborRows(order) {
     const l = order.laborActual;
     return [
         ['Order', `#${order.id}`],
         ['Move', order.scheduleText],
-        ['Labor time', l ? `${l.minutes} min${l.adjusted ? ' (reviewed by dispatch)' : ''}` : null],
+        ['Crew arrived', l?.startedAt ? fmtTime(l.startedAt) : null],
+        ['Job completed', l?.completedAt ? fmtTime(l.completedAt) : null],
+        ['Elapsed time', l ? `${l.elapsedMinutes} min${l.adjusted ? ' (reviewed by dispatch)' : ''}` : null],
+        ['Billable time', l ? `${l.minutes} min (rounded up to the next 5 minutes)` : null],
         ['Rate', order.price?.labor?.label || null],
         ['Amount due', money2(order.laborBilling?.amount)]
     ];
@@ -422,7 +431,7 @@ export function notifyLaborPaymentRequest(order) {
         html: layout({
             preheader: `Your RELOQ move is complete. Labor due: ${money2(order.laborBilling?.amount)}.`,
             title: 'Thanks for moving with RELOQ',
-            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion (breaks not included).`,
+            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion, billed in 5-minute increments.`,
             body: `${detailsTable(rows)}${button(payUrl, `Pay ${money2(order.laborBilling?.amount)}`)}
 <p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">You can pay by card, Apple Pay or Google Pay from your RELOQ account. Questions about the time? Reply to this email or call ${BRAND.phone}.</p>`
         }),

@@ -173,3 +173,18 @@ CREATE TABLE IF NOT EXISTS discount_codes (
     PRIMARY KEY (id),
     UNIQUE KEY uq_discount_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Jurnalul modificărilor unei comenzi (specificația RELOQ, secțiunea 10): ce, valoarea veche / nouă, cine, de ce, când
+CREATE TABLE IF NOT EXISTS order_changes (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id    CHAR(36)     NOT NULL,
+    field       VARCHAR(40)  NOT NULL,
+    old_value   TEXT NULL,
+    new_value   TEXT NULL,
+    reason      VARCHAR(300) NULL,
+    actor_id    INT UNSIGNED NULL,
+    actor_name  VARCHAR(120) NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order_changes_order (order_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

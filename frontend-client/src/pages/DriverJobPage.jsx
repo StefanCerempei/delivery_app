@@ -300,7 +300,8 @@ const DriverJobPage = () => {
                 </ul>
                 {job.laborActual && (
                     <p className="job-muted">
-                        Labor time: <strong>{job.laborActual.minutes} min</strong>
+                        Labor time: <strong>{job.laborActual.elapsedMinutes ?? job.laborActual.minutes} min</strong> → billed{' '}
+                        <strong>{job.laborActual.minutes} min</strong> (rounded up to 5 min)
                     </p>
                 )}
                 {job.laborRate && <p className="job-muted">Labor rate: {job.laborRate}</p>}

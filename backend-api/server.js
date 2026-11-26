@@ -187,8 +187,9 @@ if (fs.existsSync(distDir)) {
 
 // Eroare neașteptată: o logăm, dar nu trimitem detalii interne la client.
 app.use((err, _req, res, _next) => {
-    console.error('[reloq] Eroare:', err);
+    if (err.code !== 'ROUTE_UNAVAILABLE') console.error('[reloq] Eroare:', err);
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON.' });
+    if (err.code === 'ROUTE_UNAVAILABLE') return res.status(503).json({ error: err.message, code: err.code });
     res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
 });
 

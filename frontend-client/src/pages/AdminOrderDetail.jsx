@@ -49,12 +49,73 @@ const LABOR_STATUS = {
     waived: 'Waived (no charge)'
 };
 
+const FIELD_LABELS = {
+    status: 'Status',
+    driver: 'Driver',
+    labor_minutes: 'Labor time',
+    labor: 'Labor billing',
+    pickup_address: 'Pickup address',
+    dropoff_address: 'Drop-off address',
+    pickup_details: 'Pickup details',
+    dropoff_details: 'Drop-off details',
+    scheduled_for: 'Arrival window',
+    schedule_label: 'Arrival window (label)',
+    vehicle: 'Vehicle',
+    items_description: 'Items',
+    total_cents: 'Booking price (cents)',
+    distance_miles: 'Distance (mi)'
+};
+// Câmpuri tehnice care se schimbă odată cu altele (nu le mai arătăm separat)
+const HIDDEN_FIELDS = ['pickup_lat', 'pickup_lng', 'dropoff_lat', 'dropoff_lng', 'schedule_type', 'pricing_version', 'duration_mins', 'outbound_mins', 'return_mins', 'base_fare_cents', 'distance_cost_cents', 'time_cost_cents', 'labor_cents_per_min', 'discount_cents'];
+
+/** Jurnalul modificărilor comenzii: ce, vechi → nou, cine, motiv, când. */
+const OrderHistory = ({ order }) => {
+    const [items, setItems] = useState(null);
+    useEffect(() => {
+        let alive = true;
+        api.adminOrderHistory(order.id)
+            .then(({ history }) => alive && setItems(history))
+            .catch(() => alive && setItems([]));
+        return () => {
+            alive = false;
+        };
+    }, [order.id, order.updatedAt, order.status, order.laborBilling?.status, order.laborActual?.minutes, order.driver?.id]);
+
+    const shown = (items || []).filter((h) => !HIDDEN_FIELDS.includes(h.field));
+    return (
+        <div className="admin-card">
+            <h3>History</h3>
+            {items === null ? (
+                <p className="job-muted">Loading…</p>
+            ) : shown.length === 0 ? (
+                <p className="job-muted">No changes yet.</p>
+            ) : (
+                <ul className="order-history">
+                    {shown.map((h, i) => (
+                        <li key={i}>
+                            <div className="order-history-head">
+                                <strong>{FIELD_LABELS[h.field] || h.field}</strong>
+                                <span>{fmtWhen(h.at)}{h.actor ? ` · ${h.actor}` : ''}</span>
+                            </div>
+                            <div className="order-history-change">
+                                <span className="old">{h.oldValue ?? '—'}</span> → <span className="new">{h.newValue ?? '—'}</span>
+                            </div>
+                            {h.reason && <div className="order-history-reason">Reason: {h.reason}</div>}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 /** Manopera: timpul măsurat, corectarea minutelor, aprobarea cererii de plată, cash / fără taxă. */
 const LaborBilling = ({ order, onUpdated }) => {
     const b = order.laborBilling || { status: 'none' };
     const l = order.laborActual;
     const unpaid = ['none', 'pending_review', 'requested'].includes(b.status);
     const [minutes, setMinutes] = useState('');
+    const [reason, setReason] = useState('');
     const [busy, setBusy] = useState(null);
     const [msg, setMsg] = useState('');
     const [err, setErr] = useState('');
@@ -68,6 +129,7 @@ const LaborBilling = ({ order, onUpdated }) => {
             onUpdated(updated);
             setMsg(done);
             setMinutes('');
+            setReason('');
         } catch (e) {
             setErr(e.message);
         } finally {
@@ -80,8 +142,9 @@ const LaborBilling = ({ order, onUpdated }) => {
             <Row label="Labor time">
                 {l ? (
                     <>
-                        {l.minutes} min
-                        {l.adjusted && <small className="record-line-detail">Adjusted by dispatch (measured: {l.timedMinutes ?? '—'} min)</small>}
+                        {l.elapsedMinutes ?? l.minutes} min elapsed → <strong>{l.minutes} min billed</strong>
+                        <small className="record-line-detail">Rounded up to the next 5 minutes</small>
+                        {l.adjusted && <small className="record-line-detail">Corrected by dispatch (measured: {l.timedMinutes ?? '—'} min) — see History</small>}
                     </>
                 ) : order.timeline?.arrivedAt && !order.timeline?.completedAt ? (
                     order.timeline?.pausedAt ? 'Timer paused…' : 'Timer running…'
@@ -108,23 +171,37 @@ const LaborBilling = ({ order, onUpdated }) => {
                             max="1440"
                             inputMode="numeric"
                             className="crm-select"
-                            placeholder={l ? `${l.minutes}` : 'Minutes'}
+                            placeholder={l ? `${l.elapsedMinutes ?? l.minutes}` : 'Minutes'}
                             value={minutes}
                             onChange={(e) => setMinutes(e.target.value)}
                         />
                         <button
                             className="crm-ghost-btn"
-                            disabled={busy !== null || minutes === '' || !(Number(minutes) >= 0)}
-                            onClick={() => call('minutes', { minutes: Math.round(Number(minutes)) }, 'Minutes updated.')}
+                            disabled={busy !== null || minutes === '' || !(Number(minutes) >= 0) || reason.trim().length < 3}
+                            title={reason.trim().length < 3 ? 'Write the reason for the correction first' : undefined}
+                            onClick={() => call('minutes', { minutes: Math.round(Number(minutes)), reason: reason.trim() }, 'Minutes updated.')}
                         >
                             Set minutes
                         </button>
                         {l?.adjusted && (
-                            <button className="crm-link-btn" disabled={busy !== null} onClick={() => call('minutes', { minutes: null }, 'Back to the measured time.')}>
+                            <button
+                                className="crm-link-btn"
+                                disabled={busy !== null || reason.trim().length < 3}
+                                title={reason.trim().length < 3 ? 'Write the reason first' : undefined}
+                                onClick={() => call('minutes', { minutes: null, reason: reason.trim() }, 'Back to the measured time.')}
+                            >
                                 Use measured time
                             </button>
                         )}
                     </div>
+                    <input
+                        name="laborReason"
+                        className="crm-select labor-reason"
+                        maxLength={300}
+                        placeholder="Reason for the correction (required, saved in History)"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                    />
                     <div className="record-actions-row">
                         {b.amount > 0 && (
                             <button className="crm-primary-btn" disabled={busy !== null} onClick={() => call('request', {}, 'Payment request emailed to the customer.')}>
@@ -450,6 +527,8 @@ const AdminOrderDetail = () => {
                     )}
                     <LaborBilling order={order} onUpdated={(o) => applyOrder(o, { keepNotes: true })} />
                 </div>
+
+                <OrderHistory order={order} />
 
                 <div className="admin-card">
                     <h3>Dispatch notes</h3>

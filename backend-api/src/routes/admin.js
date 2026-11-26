@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, discountCodeSchema, parseBody } from '../validation.js';
 import { listDiscounts } from '../discounts.js';
+import { logChanges, orderHistory } from '../audit.js';
 import { getTrip, priceFor, priceLines } from '../pricing.js';
 import { scheduleLabel } from './orders.js';
 import { businessTodayUTC } from '../time.js';
@@ -78,9 +79,11 @@ router.patch('/orders/:code', async (req, res) => {
     const sets = [];
     const params = [];
     const changes = [];
+    const logged = [];
     const set = (column, value) => {
         sets.push(`${column} = ?`);
         params.push(value);
+        logged.push({ field: column, oldValue: row[column], newValue: value });
     };
     const near = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
 
@@ -164,6 +167,7 @@ router.patch('/orders/:code', async (req, res) => {
 
     if (!sets.length) return res.json({ order: await loadOrder(req.params.code), changes: [], priceChange });
     await pool.query(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`, [...params, row.id]);
+    await logChanges(row.id, logged, { actor: req.user, reason: data.reason });
 
     let order = await loadOrder(req.params.code);
     if (data.notify && changes.length && !['pending_payment'].includes(order.status)) {
@@ -175,6 +179,25 @@ router.patch('/orders/:code', async (req, res) => {
         await waitForMail(Promise.all(mails));
     }
     res.json({ order, changes, priceChange });
+});
+
+/** Numele șoferului (pentru jurnal). */
+async function driverName(id) {
+    if (!id) return null;
+    const [[d]] = await pool.query('SELECT full_name FROM drivers WHERE id = ?', [id]);
+    return d?.full_name || `#${id}`;
+}
+
+async function orderIdByCode(code) {
+    const [[r]] = await pool.query('SELECT id FROM orders WHERE code = ?', [code]);
+    return r?.id || null;
+}
+
+/** GET /admin/orders/:code/history — jurnalul modificărilor. */
+router.get('/orders/:code/history', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ history: await orderHistory(id) });
 });
 
 /** Verifică șoferul ales; întoarce mesajul de eroare sau null. */
@@ -254,6 +277,14 @@ router.patch('/orders/:code/status', async (req, res) => {
     }
     await stampStatus(req.params.code, data.status);
     if (data.status === 'completed' && before.status !== 'completed') await onJobCompleted(req.params.code);
+    await logChanges(
+        raw[0].id,
+        [
+            { field: 'status', oldValue: before.status, newValue: data.status },
+            ...(data.driverId !== undefined ? [{ field: 'driver', oldValue: before.driver?.fullName, newValue: await driverName(data.driverId) }] : [])
+        ],
+        { actor: req.user }
+    );
 
     let order = await loadOrder(req.params.code);
     const mails = [];
@@ -292,6 +323,9 @@ router.patch('/orders/:code/driver', async (req, res) => {
     }
 
     let order = await loadOrder(req.params.code);
+    await logChanges(await orderIdByCode(req.params.code), [{ field: 'driver', oldValue: before.driver?.fullName, newValue: order.driver?.fullName }], {
+        actor: req.user
+    });
     const { mails, driverNotified } = await sendDriverEmails(before, order, { resend: data.resend });
     await waitForMail(Promise.all(mails));
     if (driverNotified) order = await loadOrder(req.params.code);
@@ -313,13 +347,18 @@ router.post('/orders/:code/labor', async (req, res) => {
         if (m !== null && !(Number.isInteger(m) && m >= 0 && m <= 24 * 60)) {
             return res.status(400).json({ error: 'Minutes must be a whole number between 0 and 1440.' });
         }
-        result = await setLaborMinutes(req.params.code, m);
+        const reason = String(req.body.reason || '').trim();
+        if (reason.length < 3) return res.status(400).json({ error: 'Please write the reason for the correction.' });
+        result = await setLaborMinutes(req.params.code, m, { actor: req.user, reason });
     } else if (action === 'request') result = await requestLaborPayment(req.params.code);
     else if (action === 'cash') result = await markLaborCash(req.params.code);
     else if (action === 'waive') result = await waiveLabor(req.params.code);
     else if (action === 'reopen') result = await reopenLabor(req.params.code);
     else return res.status(400).json({ error: 'Unknown action.' });
     if (result.error) return res.status(result.status).json({ error: result.error });
+    if (action !== 'minutes') {
+        await logChanges(await orderIdByCode(req.params.code), [{ field: 'labor', oldValue: null, newValue: action }], { actor: req.user });
+    }
     res.json({ order: await loadOrder(req.params.code) });
 });
 

@@ -1034,3 +1034,14 @@ a.crm-ghost-btn { display: inline-flex; align-items: center; text-decoration: no
 .discount-status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .discount-status.on { background: rgba(45, 212, 167, 0.14); color: #2dd4a7; }
 .discount-status.off { background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+
+/* ===== Jurnalul comenzii ===== */
+.labor-reason { width: 100%; margin-top: 8px; }
+.order-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.order-history li { padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.order-history li:last-child { border-bottom: none; padding-bottom: 0; }
+.order-history-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.order-history-head span { color: var(--muted); font-size: 12px; text-align: right; }
+.order-history-change { margin-top: 4px; font-size: 13px; color: var(--text-2); word-break: break-word; }
+.order-history-change .old { color: var(--muted); text-decoration: line-through; }
+.order-history-reason { margin-top: 4px; font-size: 12.5px; color: #fbbf24; }

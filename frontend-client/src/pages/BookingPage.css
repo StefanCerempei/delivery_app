@@ -2457,3 +2457,27 @@
     padding: 6px 0;
 }
 .discount-error { margin: 6px 0 0; font-size: 13px; color: #fb7185; }
+
+/* ===== Acceptarea termenilor la rezervare ===== */
+.terms-accept {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 4px 0 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    background-color: var(--surface);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-2);
+    cursor: pointer;
+}
+.terms-accept input {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    accent-color: var(--accent);
+}
+.terms-accept a { color: var(--text); }

@@ -74,6 +74,11 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'discount_code', 'VARCHAR(40) NULL AFTER total_cents');
     await addColumnIfMissing('orders', 'discount_percent', 'TINYINT UNSIGNED NULL AFTER discount_code');
     await addColumnIfMissing('orders', 'discount_cents', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER discount_percent');
+    // De unde vine ruta folosită la preț (audit): 'osrm' sau 'estimate' (doar în teste)
+    await addColumnIfMissing('orders', 'route_source', 'VARCHAR(20) NULL AFTER duration_mins');
+    // Acceptarea termenilor la rezervare (specificația 11.2): când și ce versiune
+    await addColumnIfMissing('orders', 'terms_accepted_at', 'DATETIME NULL AFTER discount_cents');
+    await addColumnIfMissing('orders', 'terms_version', 'VARCHAR(20) NULL AFTER terms_accepted_at');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

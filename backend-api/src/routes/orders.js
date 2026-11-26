@@ -20,6 +20,9 @@ import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { laborPaymentIntent, syncLaborPayment } from '../labor.js';
 import { checkDiscount, discountCents } from '../discounts.js';
 
+// Versiunea termenilor acceptați la rezervare; schimb-o când se modifică Terms of Service.
+export const TERMS_VERSION = '2026-11';
+
 /** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
 function outsideArea(data, res) {
     const bad = ['pickup', 'dropoff'].filter((k) => !inServiceArea(data[k].lat, data[k].lng));
@@ -94,13 +97,14 @@ function scheduleFrom(input) {
 const PAYMENT_METHOD_TYPES = ['card', 'amazon_pay'];
 
 /** Creează PaymentIntent-ul; dacă Amazon Pay nu e activat în contul Stripe, merge doar cu card. */
-async function createPaymentIntent(params) {
+// idempotencyKey (o cheie per comandă): o cerere repetată nu poate crea a doua plată (specificația 11.3)
+async function createPaymentIntent(params, idempotencyKey) {
     try {
-        return await stripe.paymentIntents.create({ ...params, payment_method_types: PAYMENT_METHOD_TYPES });
+        return await stripe.paymentIntents.create({ ...params, payment_method_types: PAYMENT_METHOD_TYPES }, { idempotencyKey });
     } catch (err) {
         if (err.type !== 'StripeInvalidRequestError' || !/amazon_pay/.test(err.message || '')) throw err;
         console.warn(`[reloq] Amazon Pay indisponibil în contul Stripe (${err.message}); plata merge doar cu card / Apple Pay / Google Pay.`);
-        return stripe.paymentIntents.create({ ...params, payment_method_types: ['card'] });
+        return stripe.paymentIntents.create({ ...params, payment_method_types: ['card'] }, { idempotencyKey: `${idempotencyKey}-card` });
     }
 }
 
@@ -203,8 +207,9 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         items_description, photos_count,
                         base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
                         pricing_version, outbound_mins, return_mins, labor_cents_per_min,
-                        pickup_details, dropoff_details, discount_code, discount_percent, discount_cents
-                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        pickup_details, dropoff_details, discount_code, discount_percent, discount_cents,
+                        route_source, terms_accepted_at, terms_version
+                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), ?)`,
                     [
                         id, code, req.user.id,
                         data.pickup.address, data.pickup.lat, data.pickup.lng,
@@ -220,7 +225,8 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
                         price.outboundMins, price.returnMins, price.laborCentsPerMin,
                         data.pickupDetails ? JSON.stringify(data.pickupDetails) : null,
                         data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null,
-                        discount?.code || null, discount?.percent || null, discount?.cents || 0
+                        discount?.code || null, discount?.percent || null, discount?.cents || 0,
+                        route.source || null, TERMS_VERSION
                     ]
                 );
                 break;
@@ -250,7 +256,7 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
             receipt_email: req.user.email,
             description: `RELOQ ${VEHICLES[data.vehicle].name} — ${code}`,
             metadata: { order_code: code, order_id: id, user_id: String(req.user.id), ...meta }
-        });
+        }, `order-${id}`);
         await pool.query('UPDATE orders SET stripe_payment_intent_id = ? WHERE id = ?', [intent.id, id]);
         clientSecret = intent.client_secret;
     }

@@ -115,7 +115,9 @@ export const createOrderSchema = z.object({
     ),
     itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
     photosCount: z.number().int().min(0).max(5).default(0),
-    discountCode: z.string().trim().max(40).optional()
+    discountCode: z.string().trim().max(40).optional(),
+    // Specificația 11.2: clientul acceptă termenii și plata manoperei după job, la fiecare rezervare
+    acceptTerms: z.literal(true, { error: 'Please accept the booking terms to continue.' })
 });
 
 /** Cod de discount creat de dispecer: litere, cifre, - și _; procent 1–100. */
@@ -144,7 +146,9 @@ export const adminOrderUpdateSchema = z.object({
     vehicle: z.enum(Object.keys(VEHICLES)).optional(),
     itemsDescription: z.string().trim().min(2, 'Please describe the items.').max(2000).optional(),
     // anunță clientul și șoferul alocat despre modificări
-    notify: z.boolean().optional().default(true)
+    notify: z.boolean().optional().default(true),
+    // motivul modificării (jurnalul comenzii)
+    reason: z.string().trim().max(300).optional()
 });
 
 export const statusSchema = z.object({

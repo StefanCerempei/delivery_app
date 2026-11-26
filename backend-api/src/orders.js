@@ -88,9 +88,14 @@ export function describeLocation(details) {
     return [details.unit ? `Unit ${details.unit}` : '', floor, elevator].filter(Boolean).join(' · ');
 }
 
+/** Specificația RELOQ 4.2: durata se facturează rotunjită în sus la următorul multiplu de 5 minute. */
+export const billableMinutes = (elapsedMinutes) => Math.ceil(Number(elapsedMinutes) / 5) * 5;
+
 /**
- * Manopera reală: cronometrul pornit la sosire (Arrived) și oprit la final (Completed), fără pauze,
- * rotunjită în sus la minut. Dispecerul poate corecta minutele (labor_minutes_override).
+ * Manopera reală: cronometrul pornit la sosire (Arrived) și oprit la final (Completed).
+ * elapsedMinutes = timpul scurs (rotunjit în sus la minut, din timestamp-urile de pe server);
+ * minutes = durata facturată (rotunjită în sus la 5 min). Dispecerul poate corecta timpul scurs
+ * (labor_minutes_override), cu motiv salvat în jurnalul comenzii.
  */
 export function laborActual(row) {
     if (!row.labor_cents_per_min) return null;
@@ -100,12 +105,17 @@ export function laborActual(row) {
         if (ms > 0) timed = Math.ceil(ms / 60000);
     }
     const override = row.labor_minutes_override != null ? Number(row.labor_minutes_override) : null;
-    const minutes = override ?? timed;
-    if (minutes == null) return null;
+    const elapsed = override ?? timed;
+    if (elapsed == null) return null;
+    const minutes = billableMinutes(elapsed);
     return {
         minutes,
+        elapsedMinutes: elapsed,
         timedMinutes: timed,
         adjusted: override != null,
+        startedAt: row.arrived_at ? new Date(row.arrived_at).toISOString() : null,
+        completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+        ratePerMinute: cents(row.labor_cents_per_min),
         amount: cents(minutes * Number(row.labor_cents_per_min))
     };
 }
