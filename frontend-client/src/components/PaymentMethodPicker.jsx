@@ -156,7 +156,7 @@ const CardPanel = ({ order, clientSecret, onPaid, confirmOnServer }) => {
 };
 
 const WALLET_HELP = {
-    applePay: 'Apple Pay works in Safari on an iPhone, iPad or Mac with a card added to Apple Wallet. Please choose Card or another method.',
+    applePay: 'Apple Pay works on an iPhone, iPad or Mac (Safari, Chrome and other browsers) with a card added to Apple Wallet. If it doesn’t load, try Safari or choose Card.',
     googlePay: 'Google Pay works in Chrome or on Android with a card saved to your Google account. Please choose Card or another method.',
     amazonPay: 'Amazon Pay couldn’t be loaded right now. Please choose Card or another method.'
 };
