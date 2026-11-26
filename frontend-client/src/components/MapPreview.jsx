@@ -10,30 +10,27 @@ import { useAuth, initials } from '../context/AuthContext';
 
 const DEFAULT_CENTER = [42.3601, -71.0589]; // Boston, MA (zona de operare)
 
-const pickupIcon = L.divIcon({
-    className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#ff3f34;border:3px solid #0a0f18;border-radius:50%;box-shadow:0 0 0 6px rgba(255,63,52,0.28),0 6px 16px rgba(0,0,0,0.5);"></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9]
-});
-
-const dropoffIcon = L.divIcon({
-    className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#2dd4a7;border:3px solid #0a0f18;border-radius:5px;box-shadow:0 0 0 6px rgba(45,212,167,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9]
-});
-
-// Pinul mare, ușor de prins cu degetul, cât timp e în modul de marcare
-const bigPin = (color) =>
-    L.divIcon({
+// Pinii de pe hartă (formă clasică de „map pin”): roșu = pickup, verde = drop-off.
+// Vârful pinului e exact pe adresă (iconAnchor jos, la mijloc).
+const pinIcon = (color, w) => {
+    const h = Math.round((w * 52) / 34);
+    return L.divIcon({
         className: 'custom-map-pin',
-        html: `<div style="position:relative;width:34px;height:46px;transform:translateY(-4px)"><svg width="34" height="46" viewBox="0 0 34 46"><path d="M17 45s15-16 15-28A15 15 0 0 0 2 17c0 12 15 28 15 28z" fill="${color}" stroke="#0a0f18" stroke-width="3"/><circle cx="17" cy="17" r="6" fill="#0a0f18"/></svg></div>`,
-        iconSize: [34, 46],
-        iconAnchor: [17, 46]
+        html: `<svg width="${w}" height="${h}" viewBox="0 0 34 52" style="display:block;overflow:visible;filter:drop-shadow(0 6px 8px rgba(0,0,0,0.45))">
+<ellipse cx="17" cy="49" rx="7" ry="2.6" fill="rgba(0,0,0,0.35)"/>
+<path d="M17 47C17 47 31.5 30.5 31.5 17.5A14.5 14.5 0 0 0 2.5 17.5C2.5 30.5 17 47 17 47Z" fill="${color}" stroke="#ffffff" stroke-width="2.5"/>
+<circle cx="17" cy="17.5" r="6" fill="#ffffff"/>
+</svg>`,
+        iconSize: [w, h],
+        iconAnchor: [w / 2, Math.round((w * 47) / 34)]
     });
-const pickupIconBig = bigPin('#ff3f34');
-const dropoffIconBig = bigPin('#2dd4a7');
+};
+
+const pickupIcon = pinIcon('#ff3f34', 30);
+const dropoffIcon = pinIcon('#22b98f', 30);
+// Pinul mare, ușor de prins cu degetul, cât timp e în modul de marcare
+const pickupIconBig = pinIcon('#ff3f34', 40);
+const dropoffIconBig = pinIcon('#22b98f', 40);
 
 const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     const map = useMap();
