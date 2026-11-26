@@ -42,3 +42,12 @@ export function startManualPin(updateBookingData, kind, near) {
     const lng = round(near?.lat ? near.lng + 0.002 : DEFAULT_CENTER.lng);
     updateBookingData({ [kind]: { address: 'Tap the map to place the pin', lat, lng, manual: true, pinned: false, needsPin: true } });
 }
+
+/**
+ * „Done” / trecerea la cealaltă adresă: poziția actuală a pinului devine cea aleasă, chiar dacă
+ * clientul nu a atins harta (pinul era deja unde trebuie). Pentru locurile alese pe hartă se caută adresa.
+ */
+export function confirmPin(updateBookingData, kind, current) {
+    if (!current?.lat || current.pinned || !current.needsPin) return;
+    movePin(updateBookingData, kind, { lat: current.lat, lng: current.lng }, current);
+}

@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
 import Logo from './Logo';
-import { movePin as movePinShared } from '../utils/pinLocation';
+import { movePin as movePinShared, confirmPin } from '../utils/pinLocation';
 import { Link } from 'react-router-dom';
 import { useAuth, initials } from '../context/AuthContext';
 
@@ -160,7 +160,13 @@ const MapPreview = () => {
                         <strong>{pinMode === 'pickup' ? 'Pickup' : 'Drop-off'}:</strong> drag the pin or tap the map on the exact
                         building.
                     </span>
-                    <button type="button" onClick={() => setPinMode(null)}>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            confirmPin(updateBookingData, pinMode, bookingData[pinMode]);
+                            setPinMode(null);
+                        }}
+                    >
                         Done
                     </button>
                 </div>

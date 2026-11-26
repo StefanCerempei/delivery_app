@@ -4,7 +4,7 @@ import { COMPANY, LICENSE_LINE } from '../../data/company';
 import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
 import LocationDetails, { detailsComplete } from '../../components/LocationDetails';
-import { startManualPin } from '../../utils/pinLocation';
+import { startManualPin, confirmPin } from '../../utils/pinLocation';
 import { inServiceArea, SERVICE_AREA_LABEL } from '../../data/serviceArea';
 import Button from '../../components/Button';
 
@@ -21,7 +21,14 @@ const Step1Route = () => {
         !needsPin(bookingData.dropoff) &&
         !anyOutside;
 
+    // Închiderea marcării confirmă pinul (vezi confirmPin)
+    const finishPin = () => {
+        if (pinMode) confirmPin(updateBookingData, pinMode, bookingData[pinMode]);
+        setPinMode(null);
+    };
+
     const startPin = (kind) => {
+        if (pinMode && pinMode !== kind) confirmPin(updateBookingData, pinMode, bookingData[pinMode]);
         setPinMode(kind);
         // pe telefon harta e sus
         if (window.matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -56,7 +63,7 @@ const Step1Route = () => {
         }
         return (
             <div className="pin-control">
-                <button type="button" className={`pin-btn ${active ? 'active' : ''}`} onClick={() => (active ? setPinMode(null) : startPin(kind))}>
+                <button type="button" className={`pin-btn ${active ? 'active' : ''}`} onClick={() => (active ? finishPin() : startPin(kind))}>
                     {active ? '✓ Done marking' : loc.pinned ? '📍 Pin set — adjust' : '📍 Adjust pin on map'}
                 </button>
                 {needsPin(loc) && !active && <span className="pin-warn">Mark the spot on the map to continue</span>}
