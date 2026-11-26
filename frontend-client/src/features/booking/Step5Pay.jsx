@@ -9,7 +9,7 @@ import { api, toLocation, uploadOrderPhoto } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
-import { describeDetails } from '../../components/LocationDetails';
+import { describeDetails, needsAccess } from '../../components/LocationDetails';
 import { useAuth } from '../../context/AuthContext';
 
 // Stripe și aspectul formularului: comune cu plata manoperei (utils/stripe.js)
@@ -20,7 +20,7 @@ function cleanDetails(d) {
     return {
         unit: (d.unit || '').trim(),
         floor: d.floor,
-        elevator: d.floor === 'ground' ? null : d.elevator,
+        elevator: needsAccess(d.floor) ? d.elevator : null,
         notes: (d.notes || '').trim()
     };
 }

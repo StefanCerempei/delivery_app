@@ -56,8 +56,12 @@ const ORDINAL = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10 > 3 || Math.f
 export function describeLocation(details) {
     if (!details) return '';
     const floor =
-        details.floor === 'ground'
-            ? 'Ground floor / house'
+        details.floor === 'house'
+            ? 'Private home / townhome'
+            : details.floor === 'storage'
+              ? 'Storage'
+              : details.floor === 'ground'
+            ? 'Ground floor'
             : details.floor === 'basement'
               ? 'Basement'
               : details.floor === '10+'
@@ -65,7 +69,12 @@ export function describeLocation(details) {
                 : details.floor
                   ? `${ORDINAL(Number(details.floor))} floor`
                   : '';
-    const elevator = details.floor && details.floor !== 'ground' ? (details.elevator === 'yes' ? 'elevator' : 'no elevator (stairs)') : '';
+    const elevator =
+        details.floor && !['house', 'storage', 'ground'].includes(details.floor)
+            ? details.elevator === 'yes'
+                ? 'elevator'
+                : 'walk-up stairs (no elevator)'
+            : '';
     return [details.unit ? `Unit ${details.unit}` : '', floor, elevator].filter(Boolean).join(' · ');
 }
 

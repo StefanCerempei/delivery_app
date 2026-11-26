@@ -78,8 +78,11 @@ export const estimateSchema = z.object({
     dropoff: locationSchema
 });
 
-// Etajul la adresă: parter / casă, subsol sau etajul 2…10+ (cum se spune în SUA: „2nd floor”)
-export const FLOORS = ['ground', 'basement', '2', '3', '4', '5', '6', '7', '8', '9', '10+'];
+// Tipul locației / etajul (cum se spune în SUA: „2nd floor”). Opțiunile din formular:
+// casă / townhome, storage, parter, etajul 2–5. Valorile vechi (basement, 6–10+) rămân valide pentru comenzile existente.
+export const FLOORS = ['house', 'storage', 'ground', '2', '3', '4', '5', 'basement', '6', '7', '8', '9', '10+'];
+/** Fără întrebarea de acces (lift / scări): casă, storage, parter. */
+export const NO_ACCESS_FLOORS = ['house', 'storage', 'ground'];
 
 /** Detalii despre locație: apartament / unitate, etaj, lift, note de acces. */
 export const locationDetailsSchema = z
@@ -90,8 +93,8 @@ export const locationDetailsSchema = z
         elevator: z.enum(['yes', 'no']).nullable().optional().default(null),
         notes: z.string().trim().max(300).optional().default('')
     })
-    .refine((d) => d.floor === 'ground' || d.elevator, { error: 'Please tell us if there is an elevator.', path: ['elevator'] })
-    .transform((d) => ({ ...d, elevator: d.floor === 'ground' ? null : d.elevator }));
+    .refine((d) => NO_ACCESS_FLOORS.includes(d.floor) || d.elevator, { error: 'Please choose the access type (elevator or stairs).', path: ['elevator'] })
+    .transform((d) => ({ ...d, elevator: NO_ACCESS_FLOORS.includes(d.floor) ? null : d.elevator }));
 
 export const createOrderSchema = z.object({
     pickup: locationSchema,

@@ -178,7 +178,7 @@ const Step1Route = () => {
                         : needsPin(bookingData.pickup) || needsPin(bookingData.dropoff)
                         ? 'Mark the address on the map'
                         : addressesReady && !detailsReady
-                          ? 'Add floor & elevator info'
+                          ? 'Add property & access info'
                           : 'Choose your items →'}
                 </Button>
                 <p className="trust-note">
