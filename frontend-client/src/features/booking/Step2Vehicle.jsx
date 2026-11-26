@@ -13,13 +13,21 @@ const Step2Vehicle = () => {
 
     const recommendedId = useMemo(() => recommendVehicle(bookingData.items), [bookingData.items]);
 
+    // Specificația 7.1: vehiculele prea mici pentru obiectele alese nu se mai arată (doar recomandarea și cele mai mari)
+    const visibleVehicles = useMemo(() => {
+        const idx = VEHICLES.findIndex((v) => v.id === recommendedId);
+        return idx > 0 ? VEHICLES.slice(idx) : VEHICLES;
+    }, [recommendedId]);
+    const hiddenCount = VEHICLES.length - visibleVehicles.length;
+
     const selectedVehicleId = bookingData.vehicle;
     const selectedVehicle = VEHICLES.find((v) => v.id === selectedVehicleId);
     const selectedEstimate = selectedVehicleId ? estimates?.[selectedVehicleId] : null;
 
-    // Prima dată când se ajunge pe pas fără vehicul ales, preselectăm recomandarea.
+    // Prima dată când se ajunge pe pas fără vehicul ales (sau alesul a devenit prea mic), preselectăm recomandarea.
     useEffect(() => {
-        if (!selectedVehicleId && recommendedId) {
+        const tooSmall = selectedVehicleId && !visibleVehicles.some((v) => v.id === selectedVehicleId);
+        if ((!selectedVehicleId || tooSmall) && recommendedId) {
             updateBookingData({ vehicle: recommendedId, priceEstimate: estimates?.[recommendedId] || null });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,7 +83,7 @@ const Step2Vehicle = () => {
             )}
 
             <div className={`vehicles-list ${loading ? 'is-loading' : ''}`}>
-                {VEHICLES.map((vehicle) => {
+                {visibleVehicles.map((vehicle) => {
                     const isSelected = selectedVehicleId === vehicle.id;
                     const isRecommended = recommendedId === vehicle.id;
                     const estimate = estimates?.[vehicle.id];
@@ -113,6 +121,13 @@ const Step2Vehicle = () => {
                     );
                 })}
             </div>
+
+            {hiddenCount > 0 && (
+                <p className="vehicles-hidden-note">
+                    Smaller options are hidden — your items need at least a {VEHICLES.find((v) => v.id === recommendedId)?.name}. To see
+                    them, go back and change your items.
+                </p>
+            )}
 
             {selectedVehicle && selectedEstimate && (
                 <PriceSummary

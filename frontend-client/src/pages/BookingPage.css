@@ -2481,3 +2481,5 @@
     accent-color: var(--accent);
 }
 .terms-accept a { color: var(--text); }
+
+.vehicles-hidden-note { margin: -4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); text-align: center; }
