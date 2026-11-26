@@ -11,6 +11,8 @@ import EmailVerifyCard from '../../components/EmailVerifyCard';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import { describeDetails, needsAccess } from '../../components/LocationDetails';
 import { useAuth } from '../../context/AuthContext';
+import GoogleRating from '../../components/GoogleRating';
+import { COMPANY } from '../../data/company';
 
 // Stripe și aspectul formularului: comune cu plata manoperei (utils/stripe.js)
 
@@ -466,6 +468,7 @@ const Step5Pay = () => {
                                 ← Pick another arrival window
                             </button>
                         )}
+                        <GoogleRating className="google-rating-pay" extra={`Free cancellation up to ${COMPANY.freeCancellationHours}h before`} />
                         {user && verified && (
                             <label className="terms-accept">
                                 <input type="checkbox" name="acceptTerms" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />

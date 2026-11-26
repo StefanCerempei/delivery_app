@@ -2546,3 +2546,28 @@
     background-color: #1a73e8;
     border: 2px solid #fff;
 }
+
+/* ===== Nota Google ===== */
+.google-rating {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background-color: var(--surface);
+    color: var(--text-2);
+    font-size: 13px;
+    text-decoration: none;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+.google-rating:hover { border-color: #fbbf24; background-color: var(--surface-2); }
+.google-rating-stars { color: #fbbf24; letter-spacing: 1px; font-size: 14px; }
+.google-rating strong { color: var(--text); }
+.google-rating-count, .google-rating-extra { color: var(--muted); }
+.google-rating-pay { display: flex; justify-content: center; margin: 0 0 8px; border-radius: var(--r-md); }
+@media (max-width: 480px) {
+    .step-heading .google-rating-extra { display: none; }
+}

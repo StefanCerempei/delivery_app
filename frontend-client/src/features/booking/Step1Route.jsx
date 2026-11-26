@@ -5,6 +5,7 @@ import { useBooking } from '../../context/BookingContext';
 import AddressInput from '../../components/AddressInput';
 import LocationDetails, { detailsComplete } from '../../components/LocationDetails';
 import { startManualPin, confirmPin } from '../../utils/pinLocation';
+import GoogleRating from '../../components/GoogleRating';
 import { inServiceArea, SERVICE_AREA_LABEL } from '../../data/serviceArea';
 import Button from '../../components/Button';
 
@@ -101,6 +102,7 @@ const Step1Route = () => {
                     Enter your pickup and dropoff addresses for an instant route estimate. We serve Massachusetts from Worcester
                     east, including Cape Cod and the Islands.
                 </p>
+                <GoogleRating extra="Licensed & insured" />
             </div>
 
             <div className="route-card">
