@@ -1,7 +1,17 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
-import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, discountCodeSchema, parseBody } from '../validation.js';
+import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, discountCodeSchema, adminCreateOrderSchema, parseBody } from '../validation.js';
+import crypto from 'node:crypto';
+import { insertOrderRow, newOrderCode } from '../orders.js';
+import { priceFor as priceForVehicle, MAX_DISTANCE_MILES } from '../pricing.js';
+import { withSlot } from '../slots.js';
+import { checkDiscount, discountCents } from '../discounts.js';
+import { createPaymentLink } from '../paymentLinks.js';
+import { stripe } from '../stripe.js';
+import { notifyPaymentLink } from '../emails.js';
+import { config } from '../config.js';
+import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { listDiscounts } from '../discounts.js';
 import { logChanges, orderHistory } from '../audit.js';
 import { getTrip, priceFor, priceLines } from '../pricing.js';
@@ -715,6 +725,129 @@ router.delete('/drivers/:id', async (req, res) => {
     }
     await pool.query('DELETE FROM drivers WHERE id = ?', [id]);
     res.json({ deleted: true });
+});
+
+/* ================= Comandă nouă din dispecerat (client la telefon) ================= */
+
+/** Clientul comenzii: unul existent sau unul nou (cont fără parolă; o setează cu „Forgot password”). */
+async function resolveCustomer(data) {
+    if (data.customerId) {
+        const [[u]] = await pool.query("SELECT id FROM users WHERE id = ? AND role = 'customer' AND deleted_at IS NULL", [data.customerId]);
+        return u ? { id: u.id } : { error: 'Customer not found.' };
+    }
+    const c = data.newCustomer;
+    const [[existing]] = await pool.query('SELECT id, role, deleted_at FROM users WHERE email = ?', [c.email]);
+    if (existing) {
+        if (existing.role !== 'customer' || existing.deleted_at) return { error: 'This email belongs to an account that can’t be used for orders.' };
+        // completăm telefonul / numele dacă lipseau
+        await pool.query('UPDATE users SET phone = COALESCE(phone, ?) WHERE id = ?', [c.phone || null, existing.id]);
+        return { id: existing.id, existing: true };
+    }
+    const unusable = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+    const [r] = await pool.query("INSERT INTO users (email, password_hash, full_name, phone, role) VALUES (?, ?, ?, ?, 'customer')", [
+        c.email,
+        unusable,
+        c.fullName,
+        c.phone || null
+    ]);
+    return { id: r.insertId, created: true };
+}
+
+/** GET /admin/customers?q= — căutare clienți (nume, email, telefon) pentru o comandă nouă. */
+router.get('/customers', async (req, res) => {
+    const q = String(req.query.q || '').trim();
+    const like = `%${q.replace(/[%_]/g, '')}%`;
+    const [rows] = await pool.query(
+        `SELECT id, full_name, email, phone FROM users
+         WHERE role = 'customer' AND deleted_at IS NULL ${q ? 'AND (full_name LIKE ? OR email LIKE ? OR phone LIKE ?)' : ''}
+         ORDER BY created_at DESC LIMIT 20`,
+        q ? [like, like, like] : []
+    );
+    res.json({ customers: rows.map((r) => ({ id: r.id, fullName: r.full_name, email: r.email, phone: r.phone })) });
+});
+
+/** POST /admin/orders — dispecerul creează o comandă; prețul se calculează pe server, la fel ca pe site. */
+router.post('/orders', async (req, res) => {
+    const data = parseBody(adminCreateOrderSchema, req, res);
+    if (!data) return;
+    if (data.payment === 'link' && !stripe) return res.status(400).json({ error: 'Online payments are not enabled, so a payment link can’t be sent.' });
+
+    const day = parseDateOnly(data.schedule.date);
+    if (!day || day < businessTodayUTC()) return res.status(400).json({ error: 'Pick today or a future date.' });
+    for (const loc of [data.pickup, data.dropoff]) {
+        if (!inServiceArea(loc.lat, loc.lng)) return res.status(422).json({ error: OUTSIDE_AREA_MESSAGE });
+    }
+
+    const customer = await resolveCustomer(data);
+    if (customer.error) return res.status(400).json({ error: customer.error });
+
+    const route = await getTrip(data.pickup, data.dropoff);
+    if (route.distanceMiles > MAX_DISTANCE_MILES) return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
+    const price = priceForVehicle(data.vehicle, route);
+    let discount = null;
+    if (data.discountCode) {
+        discount = await checkDiscount(data.discountCode, customer.id);
+        if (discount.error) return res.status(400).json({ error: discount.error });
+        discount.cents = discountCents(price.totalCents, discount.percent);
+    }
+    const totalCents = price.totalCents - (discount?.cents || 0);
+
+    const id = crypto.randomUUID();
+    let code = newOrderCode();
+    const schedule = {
+        type: 'scheduled',
+        scheduledFor: `${data.schedule.date} ${data.schedule.slot}:00`,
+        label: scheduleLabel(day, data.schedule.slot)
+    };
+    const status = data.payment === 'link' ? 'pending_payment' : 'confirmed';
+    // Dispecerul poate rezerva și o oră blocată de el; doar o altă comandă pe aceeași oră o oprește
+    const booked = await withSlot(schedule.scheduledFor, customer.id, async (conn) => {
+        code = await insertOrderRow(conn, {
+            id, code, userId: customer.id, status,
+            pickup: data.pickup, dropoff: data.dropoff,
+            pickupDetails: data.pickupDetails, dropoffDetails: data.dropoffDetails,
+            route, vehicle: data.vehicle, schedule,
+            itemsDescription: data.itemsDescription,
+            price, totalCents, currency: config.currency, discount,
+            termsVersion: null,
+            createdBy: req.user.fullName || req.user.email
+        });
+    });
+    if (!booked) return res.status(409).json({ error: 'That arrival window is already booked. Pick another time.' });
+
+    if (data.payment === 'paid') {
+        await pool.query("UPDATE orders SET paid_at = UTC_TIMESTAMP(), payment_method = 'offline' WHERE id = ?", [id]);
+    }
+    if (data.dispatchNotes) await pool.query('UPDATE orders SET dispatch_notes = ? WHERE id = ?', [data.dispatchNotes, id]);
+    await logChanges(id, [{ field: 'created', oldValue: null, newValue: `by dispatch · payment: ${data.payment}` }], { actor: req.user });
+
+    let order = await loadOrder(code);
+    let paymentLink = null;
+    try {
+        if (data.payment === 'link') {
+            paymentLink = await createPaymentLink(id, { base: `${req.protocol}://${req.get('host')}` });
+            if (paymentLink.error) throw new Error(paymentLink.error);
+            order = await loadOrder(code);
+            if (data.notify) await waitForMail(notifyPaymentLink(order, paymentLink.url, paymentLink.expiresAt));
+        } else if (data.notify) {
+            await waitForMail(notifyOrderConfirmed(order));
+        }
+    } catch (err) {
+        console.warn(`[reloq] Comanda ${code}: linkul de plată / emailul a eșuat: ${err.message}`);
+        return res.status(201).json({ order, paymentLink: null, warning: `The order was created, but the payment link failed: ${err.message}` });
+    }
+    res.status(201).json({ order, paymentLink, customerCreated: Boolean(customer.created) });
+});
+
+/** POST /admin/orders/:code/payment-link — trimite din nou linkul de plată (îl recreează dacă a expirat). */
+router.post('/orders/:code/payment-link', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    const link = await createPaymentLink(id, { base: `${req.protocol}://${req.get('host')}` });
+    if (link.error) return res.status(link.status).json({ error: link.error });
+    const order = await loadOrder(req.params.code);
+    if (req.body?.email !== false) await waitForMail(notifyPaymentLink(order, link.url, link.expiresAt));
+    res.json({ order, paymentLink: link });
 });
 
 /* ================= Coduri de discount ================= */

@@ -4,7 +4,7 @@
 import { pool } from './db.js';
 import { stripe } from './stripe.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL } from './orders.js';
-import { notifyNewOrder } from './emails.js';
+import { notifyNewOrder, notifyOrderConfirmed } from './emails.js';
 import { waitForMail } from './mailer.js';
 
 async function loadOrderDto(id) {
@@ -19,7 +19,8 @@ async function loadOrderDto(id) {
  */
 export async function markOrderPaid(orderId, payment) {
     const [result] = await pool.query(
-        `UPDATE orders SET status = 'paid', paid_at = UTC_TIMESTAMP(), payment_method = ?, card_last4 = ?, paypal_capture_id = ?
+        // Comenzile create de dispecer (created_by) sunt deja verificate: devin direct „confirmed”
+        `UPDATE orders SET status = IF(created_by IS NULL, 'paid', 'confirmed'), paid_at = UTC_TIMESTAMP(), payment_method = ?, card_last4 = ?, paypal_capture_id = ?
          WHERE id = ? AND status = 'pending_payment'`,
         [payment.method, payment.last4 || null, payment.paypalCaptureId || null, orderId]
     );
@@ -29,7 +30,7 @@ export async function markOrderPaid(orderId, payment) {
     if (justPaid) {
         // „Order submitted” către client + „New order to confirm” către dispecer.
         // Înainte de răspunsul HTTP — pe Hostinger orice lucru după răspuns e oprit.
-        await waitForMail(notifyNewOrder(order));
+        await waitForMail(order.createdBy ? notifyOrderConfirmed(order) : notifyNewOrder(order));
     }
     return { order, justPaid };
 }

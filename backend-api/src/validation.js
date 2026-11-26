@@ -190,3 +190,32 @@ export function parseBody(schema, req, res) {
     }
     return result.data;
 }
+
+/** Comandă creată de dispecer (client la telefon). Clientul: existent (customerId) sau nou (newCustomer). */
+export const adminCreateOrderSchema = z
+    .object({
+        customerId: z.number().int().positive().optional(),
+        newCustomer: z
+            .object({
+                fullName: fullNameField,
+                email: z.string().trim().toLowerCase().pipe(z.email('Please enter a valid customer email.')).pipe(z.string().max(255)),
+                phone: phoneField
+            })
+            .optional(),
+        pickup: locationSchema,
+        dropoff: locationSchema,
+        pickupDetails: locationDetailsSchema,
+        dropoffDetails: locationDetailsSchema,
+        vehicle: z.enum(Object.keys(VEHICLES)),
+        schedule: z.object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date.'),
+            slot: z.enum(ALLOWED_SLOTS, { error: 'Pick an arrival window.' })
+        }),
+        itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
+        // link = email cu link de plată Stripe · paid = plătit deja (cash / telefon) · later = se încasează mai târziu
+        payment: z.enum(['link', 'paid', 'later']),
+        discountCode: z.string().trim().max(40).optional(),
+        dispatchNotes: z.string().trim().max(2000).optional(),
+        notify: z.boolean().optional().default(true)
+    })
+    .refine((d) => d.customerId || d.newCustomer, { error: 'Choose a customer or add a new one.', path: ['customerId'] });

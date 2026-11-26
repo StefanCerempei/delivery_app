@@ -29,7 +29,8 @@ function laborNote(order) {
 }
 
 /** „PayPal” / „card •••• 4242” / „card”. */
-const paidWith = (o) => (o.paymentMethod === 'paypal' ? 'PayPal' : `card${o.cardLast4 ? ` •••• ${o.cardLast4}` : ''}`);
+const paidWith = (o) =>
+    o.paymentMethod === 'paypal' ? 'PayPal' : o.paymentMethod === 'offline' ? 'paid to RELOQ' : `card${o.cardLast4 ? ` •••• ${o.cardLast4}` : ''}`;
 const money2 = (n) => `$${Number(n || 0).toFixed(2)}`;
 const money = (n) => `$${Number(n || 0).toFixed(Number(n) % 1 === 0 ? 0 : 2)}`;
 const link = (path) => (mailSettings.appUrl ? `${mailSettings.appUrl}${path}` : null);
@@ -109,7 +110,7 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ...(order.discount ? [['Discount', `${order.discount.code} (${order.discount.percent}%) −${money2(order.discount.amount)}`]] : []),
         order.paidOnline
             ? ['Paid at booking', `${money2(order.totalAmount)} (${paidWith(order)})`]
-            : ['Due', `${money2(order.totalAmount)} (pay after the job)`],
+            : ['Due', `${money2(order.totalAmount)} (${order.createdBy ? 'booking price — RELOQ will collect it before your move' : 'pay after the job'})`],
         ['Labor (after the job)', order.price?.labor ? order.price.labor.label : 'Billed after the job, based on time']
     ];
     if (forDispatcher) {
@@ -475,5 +476,29 @@ export function notifyOrderUpdated(order, changes = []) {
             body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}`
         }),
         text: `Your RELOQ booking was updated${what}.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
+    });
+}
+
+/** Clientul la telefon: linkul de plată pentru rezervarea creată de dispecer. */
+export function notifyPaymentLink(order, url, expiresAt) {
+    if (!order.customer?.email || !url) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = orderRows(order).filter(([k]) => ['Order', 'Arrival window', 'Vehicle', 'Pickup', 'Drop-off', 'Pickup details', 'Drop-off details', 'Discount'].includes(k));
+    rows.push(['Amount to pay', money2(order.totalAmount)]);
+    const until = expiresAt
+        ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(expiresAt))
+        : null;
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Complete your RELOQ booking — pay ${money2(order.totalAmount)} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ move on ${order.scheduleText} is reserved. Pay securely to confirm it.`,
+            title: 'Your move is reserved — complete the payment',
+            intro: `Hi ${esc(firstName)}, thanks for calling RELOQ! We reserved your move. Pay the booking price securely online to confirm it.`,
+            body: `${detailsTable(rows)}${button(url, `Pay ${money2(order.totalAmount)}`)}
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${until ? `The payment link works until ${esc(until)}. ` : ''}Payments are processed securely by Stripe.</p>
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${esc(laborNote(order))}</p>`
+        }),
+        text: `Your RELOQ move is reserved. Pay ${money2(order.totalAmount)} to confirm it: ${url}\n\n${orderText(order, rows)}\n\n${laborNote(order)}`
     });
 }

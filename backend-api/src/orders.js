@@ -147,7 +147,12 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
         cardLast4: row.card_last4 || null,
         // Plătit online (transportul). Comenzile plătite înainte de coloana paid_at au status 'paid'.
         paidOnline: Boolean(row.paid_at) || row.status === 'paid',
-        paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null)
+        paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null),
+        createdBy: row.created_by || null,
+        paymentLink:
+            row.status === 'pending_payment' && row.payment_link_url
+                ? { url: row.payment_link_url, expiresAt: row.payment_link_expires_at ? new Date(row.payment_link_expires_at).toISOString() : null }
+                : null
     };
 
     // Momentele jobului (raportate de șofer sau de dispecer) și manopera calculată din ele
@@ -203,3 +208,54 @@ export const ORDER_WITH_CUSTOMER_SQL = `
     FROM orders o
     JOIN users u ON u.id = o.user_id
     LEFT JOIN drivers d ON d.id = o.driver_id`;
+
+/**
+ * Salvează o comandă nouă (rezervarea clientului sau comanda creată de dispecer), cu prețul calculat
+ * pe server. Reîncearcă cu alt cod dacă codul generat există deja. Întoarce codul final.
+ * o: { id, code, userId, status, pickup, dropoff, pickupDetails, dropoffDetails, route, vehicle, schedule,
+ *      itemsDescription, price, totalCents, currency, discount, termsVersion, createdBy }
+ */
+export async function insertOrderRow(conn, o) {
+    let code = o.code;
+    for (let attempt = 0; ; attempt++) {
+        try {
+            await conn.query(
+                `INSERT INTO orders (
+                    id, code, user_id, status,
+                    pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
+                    distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
+                    items_description, photos_count,
+                    base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
+                    pricing_version, outbound_mins, return_mins, labor_cents_per_min,
+                    pickup_details, dropoff_details, discount_code, discount_percent, discount_cents,
+                    route_source, terms_accepted_at, terms_version, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          IF(? IS NULL, NULL, UTC_TIMESTAMP()), ?, ?)`,
+                [
+                    o.id, code, o.userId, o.status,
+                    o.pickup.address, o.pickup.lat, o.pickup.lng,
+                    o.dropoff.address, o.dropoff.lat, o.dropoff.lng,
+                    o.route.distanceMiles, o.route.durationMins, o.vehicle,
+                    o.schedule.type, o.schedule.scheduledFor, o.schedule.label,
+                    // numărul real de poze se actualizează la încărcarea lor (/orders/:code/photos)
+                    o.itemsDescription,
+                    // Model de preț v2: base_fare = Service fee, distance_cost = Transportation, time_cost = Reservation fee
+                    o.price.serviceFeeCents, o.price.transportationCents, o.price.reservationFeeCents, o.totalCents,
+                    o.currency,
+                    o.price.outboundMins, o.price.returnMins, o.price.laborCentsPerMin,
+                    o.pickupDetails ? JSON.stringify(o.pickupDetails) : null,
+                    o.dropoffDetails ? JSON.stringify(o.dropoffDetails) : null,
+                    o.discount?.code || null, o.discount?.percent || null, o.discount?.cents || 0,
+                    o.route.source || null, o.termsVersion || null, o.termsVersion || null, o.createdBy || null
+                ]
+            );
+            return code;
+        } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
+                code = newOrderCode();
+                continue;
+            }
+            throw err;
+        }
+    }
+}

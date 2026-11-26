@@ -79,6 +79,11 @@ export async function migrate() {
     // Acceptarea termenilor la rezervare (specificația 11.2): când și ce versiune
     await addColumnIfMissing('orders', 'terms_accepted_at', 'DATETIME NULL AFTER discount_cents');
     await addColumnIfMissing('orders', 'terms_version', 'VARCHAR(20) NULL AFTER terms_accepted_at');
+    // Comenzi create de dispecer (telefon): cine a creat-o și linkul de plată Stripe trimis clientului
+    await addColumnIfMissing('orders', 'created_by', 'VARCHAR(120) NULL AFTER terms_version');
+    await addColumnIfMissing('orders', 'checkout_session_id', 'VARCHAR(255) NULL AFTER created_by');
+    await addColumnIfMissing('orders', 'payment_link_url', 'TEXT NULL AFTER checkout_session_id');
+    await addColumnIfMissing('orders', 'payment_link_expires_at', 'DATETIME NULL AFTER payment_link_url');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

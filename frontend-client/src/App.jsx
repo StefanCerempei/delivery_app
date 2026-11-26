@@ -15,6 +15,7 @@ import AccountPage from './pages/AccountPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
 import GlobalLoadingBar from './components/GlobalLoadingBar';
+import PaymentCompletePage from './pages/PaymentCompletePage';
 import './App.css';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
                 {/* Pagini legale */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/payment-complete" element={<PaymentCompletePage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
 

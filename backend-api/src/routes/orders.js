@@ -5,7 +5,7 @@ import { pool } from '../db.js';
 import { requireAuth, requireVerifiedEmail } from '../auth.js';
 import { getTrip, allPrices, priceFor, priceLines, MAX_DISTANCE_MILES, VEHICLES } from '../pricing.js';
 import { estimateSchema, createOrderSchema, parseBody } from '../validation.js';
-import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
+import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL, insertOrderRow } from '../orders.js';
 import { stripe, customerFields } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
@@ -19,12 +19,13 @@ import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
 import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { laborPaymentIntent, syncLaborPayment } from '../labor.js';
 import { checkDiscount, discountCents } from '../discounts.js';
+import { completeCheckout } from '../paymentLinks.js';
 
 // Versiunea termenilor acceptați la rezervare; schimb-o când se modifică Terms of Service.
 export const TERMS_VERSION = '2026-11';
 
 /** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
-function outsideArea(data, res) {
+export function outsideArea(data, res) {
     const bad = ['pickup', 'dropoff'].filter((k) => !inServiceArea(data[k].lat, data[k].lng));
     if (!bad.length) return false;
     res.status(422).json({ error: OUTSIDE_AREA_MESSAGE, code: 'OUTSIDE_SERVICE_AREA', fields: bad });
@@ -78,7 +79,7 @@ export function scheduleLabel(day, slot) {
 }
 
 /** Programarea e valabilă doar de mâine (ora din Massachusetts) până la MAX_DAYS_AHEAD zile. */
-function scheduleFrom(input) {
+export function scheduleFrom(input) {
     const day = parseDateOnly(input.date);
     if (!day) return null;
     const diffDays = Math.round((day.getTime() - businessTodayUTC().getTime()) / DAY_MS);
@@ -151,6 +152,14 @@ router.get('/availability', estimateLimiter, async (req, res) => {
     res.json({ taken });
 });
 
+/** GET /api/payment-link/complete?session_id= — întoarcerea de pe pagina de plată Stripe (link trimis de dispecer). */
+router.get('/payment-link/complete', geocodeLimiter, async (req, res) => {
+    const result = await completeCheckout(req.query.session_id);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+});
+
 /** POST /api/discounts/check — verifică un cod de discount pentru clientul logat. */
 router.post('/discounts/check', requireAuth, discountLimiter, async (req, res) => {
     const result = await checkDiscount(req.body?.code, req.user.id);
@@ -197,47 +206,15 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
 
     // O singură comandă pe fereastră: verificarea și salvarea se fac cu ora blocată.
     const booked = await withSlot(schedule.scheduledFor, req.user.id, async (conn) => {
-        for (let attempt = 0; ; attempt++) {
-            try {
-                await conn.query(
-                    `INSERT INTO orders (
-                        id, code, user_id, status,
-                        pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
-                        distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
-                        items_description, photos_count,
-                        base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
-                        pricing_version, outbound_mins, return_mins, labor_cents_per_min,
-                        pickup_details, dropoff_details, discount_code, discount_percent, discount_cents,
-                        route_source, terms_accepted_at, terms_version
-                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), ?)`,
-                    [
-                        id, code, req.user.id,
-                        data.pickup.address, data.pickup.lat, data.pickup.lng,
-                        data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
-                        route.distanceMiles, route.durationMins, data.vehicle,
-                        schedule.type, schedule.scheduledFor, schedule.label,
-                        // numărul real de poze se actualizează la încărcarea lor (/orders/:code/photos)
-                        data.itemsDescription, 0,
-                        // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
-                        // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
-                        price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, totalCents,
-                        config.currency,
-                        price.outboundMins, price.returnMins, price.laborCentsPerMin,
-                        data.pickupDetails ? JSON.stringify(data.pickupDetails) : null,
-                        data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null,
-                        discount?.code || null, discount?.percent || null, discount?.cents || 0,
-                        route.source || null, TERMS_VERSION
-                    ]
-                );
-                break;
-            } catch (err) {
-                if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
-                    code = newOrderCode();
-                    continue;
-                }
-                throw err;
-            }
-        }
+        code = await insertOrderRow(conn, {
+            id, code, userId: req.user.id, status: 'pending_payment',
+            pickup: data.pickup, dropoff: data.dropoff,
+            pickupDetails: data.pickupDetails, dropoffDetails: data.dropoffDetails,
+            route, vehicle: data.vehicle, schedule,
+            itemsDescription: data.itemsDescription,
+            price, totalCents, currency: config.currency, discount,
+            termsVersion: TERMS_VERSION
+        });
     });
     if (!booked) {
         return res.status(409).json({

@@ -499,3 +499,14 @@ textarea {
 .install-btn { min-height: 40px; padding: 8px 16px; border: none; border-radius: 10px; background: var(--accent); color: var(--accent-ink, #fff); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .install-app-close { width: 32px; height: 32px; border: none; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
 .install-copy { align-self: flex-start; margin-top: 6px; padding: 7px 12px; border: 1px solid var(--line-strong, var(--line)); border-radius: 10px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* ===== Pagina de după plata prin link ===== */
+.paydone-page { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: var(--bg); }
+.paydone-card { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 32px 24px; border: 1px solid var(--line-strong); border-radius: var(--r-xl, 24px); background: var(--panel); text-align: center; }
+.paydone-card h1 { margin: 0; font-size: 22px; }
+.paydone-card p { margin: 0; color: var(--text-2); line-height: 1.55; font-size: 14.5px; }
+.paydone-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface-2); font-size: 26px; font-weight: 800; }
+.paydone-icon.ok { background: var(--go-soft); color: var(--go); }
+.paydone-muted { font-size: 13px !important; color: var(--muted) !important; }
+.paydone-contact { font-size: 13px !important; }
+.paydone-contact a { color: var(--text); }

@@ -92,6 +92,10 @@ export const api = {
         request(`/admin/orders/${encodeURIComponent(code)}/driver`, { method: 'PATCH', body: { driverId, resend } }),
 
     adminRevenue: (from, to) => request(`/admin/revenue?from=${from}&to=${to}`),
+    adminCustomers: (q = '') => request(`/admin/customers?q=${encodeURIComponent(q)}`),
+    adminCreateOrder: (payload) => request('/admin/orders', { method: 'POST', body: payload }),
+    adminPaymentLink: (code) => request(`/admin/orders/${encodeURIComponent(code)}/payment-link`, { method: 'POST', body: {} }),
+    paymentLinkComplete: (sessionId) => request(`/payment-link/complete?session_id=${encodeURIComponent(sessionId)}`),
     adminUpdateOrder: (code, changes) => request(`/admin/orders/${encodeURIComponent(code)}`, { method: 'PATCH', body: changes }),
     adminOrderHistory: (code) => request(`/admin/orders/${encodeURIComponent(code)}/history`),
     adminLabor: (code, action, extra = {}) =>

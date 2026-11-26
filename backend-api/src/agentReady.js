@@ -224,7 +224,7 @@ export const PUBLIC_PATHS = ['/', '/about', '/contact', '/terms', '/privacy'];
 
 // Paginile aplicației (cont, dispecerat, șoferi): există, dar nu sunt pentru indexare
 const APP_PATHS = [
-    /^\/(login|signup|account|account\/settings|forgot-password|reset-password)$/,
+    /^\/(login|signup|account|account\/settings|forgot-password|reset-password|payment-complete)$/,
     /^\/admin(\/(login|dashboard))?$/,
     /^\/admin\/order\/[^/]+$/,
     /^\/job\/[^/]+$/,

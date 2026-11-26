@@ -109,6 +109,63 @@ const OrderHistory = ({ order }) => {
     );
 };
 
+/** Linkul de plată Stripe pentru comenzile create la telefon: copiere și retrimitere. */
+const PaymentLinkBox = ({ order, onUpdated }) => {
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState('');
+    const [err, setErr] = useState('');
+    const link = order.paymentLink;
+    const resend = async () => {
+        setBusy(true);
+        setErr('');
+        setMsg('');
+        try {
+            const { order: updated } = await api.adminPaymentLink(order.id);
+            onUpdated(updated);
+            setMsg('Payment link emailed to the customer.');
+        } catch (e) {
+            setErr(e.message);
+        } finally {
+            setBusy(false);
+        }
+    };
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(link.url);
+            setMsg('Link copied — you can text it to the customer.');
+        } catch {
+            setErr('Copy failed — select the link and copy it manually.');
+        }
+    };
+    return (
+        <div className="paylink-box">
+            <span className="crm-field-label">Payment link</span>
+            {link ? (
+                <>
+                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="paylink-url">
+                        {link.url}
+                    </a>
+                    {link.expiresAt && <small className="record-line-detail">Valid until {fmtWhen(link.expiresAt)}</small>}
+                </>
+            ) : (
+                <small className="record-line-detail">No link yet.</small>
+            )}
+            <div className="record-actions-row">
+                {link && (
+                    <button className="crm-ghost-btn" onClick={copy}>
+                        Copy link
+                    </button>
+                )}
+                <button className="crm-primary-btn" disabled={busy} onClick={resend}>
+                    {busy ? 'Sending…' : link ? 'Email the link again' : 'Create & email link'}
+                </button>
+            </div>
+            {msg && <p className="driver-msg">{msg}</p>}
+            {err && <p className="form-inline-error">{err}</p>}
+        </div>
+    );
+};
+
 /** Manopera: timpul măsurat, corectarea minutelor, aprobarea cererii de plată, cash / fără taxă. */
 const LaborBilling = ({ order, onUpdated }) => {
     const b = order.laborBilling || { status: 'none' };
@@ -361,9 +418,11 @@ const AdminOrderDetail = () => {
 
     // Online se plătește doar transportul; încărcarea/descărcarea se încasează la fața locului.
     const payment = order.paidOnline
-        ? `Paid online${
-              order.paymentMethod === 'paypal' ? ' · PayPal' : order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''
-          } · labor collected after the job`
+        ? order.paymentMethod === 'offline'
+            ? 'Paid to dispatch (cash / phone) · labor collected after the job'
+            : `Paid online${
+                  order.paymentMethod === 'paypal' ? ' · PayPal' : order.cardLast4 ? ` · card •••• ${order.cardLast4}` : ''
+              } · labor collected after the job`
         : order.status === 'pending_payment'
           ? 'Unpaid'
           : 'Collected on delivery / manually';
@@ -593,6 +652,10 @@ const AdminOrderDetail = () => {
                     <Row label="Items">{order.itemsDescription || '—'}</Row>
                     <Row label="Photos">{order.photosCount}</Row>
                     <Row label="Payment">{payment}</Row>
+                    {order.createdBy && <Row label="Created by">{order.createdBy} (dispatch)</Row>}
+                    {order.status === 'pending_payment' && order.createdBy && (
+                        <PaymentLinkBox order={order} onUpdated={(o) => applyOrder(o, { keepNotes: true })} />
+                    )}
                 </div>
 
                 <div className="admin-card photos-card">

@@ -6,6 +6,7 @@
 //   URL:    https://app.reloqmove.com/api/stripe/webhook
 //   Events: payment_intent.succeeded
 // Apoi „Signing secret” (whsec_…) → variabila STRIPE_WEBHOOK_SECRET pe Hostinger.
+import { linkIntentToOrder } from '../paymentLinks.js';
 import express, { Router } from 'express';
 import { stripe } from '../stripe.js';
 import { config } from '../config.js';
@@ -34,7 +35,11 @@ router.post('/', express.raw({ type: 'application/json', limit: '1mb' }), async 
             const { order, paid } = await syncLaborPayment(event.data.object.id);
             if (order && paid) console.log(`[reloq] Webhook: manopera comenzii ${order.id} plătită.`);
         } else if (event.type === 'payment_intent.succeeded') {
-            const { order, justPaid } = await syncOrderPayment(event.data.object.id);
+            let { order, justPaid } = await syncOrderPayment(event.data.object.id);
+            // Plată prin linkul trimis de dispecer: comanda se găsește după metadata
+            if (!order && event.data.object.metadata?.source === 'payment_link') {
+                ({ order, justPaid } = (await linkIntentToOrder(event.data.object)) || {});
+            }
             if (!order) {
                 console.warn(`[reloq] Webhook: nicio comandă pentru ${event.data.object.id}`);
             } else if (justPaid) {
