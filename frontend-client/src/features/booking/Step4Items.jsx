@@ -60,7 +60,7 @@ const Step4Items = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>What are we moving?</h1>
-                <p className="subtitle">Tap your items — we'll recommend the right vehicle. Swipe sideways for more.</p>
+                <p className="subtitle">Tap your items — we'll recommend the right vehicle.<span className="swipe-hint"> Swipe sideways for more.</span></p>
             </div>
 
             <div className="item-grid">
