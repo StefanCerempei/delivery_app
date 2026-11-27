@@ -2681,3 +2681,4 @@ html, body { overscroll-behavior-y: none; }
     }
 }
 @media (min-width: 700px) { .swipe-hint { display: none; } }
+.notes-label { text-transform: none; letter-spacing: 0.01em; font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--text-2); }

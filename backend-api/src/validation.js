@@ -80,7 +80,7 @@ export const estimateSchema = z.object({
 
 // Tipul locației / etajul (cum se spune în SUA: „2nd floor”). Opțiunile din formular:
 // casă / townhome, storage, parter, etajul 2–10+. Valoarea veche „basement” rămâne validă pentru comenzile existente.
-export const FLOORS = ['house', 'storage', 'ground', '2', '3', '4', '5', 'basement', '6', '7', '8', '9', '10+'];
+export const FLOORS = ['house', 'storage', 'ground', '2', '3', '4', '5', '6+', 'basement', '6', '7', '8', '9', '10+'];
 /** Fără întrebarea de acces (lift / scări): casă, storage, parter. */
 export const NO_ACCESS_FLOORS = ['house', 'storage', 'ground'];
 

@@ -104,7 +104,7 @@ const Step4Items = () => {
             </div>
 
             <div className="items-textarea-group">
-                <label htmlFor="items-notes" className="picker-section-label">ITEM NOTES (OPTIONAL)</label>
+                <label htmlFor="items-notes" className="picker-section-label notes-label">Additional Items / Notes / Any information we should know</label>
                 <textarea
                     id="items-notes"
                     className="items-textarea"

@@ -74,7 +74,9 @@ export function describeLocation(details) {
             ? 'Ground floor'
             : details.floor === 'basement'
               ? 'Basement'
-              : details.floor === '10+'
+              : details.floor === '6+'
+                ? '6th floor or above'
+                : details.floor === '10+'
                 ? '10th floor or above'
                 : details.floor
                   ? `${ORDINAL(Number(details.floor))} floor`
