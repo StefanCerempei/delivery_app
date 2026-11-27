@@ -14,6 +14,7 @@ import { config } from '../config.js';
 import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { listDiscounts } from '../discounts.js';
 import { logChanges, orderHistory } from '../audit.js';
+import { signaturesFor, signatureImage } from '../signatures.js';
 import { getTrip, priceFor, priceLines } from '../pricing.js';
 import { scheduleLabel } from './orders.js';
 import { businessTodayUTC } from '../time.js';
@@ -202,6 +203,22 @@ async function orderIdByCode(code) {
     const [[r]] = await pool.query('SELECT id FROM orders WHERE code = ?', [code]);
     return r?.id || null;
 }
+
+/** GET /admin/orders/:code/signatures — semnăturile clientului (fără imagini). */
+router.get('/orders/:code/signatures', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ signatures: await signaturesFor(id) });
+});
+
+/** GET /admin/orders/:code/signatures/:kind.png — imaginea semnăturii (start / end). */
+router.get('/orders/:code/signatures/:kind.png', async (req, res) => {
+    if (!['start', 'end'].includes(req.params.kind)) return res.status(404).end();
+    const id = await orderIdByCode(req.params.code);
+    const img = id ? await signatureImage(id, req.params.kind) : null;
+    if (!img) return res.status(404).end();
+    res.type('png').set('Cache-Control', 'private, max-age=3600').send(img);
+});
 
 /** GET /admin/orders/:code/history — jurnalul modificărilor. */
 router.get('/orders/:code/history', async (req, res) => {

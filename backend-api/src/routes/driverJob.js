@@ -11,6 +11,8 @@ import { waitForMail } from '../mailer.js';
 import { sendDriverReminders } from '../jobs.js';
 import { sendPhoto } from '../photos.js';
 import { onJobCompleted, markLaborCash, UNPAID_LABOR } from '../labor.js';
+import { parseSignature, saveSignature, signaturesFor } from '../signatures.js';
+import { TERMS_VERSION } from './orders.js';
 
 const router = Router();
 const jobLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
@@ -20,8 +22,15 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 async function loadJob(token) {
     if (!TOKEN_RE.test(token)) return null;
     const [rows] = await pool.query(`${ORDER_WITH_CUSTOMER_SQL} WHERE o.driver_token = ?`, [token]);
-    return rows[0] ? toOrderDto(rows[0], { includeCustomer: true, includeDriver: true }) : null;
+    if (!rows[0]) return null;
+    const job = toOrderDto(rows[0], { includeCustomer: true, includeDriver: true });
+    job.uuid = rows[0].id;
+    job.signatures = await signaturesFor(rows[0].id);
+    return job;
 }
+
+// Clientul semnează pe telefonul șoferului: la sosire (acceptă termenii, pornește timpul) și la final
+const SIGNED_ACTIONS = { arrived: 'start', completed: 'end' };
 
 const directions = (o) =>
     `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o.pickup.address)}&destination=${encodeURIComponent(
@@ -46,7 +55,8 @@ const toJobDto = (o) => ({
     laborActual: o.laborActual,
     laborBilling: { status: o.laborBilling?.status || 'none', amount: o.laborBilling?.amount ?? null },
     directionsUrl: directions(o),
-    photoIds: o.photoIds || []
+    photoIds: o.photoIds || [],
+    signatures: o.signatures || { start: null, end: null }
 });
 
 const gone = (res) => res.status(404).json({ error: 'This job link is no longer valid. Ask dispatch for the latest job email.' });
@@ -122,6 +132,27 @@ router.post('/job/:token/:action', jobLimiter, async (req, res) => {
         }
         if (action.needsArrived && !before.timeline.arrivedAt) {
             return res.status(409).json({ error: 'Tap “Arrived” when you reach the pickup first.' });
+        }
+        const kind = SIGNED_ACTIONS[req.params.action];
+        if (kind && !before.signatures[kind]) {
+            const image = parseSignature(req.body?.signature);
+            const signerName = String(req.body?.signerName || '').trim();
+            if (signerName.length < 2) return res.status(400).json({ error: 'Please enter the customer’s name.', code: 'SIGNATURE_REQUIRED' });
+            if (!image) return res.status(400).json({ error: 'The customer needs to sign first.', code: 'SIGNATURE_REQUIRED' });
+            if (kind === 'start' && req.body?.termsAccepted !== true) {
+                return res.status(400).json({ error: 'The customer needs to accept the terms.', code: 'SIGNATURE_REQUIRED' });
+            }
+            await saveSignature({
+                orderId: before.uuid,
+                kind,
+                signerName,
+                termsAccepted: kind === 'start',
+                termsVersion: TERMS_VERSION,
+                image,
+                driverName: before.driver?.fullName,
+                ip: req.ip,
+                userAgent: req.get('user-agent')
+            });
         }
         await pool.query(`UPDATE orders SET ${action.sql} WHERE code = ?`, [before.id]);
     }

@@ -85,6 +85,8 @@ if (config.corsOrigin) {
 // Webhook-ul Stripe are nevoie de corpul brut (verificarea semnăturii), deci e înainte de express.json().
 app.use('/api/stripe/webhook', stripeWebhookRoutes);
 
+// Semnăturile clientului (imagini PNG) din pagina jobului au nevoie de o limită mai mare
+app.use('/api/job', express.json({ limit: '700kb' }));
 app.use(express.json({ limit: '50kb' }));
 app.use(cookieParser());
 app.use('/api', loadUser);

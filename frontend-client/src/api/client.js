@@ -111,7 +111,7 @@ export const api = {
 
     // Pagina de job a șoferului (fără cont, cu tokenul din link)
     job: (token) => request(`/job/${encodeURIComponent(token)}`),
-    jobAction: (token, action) => request(`/job/${encodeURIComponent(token)}/${action}`, { method: 'POST' }),
+    jobAction: (token, action, body) => request(`/job/${encodeURIComponent(token)}/${action}`, { method: 'POST', body: body || {} }),
 
     // Panoul șoferului
     driverMe: () => request('/driver/me', { quiet: true }),
