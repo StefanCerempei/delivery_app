@@ -2668,17 +2668,4 @@ html, body { overscroll-behavior-y: none; }
     box-sizing: border-box;
     align-self: center;
 }
-/* Tabletă / laptop: obiectele curg pe rânduri, fără derulare laterală */
-@media (min-width: 700px) {
-    .item-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        overflow: visible;
-        max-height: 360px;
-        overflow-y: auto;
-        padding: 2px;
-    }
-}
-@media (min-width: 700px) { .swipe-hint { display: none; } }
 .notes-label { text-transform: none; letter-spacing: 0.01em; font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--text-2); }
