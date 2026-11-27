@@ -11,7 +11,8 @@ import { mailSettings, waitForMail } from './mailer.js';
 import { notifyFinalReceipt, notifyCompanyReceipt } from './emails.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const LOGO = [path.join(here, '../../frontend-client/dist/email-logo.png'), path.join(here, '../../frontend-client/public/email-logo.png')].find(
+// Logo-ul color pentru fundal alb (backend-api/assets/logo-color.png); altfel cel din emailuri
+const LOGO = [path.join(here, '../assets/logo-color.png'), path.join(here, '../../frontend-client/dist/email-logo.png'), path.join(here, '../../frontend-client/public/email-logo.png')].find(
     (p) => fs.existsSync(p)
 );
 
@@ -132,7 +133,7 @@ export function buildReceiptPdf(d) {
     };
 
     // Antet
-    if (LOGO) doc.image(LOGO, 48, 44, { height: 30 });
+    if (LOGO) doc.image(LOGO, 48, 40, { height: 36 });
     doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(16).text('Final Receipt & Job Record', 48, 44, { width: W, align: 'right' });
     doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(`Order ${o.id} · issued ${fmtDateTime(new Date().toISOString())}`, 48, 64, { width: W, align: 'right' });
     doc.y = 92;
