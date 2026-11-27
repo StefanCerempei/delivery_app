@@ -1,7 +1,21 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../auth.js';
-import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, parseBody } from '../validation.js';
+import { statusSchema, driverSchema, assignDriverSchema, adminOrderUpdateSchema, discountCodeSchema, adminCreateOrderSchema, parseBody } from '../validation.js';
+import crypto from 'node:crypto';
+import { insertOrderRow, newOrderCode } from '../orders.js';
+import { priceFor as priceForVehicle, MAX_DISTANCE_MILES } from '../pricing.js';
+import { withSlot } from '../slots.js';
+import { checkDiscount, discountCents } from '../discounts.js';
+import { createPaymentLink } from '../paymentLinks.js';
+import { stripe } from '../stripe.js';
+import { notifyPaymentLink } from '../emails.js';
+import { config } from '../config.js';
+import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
+import { listDiscounts } from '../discounts.js';
+import { logChanges, orderHistory } from '../audit.js';
+import { signaturesFor, signatureImage } from '../signatures.js';
+import { receiptData, buildReceiptPdf, sendFinalReceipts } from '../receipts.js';
 import { getTrip, priceFor, priceLines } from '../pricing.js';
 import { scheduleLabel } from './orders.js';
 import { businessTodayUTC } from '../time.js';
@@ -77,9 +91,11 @@ router.patch('/orders/:code', async (req, res) => {
     const sets = [];
     const params = [];
     const changes = [];
+    const logged = [];
     const set = (column, value) => {
         sets.push(`${column} = ?`);
         params.push(value);
+        logged.push({ field: column, oldValue: row[column], newValue: value });
     };
     const near = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
 
@@ -151,14 +167,19 @@ router.patch('/orders/:code', async (req, res) => {
             set('base_fare_cents', price.serviceFeeCents);
             set('distance_cost_cents', price.transportationCents);
             set('time_cost_cents', price.reservationFeeCents);
-            set('total_cents', price.totalCents);
+            // Discountul comenzii (dacă are) se păstrează: același procent din noul preț
+            const off = row.discount_percent ? Math.round((price.totalCents * Number(row.discount_percent)) / 100) : 0;
+            set('total_cents', price.totalCents - off);
+            if (row.discount_percent) set('discount_cents', off);
             set('pricing_version', 2);
         }
-        priceChange = { current: row.total_cents / 100, estimated: priceLines(price).total, applied };
+        const offEst = row.discount_percent ? Math.round((price.totalCents * Number(row.discount_percent)) / 100) : 0;
+        priceChange = { current: row.total_cents / 100, estimated: (price.totalCents - offEst) / 100, applied };
     }
 
     if (!sets.length) return res.json({ order: await loadOrder(req.params.code), changes: [], priceChange });
     await pool.query(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`, [...params, row.id]);
+    await logChanges(row.id, logged, { actor: req.user, reason: data.reason });
 
     let order = await loadOrder(req.params.code);
     if (data.notify && changes.length && !['pending_payment'].includes(order.status)) {
@@ -170,6 +191,61 @@ router.patch('/orders/:code', async (req, res) => {
         await waitForMail(Promise.all(mails));
     }
     res.json({ order, changes, priceChange });
+});
+
+/** Numele șoferului (pentru jurnal). */
+async function driverName(id) {
+    if (!id) return null;
+    const [[d]] = await pool.query('SELECT full_name FROM drivers WHERE id = ?', [id]);
+    return d?.full_name || `#${id}`;
+}
+
+async function orderIdByCode(code) {
+    const [[r]] = await pool.query('SELECT id FROM orders WHERE code = ?', [code]);
+    return r?.id || null;
+}
+
+/** GET /admin/orders/:code/signatures — semnăturile clientului (fără imagini). */
+router.get('/orders/:code/signatures', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ signatures: await signaturesFor(id) });
+});
+
+/** GET /admin/orders/:code/signatures/:kind.png — imaginea semnăturii (start / end). */
+router.get('/orders/:code/signatures/:kind.png', async (req, res) => {
+    if (!['start', 'end'].includes(req.params.kind)) return res.status(404).end();
+    const id = await orderIdByCode(req.params.code);
+    const img = id ? await signatureImage(id, req.params.kind) : null;
+    if (!img) return res.status(404).end();
+    res.type('png').set('Cache-Control', 'private, max-age=3600').send(img);
+});
+
+/** GET /admin/orders/:code/receipt.pdf — chitanța oficială (PDF), oricând; înainte de plata manoperei arată „not settled”. */
+router.get('/orders/:code/receipt.pdf', async (req, res) => {
+    const d = await receiptData(req.params.code);
+    if (!d) return res.status(404).json({ error: 'Order not found.' });
+    const pdf = await buildReceiptPdf(d);
+    res.type('application/pdf')
+        .set('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="RELOQ-receipt-${d.order.id}.pdf"`)
+        .set('Cache-Control', 'no-store')
+        .send(pdf);
+});
+
+/** POST /admin/orders/:code/receipt/resend — retrimite chitanța clientului și PDF-ul firmei. */
+router.post('/orders/:code/receipt/resend', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    await pool.query('UPDATE orders SET receipt_sent_at = NULL WHERE id = ?', [id]);
+    await sendFinalReceipts(req.params.code);
+    res.json({ ok: true });
+});
+
+/** GET /admin/orders/:code/history — jurnalul modificărilor. */
+router.get('/orders/:code/history', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ history: await orderHistory(id) });
 });
 
 /** Verifică șoferul ales; întoarce mesajul de eroare sau null. */
@@ -249,6 +325,14 @@ router.patch('/orders/:code/status', async (req, res) => {
     }
     await stampStatus(req.params.code, data.status);
     if (data.status === 'completed' && before.status !== 'completed') await onJobCompleted(req.params.code);
+    await logChanges(
+        raw[0].id,
+        [
+            { field: 'status', oldValue: before.status, newValue: data.status },
+            ...(data.driverId !== undefined ? [{ field: 'driver', oldValue: before.driver?.fullName, newValue: await driverName(data.driverId) }] : [])
+        ],
+        { actor: req.user }
+    );
 
     let order = await loadOrder(req.params.code);
     const mails = [];
@@ -287,6 +371,9 @@ router.patch('/orders/:code/driver', async (req, res) => {
     }
 
     let order = await loadOrder(req.params.code);
+    await logChanges(await orderIdByCode(req.params.code), [{ field: 'driver', oldValue: before.driver?.fullName, newValue: order.driver?.fullName }], {
+        actor: req.user
+    });
     const { mails, driverNotified } = await sendDriverEmails(before, order, { resend: data.resend });
     await waitForMail(Promise.all(mails));
     if (driverNotified) order = await loadOrder(req.params.code);
@@ -308,13 +395,18 @@ router.post('/orders/:code/labor', async (req, res) => {
         if (m !== null && !(Number.isInteger(m) && m >= 0 && m <= 24 * 60)) {
             return res.status(400).json({ error: 'Minutes must be a whole number between 0 and 1440.' });
         }
-        result = await setLaborMinutes(req.params.code, m);
+        const reason = String(req.body.reason || '').trim();
+        if (reason.length < 3) return res.status(400).json({ error: 'Please write the reason for the correction.' });
+        result = await setLaborMinutes(req.params.code, m, { actor: req.user, reason });
     } else if (action === 'request') result = await requestLaborPayment(req.params.code);
     else if (action === 'cash') result = await markLaborCash(req.params.code);
     else if (action === 'waive') result = await waiveLabor(req.params.code);
     else if (action === 'reopen') result = await reopenLabor(req.params.code);
     else return res.status(400).json({ error: 'Unknown action.' });
     if (result.error) return res.status(result.status).json({ error: result.error });
+    if (action !== 'minutes') {
+        await logChanges(await orderIdByCode(req.params.code), [{ field: 'labor', oldValue: null, newValue: action }], { actor: req.user });
+    }
     res.json({ order: await loadOrder(req.params.code) });
 });
 
@@ -671,6 +763,191 @@ router.delete('/drivers/:id', async (req, res) => {
     }
     await pool.query('DELETE FROM drivers WHERE id = ?', [id]);
     res.json({ deleted: true });
+});
+
+/* ================= Comandă nouă din dispecerat (client la telefon) ================= */
+
+/** Clientul comenzii: unul existent sau unul nou (cont fără parolă; o setează cu „Forgot password”). */
+async function resolveCustomer(data) {
+    if (data.customerId) {
+        const [[u]] = await pool.query("SELECT id FROM users WHERE id = ? AND role = 'customer' AND deleted_at IS NULL", [data.customerId]);
+        return u ? { id: u.id } : { error: 'Customer not found.' };
+    }
+    const c = data.newCustomer;
+    const [[existing]] = await pool.query('SELECT id, role, deleted_at FROM users WHERE email = ?', [c.email]);
+    if (existing) {
+        if (existing.role !== 'customer' || existing.deleted_at) return { error: 'This email belongs to an account that can’t be used for orders.' };
+        // completăm telefonul / numele dacă lipseau
+        await pool.query('UPDATE users SET phone = COALESCE(phone, ?) WHERE id = ?', [c.phone || null, existing.id]);
+        return { id: existing.id, existing: true };
+    }
+    const unusable = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+    const [r] = await pool.query("INSERT INTO users (email, password_hash, full_name, phone, role) VALUES (?, ?, ?, ?, 'customer')", [
+        c.email,
+        unusable,
+        c.fullName,
+        c.phone || null
+    ]);
+    return { id: r.insertId, created: true };
+}
+
+/** GET /admin/customers?q= — căutare clienți (nume, email, telefon) pentru o comandă nouă. */
+router.get('/customers', async (req, res) => {
+    const q = String(req.query.q || '').trim();
+    const like = `%${q.replace(/[%_]/g, '')}%`;
+    const [rows] = await pool.query(
+        `SELECT id, full_name, email, phone FROM users
+         WHERE role = 'customer' AND deleted_at IS NULL ${q ? 'AND (full_name LIKE ? OR email LIKE ? OR phone LIKE ?)' : ''}
+         ORDER BY created_at DESC LIMIT 20`,
+        q ? [like, like, like] : []
+    );
+    res.json({ customers: rows.map((r) => ({ id: r.id, fullName: r.full_name, email: r.email, phone: r.phone })) });
+});
+
+/**
+ * Alocare automată: șoferul activ cu cele mai puține joburi în ziua mutării (apoi cu cele mai puține
+ * joburi viitoare). Pe o fereastră e o singură comandă, deci la ora aleasă orice șofer e liber.
+ */
+async function pickDriver(date) {
+    const [rows] = await pool.query(
+        `SELECT d.id, d.full_name,
+                (SELECT COUNT(*) FROM orders o WHERE o.driver_id = d.id AND DATE(o.scheduled_for) = ? AND o.status <> 'cancelled') AS day_jobs,
+                (SELECT COUNT(*) FROM orders o WHERE o.driver_id = d.id AND o.scheduled_for >= UTC_DATE() AND o.status NOT IN ('cancelled', 'completed')) AS upcoming
+         FROM drivers d WHERE d.active = 1
+         ORDER BY day_jobs ASC, upcoming ASC, d.id ASC LIMIT 1`,
+        [date]
+    );
+    return rows[0]?.id || null;
+}
+
+/** POST /admin/orders — dispecerul creează o comandă; prețul se calculează pe server, la fel ca pe site. */
+router.post('/orders', async (req, res) => {
+    const data = parseBody(adminCreateOrderSchema, req, res);
+    if (!data) return;
+    if (data.payment === 'link' && !stripe) return res.status(400).json({ error: 'Online payments are not enabled, so a payment link can’t be sent.' });
+
+    const day = parseDateOnly(data.schedule.date);
+    if (!day || day < businessTodayUTC()) return res.status(400).json({ error: 'Pick today or a future date.' });
+    for (const loc of [data.pickup, data.dropoff]) {
+        if (!inServiceArea(loc.lat, loc.lng)) return res.status(422).json({ error: OUTSIDE_AREA_MESSAGE });
+    }
+
+    if (typeof data.driverId === 'number') {
+        const problem = await driverProblem(data.driverId);
+        if (problem) return res.status(409).json({ error: problem });
+    }
+
+    const customer = await resolveCustomer(data);
+    if (customer.error) return res.status(400).json({ error: customer.error });
+
+    const route = await getTrip(data.pickup, data.dropoff);
+    if (route.distanceMiles > MAX_DISTANCE_MILES) return res.status(422).json({ error: `Maximum trip distance is ${MAX_DISTANCE_MILES} miles.` });
+    const price = priceForVehicle(data.vehicle, route);
+    let discount = null;
+    if (data.discountCode) {
+        discount = await checkDiscount(data.discountCode, customer.id);
+        if (discount.error) return res.status(400).json({ error: discount.error });
+        discount.cents = discountCents(price.totalCents, discount.percent);
+    }
+    const totalCents = price.totalCents - (discount?.cents || 0);
+
+    const id = crypto.randomUUID();
+    let code = newOrderCode();
+    const schedule = {
+        type: 'scheduled',
+        scheduledFor: `${data.schedule.date} ${data.schedule.slot}:00`,
+        label: scheduleLabel(day, data.schedule.slot)
+    };
+    const status = data.payment === 'link' ? 'pending_payment' : 'confirmed';
+    // Dispecerul poate rezerva și o oră blocată de el; doar o altă comandă pe aceeași oră o oprește
+    const booked = await withSlot(schedule.scheduledFor, customer.id, async (conn) => {
+        code = await insertOrderRow(conn, {
+            id, code, userId: customer.id, status,
+            pickup: data.pickup, dropoff: data.dropoff,
+            pickupDetails: data.pickupDetails, dropoffDetails: data.dropoffDetails,
+            route, vehicle: data.vehicle, schedule,
+            itemsDescription: data.itemsDescription,
+            price, totalCents, currency: config.currency, discount,
+            termsVersion: null,
+            createdBy: req.user.fullName || req.user.email
+        });
+    });
+    if (!booked) return res.status(409).json({ error: 'That arrival window is already booked. Pick another time.' });
+
+    if (data.payment === 'paid') {
+        await pool.query("UPDATE orders SET paid_at = UTC_TIMESTAMP(), payment_method = 'offline' WHERE id = ?", [id]);
+    }
+    if (data.dispatchNotes) await pool.query('UPDATE orders SET dispatch_notes = ? WHERE id = ?', [data.dispatchNotes, id]);
+    const driverId = data.driverId === 'auto' ? await pickDriver(data.schedule.date) : data.driverId || null;
+    if (driverId) await pool.query('UPDATE orders SET driver_id = ? WHERE id = ?', [driverId, id]);
+    await logChanges(
+        id,
+        [
+            { field: 'created', oldValue: null, newValue: `by dispatch · payment: ${data.payment}` },
+            ...(driverId ? [{ field: 'driver', oldValue: null, newValue: `${await driverName(driverId)}${data.driverId === 'auto' ? ' (auto-assigned)' : ''}` }] : [])
+        ],
+        { actor: req.user }
+    );
+
+    let order = await loadOrder(code);
+    let paymentLink = null;
+    try {
+        if (data.payment === 'link') {
+            paymentLink = await createPaymentLink(id, { base: `${req.protocol}://${req.get('host')}` });
+            if (paymentLink.error) throw new Error(paymentLink.error);
+            order = await loadOrder(code);
+            if (data.notify) await waitForMail(notifyPaymentLink(order, paymentLink.url, paymentLink.expiresAt));
+        } else if (data.notify) {
+            await waitForMail(notifyOrderConfirmed(order));
+        }
+        // Comanda e confirmată: șoferul alocat primește jobul acum (la plata prin link, după plată)
+        if (order.driver && order.status === 'confirmed') {
+            const { mails, driverNotified } = await sendDriverEmails({ driver: null, status: 'new' }, order);
+            await waitForMail(Promise.all(mails));
+            if (driverNotified) order = await loadOrder(code);
+        }
+    } catch (err) {
+        console.warn(`[reloq] Comanda ${code}: linkul de plată / emailul a eșuat: ${err.message}`);
+        return res.status(201).json({ order, paymentLink: null, warning: `The order was created, but the payment link failed: ${err.message}` });
+    }
+    res.status(201).json({ order, paymentLink, customerCreated: Boolean(customer.created), autoAssigned: data.driverId === 'auto' ? order.driver?.fullName || null : undefined });
+});
+
+/** POST /admin/orders/:code/payment-link — trimite din nou linkul de plată (îl recreează dacă a expirat). */
+router.post('/orders/:code/payment-link', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    const link = await createPaymentLink(id, { base: `${req.protocol}://${req.get('host')}` });
+    if (link.error) return res.status(link.status).json({ error: link.error });
+    const order = await loadOrder(req.params.code);
+    if (req.body?.email !== false) await waitForMail(notifyPaymentLink(order, link.url, link.expiresAt));
+    res.json({ order, paymentLink: link });
+});
+
+/* ================= Coduri de discount ================= */
+router.get('/discounts', async (_req, res) => {
+    res.json({ discounts: await listDiscounts() });
+});
+
+router.post('/discounts', async (req, res) => {
+    const data = parseBody(discountCodeSchema, req, res);
+    if (!data) return;
+    try {
+        await pool.query('INSERT INTO discount_codes (code, percent, note) VALUES (?, ?, ?)', [data.code, data.percent, data.note || null]);
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'This code already exists.' });
+        throw err;
+    }
+    res.status(201).json({ discounts: await listDiscounts() });
+});
+
+/** Pornește / oprește un cod (codurile folosite nu se șterg, ca să rămână istoricul). */
+router.patch('/discounts/:id', async (req, res) => {
+    const active = req.body?.active;
+    if (typeof active !== 'boolean') return res.status(400).json({ error: 'Send active: true or false.' });
+    const [r] = await pool.query('UPDATE discount_codes SET active = ? WHERE id = ?', [active ? 1 : 0, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Discount code not found.' });
+    res.json({ discounts: await listDiscounts() });
 });
 
 export default router;

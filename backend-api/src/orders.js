@@ -17,7 +17,7 @@ const cents = (v) => Math.round(Number(v)) / 100;
 /** Liniile de preț ale unei comenzi salvate (model v2), sau cele vechi pentru comenzile dinainte. */
 function orderPrice(row, vehicle) {
     if (Number(row.pricing_version) >= 2) {
-        return priceLines({
+        const p = priceLines({
             reservationFeeCents: Number(row.time_cost_cents),
             serviceFeeCents: Number(row.base_fare_cents),
             transportationCents: Number(row.distance_cost_cents),
@@ -29,6 +29,16 @@ function orderPrice(row, vehicle) {
             returnMins: Number(row.return_mins),
             distanceMiles: Number(row.distance_miles)
         });
+        // Reducerea apare ca linie separată (totalul salvat e deja redus)
+        if (Number(row.discount_cents) > 0) {
+            p.lines.push({
+                key: 'discount',
+                label: `Discount ${row.discount_code} (${row.discount_percent}%)`,
+                detail: 'Discount code',
+                amount: -Number(row.discount_cents) / 100
+            });
+        }
+        return p;
     }
     return {
         lines: [
@@ -56,22 +66,38 @@ const ORDINAL = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10 > 3 || Math.f
 export function describeLocation(details) {
     if (!details) return '';
     const floor =
-        details.floor === 'ground'
-            ? 'Ground floor / house'
+        details.floor === 'house'
+            ? 'Private home / townhome'
+            : details.floor === 'storage'
+              ? 'Storage'
+              : details.floor === 'ground'
+            ? 'Ground floor'
             : details.floor === 'basement'
               ? 'Basement'
-              : details.floor === '10+'
-                ? '10th floor or higher'
+              : details.floor === '6+'
+                ? '6th floor or above'
+                : details.floor === '10+'
+                ? '10th floor or above'
                 : details.floor
                   ? `${ORDINAL(Number(details.floor))} floor`
                   : '';
-    const elevator = details.floor && details.floor !== 'ground' ? (details.elevator === 'yes' ? 'elevator' : 'no elevator (stairs)') : '';
+    const elevator =
+        details.floor && !['house', 'storage', 'ground'].includes(details.floor)
+            ? details.elevator === 'yes'
+                ? 'elevator'
+                : 'walk-up stairs (no elevator)'
+            : '';
     return [details.unit ? `Unit ${details.unit}` : '', floor, elevator].filter(Boolean).join(' · ');
 }
 
+/** Specificația RELOQ 4.2: durata se facturează rotunjită în sus la următorul multiplu de 5 minute. */
+export const billableMinutes = (elapsedMinutes) => Math.ceil(Number(elapsedMinutes) / 5) * 5;
+
 /**
- * Manopera reală: cronometrul pornit la sosire (Arrived) și oprit la final (Completed), fără pauze,
- * rotunjită în sus la minut. Dispecerul poate corecta minutele (labor_minutes_override).
+ * Manopera reală: cronometrul pornit la sosire (Arrived) și oprit la final (Completed).
+ * elapsedMinutes = timpul scurs (rotunjit în sus la minut, din timestamp-urile de pe server);
+ * minutes = durata facturată (rotunjită în sus la 5 min). Dispecerul poate corecta timpul scurs
+ * (labor_minutes_override), cu motiv salvat în jurnalul comenzii.
  */
 export function laborActual(row) {
     if (!row.labor_cents_per_min) return null;
@@ -81,12 +107,17 @@ export function laborActual(row) {
         if (ms > 0) timed = Math.ceil(ms / 60000);
     }
     const override = row.labor_minutes_override != null ? Number(row.labor_minutes_override) : null;
-    const minutes = override ?? timed;
-    if (minutes == null) return null;
+    const elapsed = override ?? timed;
+    if (elapsed == null) return null;
+    const minutes = billableMinutes(elapsed);
     return {
         minutes,
+        elapsedMinutes: elapsed,
         timedMinutes: timed,
         adjusted: override != null,
+        startedAt: row.arrived_at ? new Date(row.arrived_at).toISOString() : null,
+        completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+        ratePerMinute: cents(row.labor_cents_per_min),
         amount: cents(minutes * Number(row.labor_cents_per_min))
     };
 }
@@ -111,11 +142,19 @@ export function toOrderDto(row, { includeCustomer = false, includeDriver = false
         photoIds: row.photo_ids ? String(row.photo_ids).split(',').map(Number) : [],
         price: orderPrice(row, vehicle),
         totalAmount: cents(row.total_cents),
+        discount: Number(row.discount_cents) > 0
+            ? { code: row.discount_code, percent: Number(row.discount_percent), amount: cents(row.discount_cents) }
+            : null,
         currency: row.currency,
         cardLast4: row.card_last4 || null,
         // Plătit online (transportul). Comenzile plătite înainte de coloana paid_at au status 'paid'.
         paidOnline: Boolean(row.paid_at) || row.status === 'paid',
-        paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null)
+        paymentMethod: row.payment_method || (row.card_last4 ? 'stripe' : null),
+        createdBy: row.created_by || null,
+        paymentLink:
+            row.status === 'pending_payment' && row.payment_link_url
+                ? { url: row.payment_link_url, expiresAt: row.payment_link_expires_at ? new Date(row.payment_link_expires_at).toISOString() : null }
+                : null
     };
 
     // Momentele jobului (raportate de șofer sau de dispecer) și manopera calculată din ele
@@ -171,3 +210,54 @@ export const ORDER_WITH_CUSTOMER_SQL = `
     FROM orders o
     JOIN users u ON u.id = o.user_id
     LEFT JOIN drivers d ON d.id = o.driver_id`;
+
+/**
+ * Salvează o comandă nouă (rezervarea clientului sau comanda creată de dispecer), cu prețul calculat
+ * pe server. Reîncearcă cu alt cod dacă codul generat există deja. Întoarce codul final.
+ * o: { id, code, userId, status, pickup, dropoff, pickupDetails, dropoffDetails, route, vehicle, schedule,
+ *      itemsDescription, price, totalCents, currency, discount, termsVersion, createdBy }
+ */
+export async function insertOrderRow(conn, o) {
+    let code = o.code;
+    for (let attempt = 0; ; attempt++) {
+        try {
+            await conn.query(
+                `INSERT INTO orders (
+                    id, code, user_id, status,
+                    pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
+                    distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
+                    items_description, photos_count,
+                    base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
+                    pricing_version, outbound_mins, return_mins, labor_cents_per_min,
+                    pickup_details, dropoff_details, discount_code, discount_percent, discount_cents,
+                    route_source, terms_accepted_at, terms_version, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          IF(? IS NULL, NULL, UTC_TIMESTAMP()), ?, ?)`,
+                [
+                    o.id, code, o.userId, o.status,
+                    o.pickup.address, o.pickup.lat, o.pickup.lng,
+                    o.dropoff.address, o.dropoff.lat, o.dropoff.lng,
+                    o.route.distanceMiles, o.route.durationMins, o.vehicle,
+                    o.schedule.type, o.schedule.scheduledFor, o.schedule.label,
+                    // numărul real de poze se actualizează la încărcarea lor (/orders/:code/photos)
+                    o.itemsDescription,
+                    // Model de preț v2: base_fare = Service fee, distance_cost = Transportation, time_cost = Reservation fee
+                    o.price.serviceFeeCents, o.price.transportationCents, o.price.reservationFeeCents, o.totalCents,
+                    o.currency,
+                    o.price.outboundMins, o.price.returnMins, o.price.laborCentsPerMin,
+                    o.pickupDetails ? JSON.stringify(o.pickupDetails) : null,
+                    o.dropoffDetails ? JSON.stringify(o.dropoffDetails) : null,
+                    o.discount?.code || null, o.discount?.percent || null, o.discount?.cents || 0,
+                    o.route.source || null, o.termsVersion || null, o.termsVersion || null, o.createdBy || null
+                ]
+            );
+            return code;
+        } catch (err) {
+            if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
+                code = newOrderCode();
+                continue;
+            }
+            throw err;
+        }
+    }
+}

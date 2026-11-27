@@ -2170,8 +2170,10 @@
 .loc-field select.loc-empty { color: var(--muted); border-color: var(--accent-ring); }
 .loc-field select:focus,
 .loc-field input:focus { border-color: var(--accent); }
-.loc-elevator { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.loc-elevator > span { margin-right: 4px; }
+/* Access type: eticheta deasupra, cele două opțiuni pe același rând */
+.loc-elevator { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.loc-elevator > span { grid-column: 1 / -1; }
+.loc-elevator .loc-choice { min-height: 42px; text-align: center; }
 .loc-choice {
     padding: 8px 14px;
     border: 1px solid var(--line-strong);
@@ -2271,3 +2273,399 @@
 .address-dropdown li.outside-area:hover { background: transparent; }
 .dropdown-outside { font-size: 11.5px; font-weight: 600; color: var(--danger); }
 .pin-error { flex-basis: 100%; font-size: 12.5px; line-height: 1.45; color: var(--danger); }
+
+/* ===== Ilustrațiile flotei RELOQ ===== */
+/* Scena deschisă la culoare, ca ilustrațiile 3D să iasă bine pe tema închisă */
+.vehicle-hero {
+    position: relative;
+    margin: 0;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 30%, #f7f9fc 0%, #e6ebf1 70%, #d9e0e8 100%);
+    border: 1px solid var(--line-strong);
+    animation: fadeUp 0.3s var(--ease) both;
+}
+.vehicle-hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+}
+.vehicle-hero figcaption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #0b1f3b;
+    color: #fff;
+    line-height: 1.25;
+}
+.vehicle-hero figcaption strong { font-size: 14px; font-weight: 700; }
+.vehicle-hero figcaption span { font-size: 12px; color: #c3cbd6; }
+
+.vehicle-icon-box.has-photo {
+    width: 96px;
+    height: 58px;
+    padding: 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f4f6f9, #dfe4ea);
+    border-color: transparent;
+}
+.vehicle-icon-box.has-photo img,
+.vehicle-card:hover .vehicle-icon-box.has-photo img,
+.vehicle-card.selected .vehicle-icon-box.has-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform: none;
+}
+@media (max-width: 380px) {
+    .vehicle-icon-box.has-photo { width: 80px; height: 48px; }
+    .vehicle-icon-box.has-photo img { width: 100%; }
+}
+
+/* ===== Butonul Back din pașii rezervării ===== */
+.step-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 4px 16px 4px 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background-color: var(--surface);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 0.18s, background-color 0.18s, transform 0.18s var(--ease);
+}
+.step-back-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    transition: transform 0.22s var(--ease), background-color 0.18s, color 0.18s;
+}
+.step-back-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.1;
+}
+.step-back-text span {
+    font-size: 14px;
+    font-weight: 700;
+}
+.step-back-text small {
+    margin-top: 2px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted);
+}
+.step-back-btn:hover {
+    border-color: var(--accent-ring);
+    background-color: var(--surface-2);
+}
+.step-back-btn:hover .step-back-icon {
+    transform: translateX(-2px);
+    background-color: var(--accent);
+    color: var(--accent-ink);
+}
+.step-back-btn:active {
+    transform: scale(0.97);
+}
+.step-back-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Butonul + de lângă cantitate (obiecte) */
+.chip-plus {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+.chip-plus:hover { background-color: var(--accent-hover); }
+
+/* ===== Cod de discount (pasul de plată) ===== */
+.discount-form {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0 4px;
+}
+.discount-form input {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-md);
+    background-color: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+}
+.discount-form input:focus {
+    outline: none;
+    border-style: solid;
+    border-color: var(--accent);
+}
+.discount-apply {
+    min-height: 44px;
+    padding: 0 18px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    background-color: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.discount-apply:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.discount-apply:disabled { opacity: 0.6; cursor: wait; }
+.discount-applied {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 4px;
+    padding: 10px 12px;
+    border: 1px solid rgba(45, 212, 167, 0.35);
+    border-radius: var(--r-md);
+    background-color: var(--go-soft);
+    color: var(--go);
+    font-size: 14px;
+}
+.discount-applied strong { letter-spacing: 0.05em; }
+.discount-applied-right { display: inline-flex; align-items: center; gap: 12px; font-weight: 700; }
+.discount-remove {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 6px 0;
+}
+.discount-error { margin: 6px 0 0; font-size: 13px; color: #fb7185; }
+
+/* ===== Acceptarea termenilor la rezervare ===== */
+.terms-accept {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 4px 0 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    background-color: var(--surface);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-2);
+    cursor: pointer;
+}
+.terms-accept input {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    accent-color: var(--accent);
+}
+.terms-accept a { color: var(--text); }
+
+.vehicles-hidden-note { margin: -4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); text-align: center; }
+
+/* ===== Panoul de rezervare mai lat pe laptop / desktop ===== */
+@media (min-width: 1280px) {
+    .wizard-container { width: 540px; }
+}
+@media (min-width: 1600px) {
+    .wizard-container { width: 600px; }
+}
+
+/* ===== Zoom + / − pe hartă, în stilul aplicației ===== */
+.map-container .leaflet-top.leaflet-right { top: auto; bottom: 48px; right: 12px; }
+.map-container .leaflet-control-zoom {
+    border: 1px solid var(--line-strong) !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7) !important;
+}
+.map-container .leaflet-control-zoom a {
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 42px !important;
+    font-size: 22px !important;
+    font-weight: 600;
+    background-color: rgba(14, 21, 33, 0.92) !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--line-strong) !important;
+    transition: background-color 0.15s, color 0.15s;
+}
+.map-container .leaflet-control-zoom a:last-child { border-bottom: none !important; }
+.map-container .leaflet-control-zoom a:hover { background-color: var(--accent-strong) !important; color: #fff !important; }
+.map-container .leaflet-control-zoom a.leaflet-disabled { opacity: 0.45; }
+/* Pe telefon harta e mică și se mărește cu două degete: butoanele doar când marchezi pinul */
+@media (max-width: 860px) {
+    .map-container:not(.pin-mode) .leaflet-control-zoom { display: none; }
+}
+
+/* ===== Semnele adreselor, ca pe Google Maps: pornire = cerc albastru, destinație = pin roșu ===== */
+.dot-pickup {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background-color: #1a73e8;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.25);
+}
+.dot-dropoff,
+.mini-dot.green {
+    width: 12px;
+    height: 12px;
+    border-radius: 50% 50% 50% 0;
+    background-color: #ea3b2e;
+    border: 2px solid #fff;
+    box-shadow: none;
+    transform: rotate(-45deg);
+}
+.mini-dot.blue {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #1a73e8;
+    border: 2px solid #fff;
+}
+
+/* ===== Nota Google ===== */
+.google-rating {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background-color: var(--surface);
+    color: var(--text-2);
+    font-size: 13px;
+    text-decoration: none;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+.google-rating:hover { border-color: #fbbf24; background-color: var(--surface-2); }
+.google-rating-stars { color: #fbbf24; letter-spacing: 1px; font-size: 14px; }
+.google-rating strong { color: var(--text); }
+.google-rating-count, .google-rating-extra { color: var(--muted); }
+.google-rating-pay { display: flex; justify-content: center; margin: 0 0 8px; border-radius: var(--r-md); }
+@media (max-width: 480px) {
+    .step-heading .google-rating-extra { display: none; }
+}
+
+/* ===== Telefon: totul mai fix, fără suprapuneri ===== */
+@media (max-width: 860px) {
+    /* fără animația de înălțime a hărții (nu mai „sare” ecranul) */
+    .map-container { transition: none !important; }
+
+    /* zoom + / −: sus în dreapta, sub „My account”, ca să nu acopere banda „Done” de jos */
+    .map-container .leaflet-top.leaflet-right { top: 76px; bottom: auto; right: 12px; }
+    .map-container .leaflet-control-zoom a { width: 40px !important; height: 40px !important; line-height: 38px !important; }
+
+    /* banda de marcare: pe toată lățimea, deasupra atribuirii hărții */
+    .pin-banner {
+        left: 12px;
+        right: 12px;
+        transform: none;
+        width: auto;
+        max-width: none;
+        bottom: 22px;
+        justify-content: space-between;
+    }
+    .pin-banner button { padding: 10px 18px; }
+
+    /* cât timp marchezi pinul, butonul de jos al pasului nu mai plutește peste text */
+    .booking-layout.pin-active .step-footer { position: static; background: none; }
+
+    /* panoul nu se mai „trage” elastic peste hartă */
+    .wizard-container { overscroll-behavior: contain; }
+}
+html, body { overscroll-behavior-y: none; }
+
+/* ===== Semnele adreselor din panou (aceleași ca pe hartă) ===== */
+.dot-dropoff,
+.mini-dot.green {
+    width: 12px;
+    height: 16px;
+    border: none;
+    border-radius: 0;
+    transform: none;
+    background: center / contain no-repeat
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 40'%3E%3Cpath d='M14 39C14 39 26 23.5 26 13.5A12 12 0 0 0 2 13.5C2 23.5 14 39 14 39Z' fill='%23ea4335'/%3E%3Ccircle cx='14' cy='13.5' r='4.6' fill='rgba(0,0,0,0.35)'/%3E%3C/svg%3E");
+}
+.mini-dot.green { width: 10px; height: 14px; }
+
+/* ===== Header pas: contul pe telefon ===== */
+.step-header-right { display: inline-flex; align-items: center; gap: 12px; }
+.header-account { display: none; }
+
+/* ===== Telefon: harta doar la pasul 1, apoi meniul de sus rămâne fix ===== */
+@media (max-width: 860px) {
+    .booking-layout.past-route .map-container { display: none; }
+    .booking-layout.past-route .wizard-container { border-radius: 0; margin-top: 0; box-shadow: none; }
+    .booking-layout.past-route .lugg-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background-color: var(--panel);
+        padding-top: calc(14px + env(safe-area-inset-top));
+    }
+    .booking-layout.past-route .header-account { display: inline-flex; }
+    .header-account .hud-account { position: static; height: 36px; padding: 0 12px; font-size: 13px; box-shadow: none; }
+    .header-account .hud-account.signed-in { padding: 0 12px 0 4px; }
+    .header-account .hud-account-avatar { width: 28px; height: 28px; font-size: 11px; }
+}
+@media (max-width: 860px) {
+    .booking-layout.past-route .step-counter-label { display: none; }
+}
+
+/* ===== Bara fixă de jos: doar butonul; notele, linkurile și licențele stau în pagină ===== */
+.step-footer {
+    padding-top: 14px;
+    padding-bottom: 16px;
+    gap: 0;
+    pointer-events: none;
+}
+.step-footer > * { pointer-events: auto; }
+.step-footer.card-field-full { pointer-events: auto; }
+.step-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0 24px;
+}
+@media (max-width: 860px) {
+    /* harta un pic mai mică la pasul 1, ca adresele să se vadă din prima */
+    .map-container:not(.pin-mode) { height: 30vh; min-height: 200px; }
+}
+
+/* ===== Obiecte: fără rânduri întinse în Safari (iPad) ===== */
+.item-grid {
+    grid-template-rows: repeat(3, 44px);
+    grid-auto-columns: max-content;
+    align-items: stretch;
+}
+.item-chip {
+    height: 44px;
+    box-sizing: border-box;
+    align-self: center;
+}
+.notes-label { text-transform: none; letter-spacing: 0.01em; font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--text-2); }

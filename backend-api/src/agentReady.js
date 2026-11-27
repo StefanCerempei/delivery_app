@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 // Conținut citibil de agenți (AI, motoare de căutare) fără JavaScript:
 //   - paginile publice primesc HTML randat pe server (titlu, descriere, canonical, <h1>, text, JSON-LD);
 //   - aceeași pagină în Markdown când se cere `Accept: text/markdown`;
@@ -224,7 +225,7 @@ export const PUBLIC_PATHS = ['/', '/about', '/contact', '/terms', '/privacy'];
 
 // Paginile aplicației (cont, dispecerat, șoferi): există, dar nu sunt pentru indexare
 const APP_PATHS = [
-    /^\/(login|signup|account|account\/settings|forgot-password|reset-password)$/,
+    /^\/(login|signup|account|account\/settings|forgot-password|reset-password|payment-complete)$/,
     /^\/admin(\/(login|dashboard))?$/,
     /^\/admin\/order\/[^/]+$/,
     /^\/job\/[^/]+$/,
@@ -432,10 +433,49 @@ export function robotsTxt(base) {
     ].join('\n');
 }
 
-export function sitemapXml(base) {
+/**
+ * Data ultimei modificări reale a fiecărei pagini publice: amprenta (hash) conținutului randat se
+ * compară cu cea salvată în app_settings („lastmod:/cale” = „hash|dată”); data se schimbă doar
+ * când textul paginii s-a schimbat (ex. după un deploy cu prețuri sau termeni noi).
+ */
+let lastmodCache = { at: 0, map: null };
+export async function pageLastmods() {
+    if (lastmodCache.map && Date.now() - lastmodCache.at < 5 * 60e3) return lastmodCache.map;
+    const now = new Date().toISOString();
+    const map = {};
+    try {
+        const { pool } = await import('./db.js');
+        const keys = PUBLIC_PATHS.map((p) => `lastmod:${p}`);
+        const [rows] = await pool.query('SELECT name, value FROM app_settings WHERE name IN (?)', [keys]);
+        const saved = Object.fromEntries(rows.map((r) => [r.name, r.value]));
+        for (const p of PUBLIC_PATHS) {
+            // aceeași bază pentru amprentă, ca domeniul / protocolul să nu schimbe data
+            const hash = crypto.createHash('sha256').update(renderMarkdown({ base: 'https://reloq', path: p, kind: 'public' })).digest('hex').slice(0, 32);
+            const [oldHash, oldDate] = String(saved[`lastmod:${p}`] || '').split('|');
+            if (oldHash === hash && oldDate) {
+                map[p] = oldDate;
+            } else {
+                map[p] = now;
+                await pool.query(
+                    'INSERT INTO app_settings (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+                    [`lastmod:${p}`, `${hash}|${now}`]
+                );
+            }
+        }
+    } catch (err) {
+        console.warn(`[reloq] lastmod: ${err.message}`);
+        for (const p of PUBLIC_PATHS) map[p] = map[p] || SERVER_STARTED;
+    }
+    lastmodCache = { at: Date.now(), map };
+    return map;
+}
+const SERVER_STARTED = new Date().toISOString();
+
+export function sitemapXml(base, lastmods = {}) {
     const prio = { '/': '1.0', '/about': '0.7', '/contact': '0.7', '/terms': '0.3', '/privacy': '0.3' };
     const urls = PUBLIC_PATHS.map(
-        (p) => `  <url>\n    <loc>${esc(`${base}${p}`)}</loc>\n    <changefreq>${p === '/' ? 'weekly' : 'monthly'}</changefreq>\n    <priority>${prio[p]}</priority>\n  </url>`
+        (p) =>
+            `  <url>\n    <loc>${esc(`${base}${p}`)}</loc>\n    <lastmod>${lastmods[p] || SERVER_STARTED}</lastmod>\n    <changefreq>${p === '/' ? 'weekly' : 'monthly'}</changefreq>\n    <priority>${prio[p]}</priority>\n  </url>`
     );
     return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
 }

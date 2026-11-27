@@ -29,7 +29,8 @@ function laborNote(order) {
 }
 
 /** „PayPal” / „card •••• 4242” / „card”. */
-const paidWith = (o) => (o.paymentMethod === 'paypal' ? 'PayPal' : `card${o.cardLast4 ? ` •••• ${o.cardLast4}` : ''}`);
+const paidWith = (o) =>
+    o.paymentMethod === 'paypal' ? 'PayPal' : o.paymentMethod === 'offline' ? 'paid to RELOQ' : `card${o.cardLast4 ? ` •••• ${o.cardLast4}` : ''}`;
 const money2 = (n) => `$${Number(n || 0).toFixed(2)}`;
 const money = (n) => `$${Number(n || 0).toFixed(Number(n) % 1 === 0 ? 0 : 2)}`;
 const link = (path) => (mailSettings.appUrl ? `${mailSettings.appUrl}${path}` : null);
@@ -106,9 +107,10 @@ function orderRows(order, { forDispatcher = false } = {}) {
         ['Items', order.itemsDescription],
         // Defalcarea (reservation / service / transportation) doar pentru dispecer; clientul vede totalul
         ...(forDispatcher ? (order.price?.lines || []).map((l) => [l.label, `${money2(l.amount)}${l.detail ? ` — ${l.detail}` : ''}`]) : []),
+        ...(order.discount ? [['Discount', `${order.discount.code} (${order.discount.percent}%) −${money2(order.discount.amount)}`]] : []),
         order.paidOnline
             ? ['Paid at booking', `${money2(order.totalAmount)} (${paidWith(order)})`]
-            : ['Due', `${money2(order.totalAmount)} (pay after the job)`],
+            : ['Due', `${money2(order.totalAmount)} (${order.createdBy ? 'booking price — RELOQ will collect it before your move' : 'pay after the job'})`],
         ['Labor (after the job)', order.price?.labor ? order.price.labor.label : 'Billed after the job, based on time']
     ];
     if (forDispatcher) {
@@ -397,13 +399,22 @@ export function sendDriverLoginLink({ to, fullName, url, minutes, invite = false
     return sendMailNow({ to, subject: invite ? 'Your RELOQ driver account' : 'Your RELOQ driver login link', html, text });
 }
 
+/** Ora în fusul firmei, ex. „Nov 27, 9:42 AM”. */
+const fmtTime = (iso) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(
+        new Date(iso)
+    );
+
 /** Rândurile cu detaliile manoperei (timp, tarif, sumă). */
 function laborRows(order) {
     const l = order.laborActual;
     return [
         ['Order', `#${order.id}`],
         ['Move', order.scheduleText],
-        ['Labor time', l ? `${l.minutes} min${l.adjusted ? ' (reviewed by dispatch)' : ''}` : null],
+        ['Crew arrived', l?.startedAt ? fmtTime(l.startedAt) : null],
+        ['Job completed', l?.completedAt ? fmtTime(l.completedAt) : null],
+        ['Elapsed time', l ? `${l.elapsedMinutes} min${l.adjusted ? ' (reviewed by dispatch)' : ''}` : null],
+        ['Billable time', l ? `${l.minutes} min (rounded up to the next 5 minutes)` : null],
         ['Rate', order.price?.labor?.label || null],
         ['Amount due', money2(order.laborBilling?.amount)]
     ];
@@ -421,7 +432,7 @@ export function notifyLaborPaymentRequest(order) {
         html: layout({
             preheader: `Your RELOQ move is complete. Labor due: ${money2(order.laborBilling?.amount)}.`,
             title: 'Thanks for moving with RELOQ',
-            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion (breaks not included).`,
+            intro: `Hi ${esc(firstName)}, your move is complete. Here is the labor for the time our crew worked, from arrival at pickup to completion (crew breaks not billed), in 5-minute increments.`,
             body: `${detailsTable(rows)}${button(payUrl, `Pay ${money2(order.laborBilling?.amount)}`)}
 <p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">You can pay by card, Apple Pay or Google Pay from your RELOQ account. Questions about the time? Reply to this email or call ${BRAND.phone}.</p>`
         }),
@@ -465,5 +476,81 @@ export function notifyOrderUpdated(order, changes = []) {
             body: `${detailsTable(rows)}${button(link('/account'), 'View my bookings')}`
         }),
         text: `Your RELOQ booking was updated${what}.\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
+    });
+}
+
+/** Clientul la telefon: linkul de plată pentru rezervarea creată de dispecer. */
+export function notifyPaymentLink(order, url, expiresAt) {
+    if (!order.customer?.email || !url) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const rows = orderRows(order).filter(([k]) => ['Order', 'Arrival window', 'Vehicle', 'Pickup', 'Drop-off', 'Pickup details', 'Drop-off details', 'Discount'].includes(k));
+    rows.push(['Amount to pay', money2(order.totalAmount)]);
+    const until = expiresAt
+        ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(expiresAt))
+        : null;
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Complete your RELOQ booking — pay ${money2(order.totalAmount)} (#${order.id})`,
+        html: layout({
+            preheader: `Your RELOQ move on ${order.scheduleText} is reserved. Pay securely to confirm it.`,
+            title: 'Your move is reserved — complete the payment',
+            intro: `Hi ${esc(firstName)}, thanks for calling RELOQ! We reserved your move. Pay the booking price securely online to confirm it.`,
+            body: `${detailsTable(rows)}${button(url, `Pay ${money2(order.totalAmount)}`)}
+<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${until ? `The payment link works until ${esc(until)}. ` : ''}Payments are processed securely by Stripe.</p>
+<p style="margin:12px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">${esc(laborNote(order))}</p>`
+        }),
+        text: `Your RELOQ move is reserved. Pay ${money2(order.totalAmount)} to confirm it: ${url}\n\n${orderText(order, rows)}\n\n${laborNote(order)}`
+    });
+}
+
+/** Clientul: chitanța finală după plata manoperei — rezervare + timp de lucru + total. */
+export function notifyFinalReceipt(order, { booking, labor, total, waived }) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const l = order.laborActual;
+    const fmt = (iso) =>
+        iso
+            ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+            : null;
+    const rows = [
+        ['Order', `#${order.id}`],
+        ['Service', `${order.vehicle?.name}${order.vehicle?.crewLabel ? ` (${order.vehicle.crewLabel})` : ''}`],
+        ['Date', order.scheduleText],
+        ['Pickup', order.pickup?.address],
+        ['Drop-off', order.dropoff?.address],
+        ['Paid at booking', money2(booking)],
+        ['Crew arrived', fmt(order.timeline?.arrivedAt)],
+        ['Job completed', fmt(order.timeline?.completedAt)],
+        ['Time billed', l ? `${l.minutes} min (5-minute increments)` : null],
+        ['Paid for labor', waived ? '$0.00 (no charge)' : money2(labor)],
+        ['Total paid', money2(total)]
+    ];
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Your RELOQ receipt — total ${money2(total)} (#${order.id})`,
+        html: layout({
+            preheader: `Thank you for moving with RELOQ. Total paid: ${money2(total)}.`,
+            title: 'Your final receipt',
+            intro: `Hi ${esc(firstName)}, thank you for moving with RELOQ! Here is your final receipt with everything you paid for this move.`,
+            body: `${detailsTable(rows)}<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Questions about your receipt? Reply to this email or call ${BRAND.phone} with your order number.</p>`
+        }),
+        text: `Your RELOQ final receipt\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
+    });
+}
+
+/** Firma: PDF-ul oficial al jobului (date client, plăți, ore, termeni, semnături). */
+export function notifyCompanyReceipt(order, pdf, to, total) {
+    return sendMailInBackground({
+        to,
+        replyTo: order.customer?.email,
+        subject: `Official receipt #${order.id} — ${order.customer?.fullName || 'customer'} — ${money2(total)}`,
+        html: layout({
+            preheader: `Official receipt and job record for #${order.id}.`,
+            title: 'Official receipt (PDF attached)',
+            intro: `The job #${esc(order.id)} for ${esc(order.customer?.fullName || 'the customer')} is settled. The official receipt with payments, job times, terms and the customer's signatures is attached as a PDF. It can also be downloaded from the order in dispatch.`,
+            body: ''
+        }),
+        text: `Official receipt for #${order.id} attached (PDF). Total paid: ${money2(total)}.`,
+        attachments: [{ filename: `RELOQ-receipt-${order.id}.pdf`, content: pdf, contentType: 'application/pdf' }]
     });
 }

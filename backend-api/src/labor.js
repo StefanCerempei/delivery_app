@@ -7,6 +7,8 @@
 //   paid_cash      — plătit cash (bifat de șofer sau de dispecer)
 //   waived         — fără taxă de manoperă (decizia dispecerului)
 import { pool } from './db.js';
+import { logChanges } from './audit.js';
+import { sendFinalReceipts } from './receipts.js';
 import { stripe, customerFields } from './stripe.js';
 import { config } from './config.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from './orders.js';
@@ -83,6 +85,7 @@ export async function markLaborCash(code) {
         "UPDATE orders SET labor_status = 'paid_cash', labor_cents = COALESCE(?, labor_cents), labor_paid_at = UTC_TIMESTAMP(), labor_payment_method = 'cash' WHERE id = ?",
         [laborCents(row), row.id]
     );
+    await sendFinalReceipts(code);
     return { order: dto(await loadRow(code)) };
 }
 
@@ -92,6 +95,7 @@ export async function waiveLabor(code) {
     if (!['none', ...UNPAID_LABOR].includes(row.labor_status)) return { error: 'Labor for this job is already settled.', status: 409 };
     await cancelLaborIntent(row);
     await pool.query("UPDATE orders SET labor_status = 'waived', labor_cents = 0 WHERE id = ?", [row.id]);
+    if (row.status === 'completed') await sendFinalReceipts(code);
     return { order: dto(await loadRow(code)) };
 }
 
@@ -108,11 +112,18 @@ export async function reopenLabor(code) {
 }
 
 /** Dispecerul corectează minutele (null = revine la timpul măsurat). */
-export async function setLaborMinutes(code, minutes) {
+export async function setLaborMinutes(code, minutes, { actor = null, reason = null } = {}) {
     const row = await loadRow(code);
     if (!row) return { error: 'Order not found.', status: 404 };
     if (!['none', ...UNPAID_LABOR].includes(row.labor_status)) return { error: 'Labor for this job is already settled.', status: 409 };
+    const before = laborActual(row);
     await pool.query('UPDATE orders SET labor_minutes_override = ? WHERE id = ?', [minutes, row.id]);
+    // Corectura se păstrează în jurnal: minutele de dinainte, cele noi, cine și de ce
+    await logChanges(
+        row.id,
+        [{ field: 'labor_minutes', oldValue: before ? `${before.elapsedMinutes} min${before.adjusted ? ' (corrected)' : ' (measured)'}` : null, newValue: minutes == null ? 'measured time' : `${minutes} min` }],
+        { actor, reason }
+    );
     const updated = await loadRow(code);
     const amount = laborCents(updated);
     if (row.labor_status !== 'none') {
@@ -144,6 +155,9 @@ export async function laborPaymentIntent(row, email) {
         receipt_email: email,
         description: `RELOQ labor — ${row.code}`,
         metadata: { kind: 'labor', order_code: row.code, order_id: row.id, ...meta }
+    }, {
+        // o cheie per cerere de plată (sumă + momentul cererii): dublu-click nu creează două plăți
+        idempotencyKey: `labor-${row.id}-${row.labor_cents}-${new Date(row.labor_requested_at || 0).getTime()}`
     });
     await pool.query('UPDATE orders SET labor_payment_intent_id = ? WHERE id = ?', [intent.id, row.id]);
     return { clientSecret: intent.client_secret };
@@ -161,7 +175,7 @@ export async function syncLaborPayment(paymentIntentId) {
             [paymentIntentId]
         );
         const order = dto(await loadRow(found[0].code));
-        if (result.affectedRows === 1) await waitForMail(notifyLaborPaid(order));
+        if (result.affectedRows === 1) await sendFinalReceipts(found[0].code);
         return { order, paid: true, status: intent.status };
     }
     return { order: dto(await loadRow(found[0].code)), paid: false, status: intent.status };

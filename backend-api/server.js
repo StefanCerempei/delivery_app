@@ -2,6 +2,7 @@
 // Servește API-ul (/api/...) și site-ul React compilat (frontend-client/dist)
 // de pe același domeniu, deci nu e nevoie de CORS și cookie-urile de sesiune sunt sigure.
 
+import { applePayAssociation, ensureWalletDomain } from './src/wallets.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +23,7 @@ import stripeWebhookRoutes from './src/routes/stripeWebhook.js';
 import driverJobRoutes from './src/routes/driverJob.js';
 import driverPortalRoutes from './src/routes/driverPortal.js';
 import mcpRoutes, { serverCard } from './src/routes/mcp.js';
-import { classifyPath, baseUrl, renderHtml, renderMarkdown, robotsTxt, sitemapXml, llmsTxt } from './src/agentReady.js';
+import { classifyPath, baseUrl, renderHtml, renderMarkdown, robotsTxt, sitemapXml, llmsTxt, pageLastmods } from './src/agentReady.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../frontend-client/dist');
@@ -84,6 +85,8 @@ if (config.corsOrigin) {
 // Webhook-ul Stripe are nevoie de corpul brut (verificarea semnăturii), deci e înainte de express.json().
 app.use('/api/stripe/webhook', stripeWebhookRoutes);
 
+// Semnăturile clientului (imagini PNG) din pagina jobului au nevoie de o limită mai mare
+app.use('/api/job', express.json({ limit: '700kb' }));
 app.use(express.json({ limit: '50kb' }));
 app.use(cookieParser());
 app.use('/api', loadUser);
@@ -138,8 +141,23 @@ const publicCors = (req, res, next) => {
 };
 const sendText = (type, body) => (req, res) => res.type(type).set('Cache-Control', 'public, max-age=3600').send(body(baseUrl(req)));
 app.get('/robots.txt', sendText('text/plain; charset=utf-8', robotsTxt));
-app.get('/sitemap.xml', sendText('application/xml; charset=utf-8', sitemapXml));
+app.get('/sitemap.xml', async (req, res) => {
+    const lastmods = await pageLastmods();
+    const newest = Object.values(lastmods).sort().pop();
+    if (newest) res.set('Last-Modified', new Date(newest).toUTCString());
+    res.type('application/xml; charset=utf-8').set('Cache-Control', 'public, max-age=3600').send(sitemapXml(baseUrl(req), lastmods));
+});
 app.get('/llms.txt', publicCors, sendText('text/plain; charset=utf-8', llmsTxt));
+// Verificarea Apple Pay (Stripe o cere la înregistrarea domeniului)
+app.get('/.well-known/apple-developer-merchantid-domain-association', async (_req, res) => {
+    try {
+        res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(await applePayAssociation());
+    } catch (err) {
+        console.warn(`[reloq] Fișierul Apple Pay nu e disponibil: ${err.message}`);
+        res.status(503).type('text/plain').send('Apple Pay domain association file is temporarily unavailable.');
+    }
+});
+
 app.get(['/.well-known/mcp/server-card.json', '/.well-known/mcp.json'], publicCors, (req, res) => {
     res.set('Cache-Control', 'public, max-age=3600').json(serverCard(baseUrl(req)));
 });
@@ -164,7 +182,7 @@ if (fs.existsSync(distDir)) {
     // (paginile publice), Markdown la `Accept: text/markdown`, 404 real pentru adresele care nu există.
     let indexTemplate = null;
     const template = () => (indexTemplate ??= fs.readFileSync(path.join(distDir, 'index.html'), 'utf8'));
-    app.get(/.*/, (req, res) => {
+    app.get(/.*/, async (req, res) => {
         const pathname = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
         const kind = classifyPath(pathname);
         const base = baseUrl(req);
@@ -173,6 +191,9 @@ if (fs.existsSync(distDir)) {
         res.status(kind === 'missing' ? 404 : 200);
         if (kind === 'public') {
             const self = `${base}${pathname === '/' ? '/' : pathname}`;
+            // Data ultimei modificări (aceeași ca în sitemap)
+            const modified = (await pageLastmods())[pathname];
+            if (modified) res.set('Last-Modified', new Date(modified).toUTCString());
             res.set('Link', [`<${base}/llms.txt>; rel="describedby"; type="text/plain"`, `<${self}>; rel="alternate"; type="text/markdown"`, `<${base}/sitemap.xml>; rel="sitemap"; type="application/xml"`, `<${base}/.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"`].join(', '));
         }
         // Agenții care cer Markdown (și preferă Markdown față de HTML)
@@ -187,8 +208,9 @@ if (fs.existsSync(distDir)) {
 
 // Eroare neașteptată: o logăm, dar nu trimitem detalii interne la client.
 app.use((err, _req, res, _next) => {
-    console.error('[reloq] Eroare:', err);
+    if (err.code !== 'ROUTE_UNAVAILABLE') console.error('[reloq] Eroare:', err);
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON.' });
+    if (err.code === 'ROUTE_UNAVAILABLE') return res.status(503).json({ error: err.message, code: err.code });
     res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
 });
 
@@ -197,6 +219,7 @@ if (!configOk) {
 } else try {
     await migrate();
     console.log('[reloq] Baza de date este pregătită.');
+    ensureWalletDomain(); // în fundal: nu întârzie pornirea
 } catch (err) {
     console.error('[reloq] Nu mă pot conecta la baza de date. Verifică DB_HOST / DB_USER / DB_PASSWORD / DB_NAME.');
     console.error(err.message);

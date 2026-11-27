@@ -78,8 +78,11 @@ export const estimateSchema = z.object({
     dropoff: locationSchema
 });
 
-// Etajul la adresă: parter / casă, subsol sau etajul 2…10+ (cum se spune în SUA: „2nd floor”)
-export const FLOORS = ['ground', 'basement', '2', '3', '4', '5', '6', '7', '8', '9', '10+'];
+// Tipul locației / etajul (cum se spune în SUA: „2nd floor”). Opțiunile din formular:
+// casă / townhome, storage, parter, etajul 2–10+. Valoarea veche „basement” rămâne validă pentru comenzile existente.
+export const FLOORS = ['house', 'storage', 'ground', '2', '3', '4', '5', '6+', 'basement', '6', '7', '8', '9', '10+'];
+/** Fără întrebarea de acces (lift / scări): casă, storage, parter. */
+export const NO_ACCESS_FLOORS = ['house', 'storage', 'ground'];
 
 /** Detalii despre locație: apartament / unitate, etaj, lift, note de acces. */
 export const locationDetailsSchema = z
@@ -90,8 +93,8 @@ export const locationDetailsSchema = z
         elevator: z.enum(['yes', 'no']).nullable().optional().default(null),
         notes: z.string().trim().max(300).optional().default('')
     })
-    .refine((d) => d.floor === 'ground' || d.elevator, { error: 'Please tell us if there is an elevator.', path: ['elevator'] })
-    .transform((d) => ({ ...d, elevator: d.floor === 'ground' ? null : d.elevator }));
+    .refine((d) => NO_ACCESS_FLOORS.includes(d.floor) || d.elevator, { error: 'Please choose the access type (elevator or stairs).', path: ['elevator'] })
+    .transform((d) => ({ ...d, elevator: NO_ACCESS_FLOORS.includes(d.floor) ? null : d.elevator }));
 
 export const createOrderSchema = z.object({
     pickup: locationSchema,
@@ -111,7 +114,21 @@ export const createOrderSchema = z.object({
         { error: 'Please pick a date and arrival window.' }
     ),
     itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
-    photosCount: z.number().int().min(0).max(5).default(0)
+    photosCount: z.number().int().min(0).max(5).default(0),
+    discountCode: z.string().trim().max(40).optional(),
+    // Specificația 11.2: clientul acceptă termenii și plata manoperei după job, la fiecare rezervare
+    acceptTerms: z.literal(true, { error: 'Please accept the booking terms to continue.' })
+});
+
+/** Cod de discount creat de dispecer: litere, cifre, - și _; procent 1–100. */
+export const discountCodeSchema = z.object({
+    code: z
+        .string()
+        .trim()
+        .transform((s) => s.toUpperCase().replace(/\s+/g, ''))
+        .pipe(z.string().regex(/^[A-Z0-9_-]{3,40}$/, 'Use 3–40 letters, digits, - or _.')),
+    percent: z.coerce.number().int().min(1, 'Percent must be 1–100.').max(100, 'Percent must be 1–100.').default(10),
+    note: z.string().trim().max(200).optional().default('')
 });
 
 /** Editarea unei comenzi din dispecerat: doar câmpurile trimise se schimbă. */
@@ -129,7 +146,9 @@ export const adminOrderUpdateSchema = z.object({
     vehicle: z.enum(Object.keys(VEHICLES)).optional(),
     itemsDescription: z.string().trim().min(2, 'Please describe the items.').max(2000).optional(),
     // anunță clientul și șoferul alocat despre modificări
-    notify: z.boolean().optional().default(true)
+    notify: z.boolean().optional().default(true),
+    // motivul modificării (jurnalul comenzii)
+    reason: z.string().trim().max(300).optional()
 });
 
 export const statusSchema = z.object({
@@ -171,3 +190,34 @@ export function parseBody(schema, req, res) {
     }
     return result.data;
 }
+
+/** Comandă creată de dispecer (client la telefon). Clientul: existent (customerId) sau nou (newCustomer). */
+export const adminCreateOrderSchema = z
+    .object({
+        customerId: z.number().int().positive().optional(),
+        newCustomer: z
+            .object({
+                fullName: fullNameField,
+                email: z.string().trim().toLowerCase().pipe(z.email('Please enter a valid customer email.')).pipe(z.string().max(255)),
+                phone: phoneField
+            })
+            .optional(),
+        pickup: locationSchema,
+        dropoff: locationSchema,
+        pickupDetails: locationDetailsSchema,
+        dropoffDetails: locationDetailsSchema,
+        vehicle: z.enum(Object.keys(VEHICLES)),
+        schedule: z.object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date.'),
+            slot: z.enum(ALLOWED_SLOTS, { error: 'Pick an arrival window.' })
+        }),
+        itemsDescription: z.string().trim().min(2, 'Please describe what we are moving.').max(2000),
+        // link = email cu link de plată Stripe · paid = plătit deja (cash / telefon) · later = se încasează mai târziu
+        payment: z.enum(['link', 'paid', 'later']),
+        // șoferul: un id, 'auto' (cel mai liber în ziua respectivă) sau nimic (se alocă mai târziu)
+        driverId: z.union([z.number().int().positive(), z.literal('auto')]).nullable().optional(),
+        discountCode: z.string().trim().max(40).optional(),
+        dispatchNotes: z.string().trim().max(2000).optional(),
+        notify: z.boolean().optional().default(true)
+    })
+    .refine((d) => d.customerId || d.newCustomer, { error: 'Choose a customer or add a new one.', path: ['customerId'] });

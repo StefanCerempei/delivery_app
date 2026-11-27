@@ -156,8 +156,8 @@ const CardPanel = ({ order, clientSecret, onPaid, confirmOnServer }) => {
 };
 
 const WALLET_HELP = {
-    applePay: 'Apple Pay works in Safari on an iPhone, iPad or Mac with a card added to Apple Wallet. Please choose Card or another method.',
-    googlePay: 'Google Pay works in Chrome or on Android with a card saved to your Google account. Please choose Card or another method.',
+    applePay: 'Apple Pay needs a card in Apple Wallet on this iPhone, iPad or Mac. If it still doesn’t show, open this page in Safari or choose Card.',
+    googlePay: 'Google Pay needs a card saved to your Google account (Chrome, Edge or Android). Please choose Card or another method.',
     amazonPay: 'Amazon Pay couldn’t be loaded right now. Please choose Card or another method.'
 };
 
@@ -219,15 +219,19 @@ const WalletPanel = ({ method, ...props }) => {
 
 /**
  * Metodele afișate: Card · Apple Pay · Google Pay · Amazon Pay (+ PayPal dacă e configurat), după dispozitiv:
- *   - Apple Pay doar unde browserul îl are (window.ApplePaySession: Safari / iPhone / iPad / Mac);
- *   - Google Pay nu pe iPhone / iPad — acolo deschide un pop-up pe care Safari îl blochează (OR_BIBED_15).
+ *   - Apple Pay pe dispozitivele Apple, în orice browser: Safari și orice browser de pe iPhone / iPad (iOS 16+),
+ *     iar pe Mac și Chrome / Edge (Stripe îl afișează acolo cu applePay: 'always'). Pe Windows / Android nu există.
+ *   - Google Pay peste tot, în afară de iPhone / iPad — acolo deschide un pop-up pe care browserele îl blochează (OR_BIBED_15),
+ *     iar pe iPhone clientul are oricum Apple Pay.
  * Dacă metoda tot nu merge pe dispozitiv, panoul ei spune asta.
  */
 function deviceKind() {
     const ua = navigator.userAgent || '';
     // iPadOS se prezintă ca „Macintosh”, dar are ecran tactil
     const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    return { isIOS, hasApplePay: typeof window !== 'undefined' && Boolean(window.ApplePaySession) };
+    const isMac = /Macintosh|Mac OS X/.test(ua) && !isIOS;
+    const hasApplePay = (typeof window !== 'undefined' && Boolean(window.ApplePaySession)) || isIOS || isMac;
+    return { isIOS, hasApplePay };
 }
 
 const methodsFor = (paypalClientId) => {

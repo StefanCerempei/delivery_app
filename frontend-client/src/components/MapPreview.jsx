@@ -1,39 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useBooking } from '../context/BookingContext';
 import Logo from './Logo';
-import { movePin as movePinShared } from '../utils/pinLocation';
+import { movePin as movePinShared, confirmPin } from '../utils/pinLocation';
 import { Link } from 'react-router-dom';
 import { useAuth, initials } from '../context/AuthContext';
 
 const DEFAULT_CENTER = [42.3601, -71.0589]; // Boston, MA (zona de operare)
 
-const pickupIcon = L.divIcon({
-    className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#ff3f34;border:3px solid #0a0f18;border-radius:50%;box-shadow:0 0 0 6px rgba(255,63,52,0.28),0 6px 16px rgba(0,0,0,0.5);"></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9]
-});
+// Pinii de pe hartă, ca pe Google Maps: cerc albastru = pornire (pickup), pin roșu = destinație (drop-off).
+// Vârful pinului e exact pe adresă (iconAnchor jos, la mijloc).
+const pinIcon = (color, w) => {
+    const h = Math.round((w * 40) / 28);
+    return L.divIcon({
+        className: 'custom-map-pin',
+        html: `<svg width="${w}" height="${h}" viewBox="0 0 28 40" style="display:block;overflow:visible;filter:drop-shadow(0 3px 4px rgba(0,0,0,0.35))">
+<path d="M14 39C14 39 26 23.5 26 13.5A12 12 0 0 0 2 13.5C2 23.5 14 39 14 39Z" fill="${color}" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>
+<circle cx="14" cy="13.5" r="4.6" fill="rgba(0,0,0,0.35)"/>
+</svg>`,
+        iconSize: [w, h],
+        iconAnchor: [w / 2, Math.round((h * 39) / 40)]
+    });
+};
 
-const dropoffIcon = L.divIcon({
-    className: 'custom-map-pin',
-    html: `<div style="width:18px;height:18px;background:#2dd4a7;border:3px solid #0a0f18;border-radius:5px;box-shadow:0 0 0 6px rgba(45,212,167,0.25),0 6px 16px rgba(0,0,0,0.5);"></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9]
-});
-
-// Pinul mare, ușor de prins cu degetul, cât timp e în modul de marcare
-const bigPin = (color) =>
+// Pornirea (pickup): cercul albastru ca pe Google Maps, centrat pe adresă
+const startDot = (size) =>
     L.divIcon({
         className: 'custom-map-pin',
-        html: `<div style="position:relative;width:34px;height:46px;transform:translateY(-4px)"><svg width="34" height="46" viewBox="0 0 34 46"><path d="M17 45s15-16 15-28A15 15 0 0 0 2 17c0 12 15 28 15 28z" fill="${color}" stroke="#0a0f18" stroke-width="3"/><circle cx="17" cy="17" r="6" fill="#0a0f18"/></svg></div>`,
-        iconSize: [34, 46],
-        iconAnchor: [17, 46]
+        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-sizing:border-box;box-shadow:0 0 0 ${Math.round(size / 2.2)}px rgba(26,115,232,0.22),0 3px 8px rgba(0,0,0,0.45)"></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
     });
-const pickupIconBig = bigPin('#ff3f34');
-const dropoffIconBig = bigPin('#2dd4a7');
+
+// Destinația (drop-off): pinul roșu
+const pickupIcon = startDot(20);
+const dropoffIcon = pinIcon('#ea4335', 28);
+// Mai mari, ușor de prins cu degetul, cât timp e în modul de marcare
+const pickupIconBig = startDot(28);
+const dropoffIconBig = pinIcon('#ea4335', 38);
+
+// Pe telefon harta nu mai „zboară”: mutări instant, fără animații (totul stă mai fix)
+const isPhone = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
 
 const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     const map = useMap();
@@ -45,11 +54,11 @@ const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
         const timer = setTimeout(() => {
             map.invalidateSize();
             if (target?.lat) {
-                map.flyTo([target.lat, target.lng], 18, { duration: 0.6 });
+                isPhone() ? map.setView([target.lat, target.lng], 18, { animate: false }) : map.flyTo([target.lat, target.lng], 18, { duration: 0.6 });
             } else if (routeCoords?.length) {
-                map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80] });
+                map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80], animate: !isPhone() });
             } else if (pickup?.lat && dropoff?.lat) {
-                map.fitBounds(L.latLngBounds([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]]), { padding: [80, 80] });
+                map.fitBounds(L.latLngBounds([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]]), { padding: [80, 80], animate: !isPhone() });
             }
         }, 320); // după animația de înălțime
         return () => clearTimeout(timer);
@@ -59,19 +68,19 @@ const MapViewportUpdater = ({ pickup, dropoff, routeCoords, pinMode }) => {
     useEffect(() => {
         if (pinMode) return;
         if (routeCoords && routeCoords.length > 0) {
-            map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80] });
+            map.fitBounds(L.latLngBounds(routeCoords), { padding: [80, 80], animate: !isPhone() });
         } else if (pickup?.lat && dropoff?.lat) {
             map.fitBounds(
                 L.latLngBounds([
                     [pickup.lat, pickup.lng],
                     [dropoff.lat, dropoff.lng]
                 ]),
-                { padding: [80, 80] }
+                { padding: [80, 80], animate: !isPhone() }
             );
         } else if (pickup?.lat) {
-            map.flyTo([pickup.lat, pickup.lng], 15);
+            map.setView([pickup.lat, pickup.lng], 15, { animate: !isPhone() });
         } else if (dropoff?.lat) {
-            map.flyTo([dropoff.lat, dropoff.lng], 15);
+            map.setView([dropoff.lat, dropoff.lng], 15, { animate: !isPhone() });
         }
     }, [map, pickup, dropoff, routeCoords, pinMode]);
 
@@ -160,7 +169,13 @@ const MapPreview = () => {
                         <strong>{pinMode === 'pickup' ? 'Pickup' : 'Drop-off'}:</strong> drag the pin or tap the map on the exact
                         building.
                     </span>
-                    <button type="button" onClick={() => setPinMode(null)}>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            confirmPin(updateBookingData, pinMode, bookingData[pinMode]);
+                            setPinMode(null);
+                        }}
+                    >
                         Done
                     </button>
                 </div>
@@ -171,11 +186,15 @@ const MapPreview = () => {
                 zoom={11}
                 style={{ width: '100%', height: '100%', backgroundColor: '#a3a3a1' }}
                 zoomControl={false}
+                bounceAtZoomLimits={false}
+                inertia={!isPhone()}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                {/* Butoanele + / − (zoom): jos în dreapta pe laptop, sus în dreapta pe telefon (CSS) */}
+                <ZoomControl position="topright" zoomInTitle="Zoom in" zoomOutTitle="Zoom out" />
 
                 <MapViewportUpdater pickup={pickup} dropoff={dropoff} routeCoords={routeCoords} pinMode={pinMode} />
                 <PinClickHandler pinMode={pinMode} onPin={(latlng) => movePin(pinMode, latlng)} />
@@ -216,7 +235,7 @@ const MapPreview = () => {
 
 
 /** Butonul de cont din colțul hărții: „Log in” sau avatarul clientului. */
-const AccountChip = () => {
+export const AccountChip = () => {
     const { user, authChecked } = useAuth();
     if (!authChecked) return null;
     if (!user) {

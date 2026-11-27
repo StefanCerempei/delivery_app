@@ -13,13 +13,21 @@ const Step2Vehicle = () => {
 
     const recommendedId = useMemo(() => recommendVehicle(bookingData.items), [bookingData.items]);
 
+    // Specificația 7.1: vehiculele prea mici pentru obiectele alese nu se mai arată (doar recomandarea și cele mai mari)
+    const visibleVehicles = useMemo(() => {
+        const idx = VEHICLES.findIndex((v) => v.id === recommendedId);
+        return idx > 0 ? VEHICLES.slice(idx) : VEHICLES;
+    }, [recommendedId]);
+    const hiddenCount = VEHICLES.length - visibleVehicles.length;
+
     const selectedVehicleId = bookingData.vehicle;
     const selectedVehicle = VEHICLES.find((v) => v.id === selectedVehicleId);
     const selectedEstimate = selectedVehicleId ? estimates?.[selectedVehicleId] : null;
 
-    // Prima dată când se ajunge pe pas fără vehicul ales, preselectăm recomandarea.
+    // Prima dată când se ajunge pe pas fără vehicul ales (sau alesul a devenit prea mic), preselectăm recomandarea.
     useEffect(() => {
-        if (!selectedVehicleId && recommendedId) {
+        const tooSmall = selectedVehicleId && !visibleVehicles.some((v) => v.id === selectedVehicleId);
+        if ((!selectedVehicleId || tooSmall) && recommendedId) {
             updateBookingData({ vehicle: recommendedId, priceEstimate: estimates?.[recommendedId] || null });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,8 +65,25 @@ const Step2Vehicle = () => {
 
             {error && <p className="form-inline-error">{error}</p>}
 
+            {selectedVehicle?.photoLarge && (
+                <figure className="vehicle-hero">
+                    <img
+                        src={selectedVehicle.photoLarge}
+                        srcSet={`${selectedVehicle.photo} 800w, ${selectedVehicle.photoLarge} 1600w`}
+                        sizes="(max-width: 860px) 100vw, 480px"
+                        alt={`RELOQ ${selectedVehicle.name}: ${selectedVehicle.crewLabel}`}
+                        width="1600"
+                        height="900"
+                    />
+                    <figcaption>
+                        <strong>{selectedVehicle.name}</strong>
+                        <span>{selectedVehicle.crewLabel}</span>
+                    </figcaption>
+                </figure>
+            )}
+
             <div className={`vehicles-list ${loading ? 'is-loading' : ''}`}>
-                {VEHICLES.map((vehicle) => {
+                {visibleVehicles.map((vehicle) => {
                     const isSelected = selectedVehicleId === vehicle.id;
                     const isRecommended = recommendedId === vehicle.id;
                     const estimate = estimates?.[vehicle.id];
@@ -72,8 +97,8 @@ const Step2Vehicle = () => {
                             tabIndex={0}
                             onKeyDown={(e) => e.key === 'Enter' && handleSelectVehicle(vehicle.id)}
                         >
-                            <div className="vehicle-icon-box">
-                                <img src={vehicle.icon} alt={vehicle.name} />
+                            <div className={`vehicle-icon-box ${vehicle.photo ? 'has-photo' : ''}`}>
+                                <img src={vehicle.photo || vehicle.icon} alt="" loading="lazy" width="800" height="450" />
                             </div>
 
                             <div className="vehicle-info">
@@ -96,6 +121,13 @@ const Step2Vehicle = () => {
                     );
                 })}
             </div>
+
+            {hiddenCount > 0 && (
+                <p className="vehicles-hidden-note">
+                    Smaller options are hidden — your items need at least a {VEHICLES.find((v) => v.id === recommendedId)?.name}. To see
+                    them, go back and change your items.
+                </p>
+            )}
 
             {selectedVehicle && selectedEstimate && (
                 <PriceSummary

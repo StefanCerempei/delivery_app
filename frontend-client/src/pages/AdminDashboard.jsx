@@ -6,6 +6,8 @@ import Logo from '../components/Logo';
 import AdminDrivers from './AdminDrivers';
 import AdminSchedule from './AdminSchedule';
 import AdminRevenue from './AdminRevenue';
+import AdminDiscounts from './AdminDiscounts';
+import AdminOrderCreate from './AdminOrderCreate';
 import InstallApp from '../components/InstallApp';
 import { useAuth, initials } from '../context/AuthContext';
 import './Admin.css';
@@ -181,6 +183,7 @@ const AdminDashboard = () => {
         { id: 'orders', label: 'Orders', icon: '☰' },
         { id: 'drivers', label: 'Drivers', icon: '⛟' },
         { id: 'revenue', label: 'Revenue', icon: '$' },
+        { id: 'discounts', label: 'Discounts', icon: '%' },
         { id: 'customers', label: 'Customers', icon: '◎' }
     ];
 
@@ -258,8 +261,13 @@ const AdminDashboard = () => {
 
             <main className="crm-main">
                 <header className="crm-topbar">
-                    <h1>{NAV.find((n) => n.id === view)?.label}</h1>
+                    <h1>{view === 'new_order' ? 'New order' : NAV.find((n) => n.id === view)?.label}</h1>
                     <div className="crm-topbar-right">
+                        {view !== 'new_order' && (
+                            <button className="crm-primary-btn crm-new-order" onClick={() => selectView('new_order')}>
+                                + New order
+                            </button>
+                        )}
                         <div className="crm-search">
                             <span aria-hidden="true">⌕</span>
                             <input
@@ -334,6 +342,21 @@ const AdminDashboard = () => {
 
                     {/* ---------- REVENUE ---------- */}
                     {view === 'revenue' && <AdminRevenue refreshKey={refreshKey} />}
+
+                    {/* ---------- COMANDĂ NOUĂ (telefon) ---------- */}
+                    {view === 'new_order' && (
+                        <AdminOrderCreate
+                            drivers={drivers}
+                            onCreated={({ order }) => {
+                                load();
+                                openOrder(order.id);
+                            }}
+                            onCancel={() => selectView('orders')}
+                        />
+                    )}
+
+                    {/* ---------- DISCOUNTS ---------- */}
+                    {view === 'discounts' && <AdminDiscounts />}
 
                     {/* ---------- DRIVERS ---------- */}
                     {view === 'drivers' && (

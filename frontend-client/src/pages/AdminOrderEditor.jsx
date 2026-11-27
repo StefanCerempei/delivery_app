@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import AddressInput from '../components/AddressInput';
-import LocationDetails, { detailsComplete, EMPTY_DETAILS } from '../components/LocationDetails';
+import LocationDetails, { detailsComplete, needsAccess, EMPTY_DETAILS } from '../components/LocationDetails';
 import { VEHICLES } from '../data/vehicles';
 import { inServiceArea } from '../data/serviceArea';
 import { formatMoney } from '../utils/formatters';
@@ -64,10 +64,10 @@ const AdminOrderEditor = ({ order, onSaved, onCancel }) => {
 
     const save = async () => {
         setError('');
-        if (!detailsOk(pickupDetails) || !detailsOk(dropoffDetails)) return setError('Tell us whether there is an elevator for each floor above ground.');
+        if (!detailsOk(pickupDetails) || !detailsOk(dropoffDetails)) return setError('Choose the access type (elevator or stairs) for each floor above ground.');
         setSaving(true);
         try {
-            const clean = (d) => (d?.floor ? { unit: d.unit || '', floor: d.floor, elevator: d.floor === 'ground' ? null : d.elevator, notes: d.notes || '' } : null);
+            const clean = (d) => (d?.floor ? { unit: d.unit || '', floor: d.floor, elevator: needsAccess(d.floor) ? d.elevator : null, notes: d.notes || '' } : null);
             const res = await api.adminUpdateOrder(order.id, {
                 pickup: toLoc(pickup),
                 dropoff: toLoc(dropoff),

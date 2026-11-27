@@ -60,7 +60,7 @@ const Step4Items = () => {
         <div className="step-container">
             <div className="step-heading">
                 <h1>What are we moving?</h1>
-                <p className="subtitle">Tap your items — we'll recommend the right vehicle. Swipe sideways for more.</p>
+                <p className="subtitle">Tap your items — we'll recommend the right vehicle.<span className="swipe-hint"> Swipe sideways for more.</span></p>
             </div>
 
             <div className="item-grid">
@@ -88,6 +88,14 @@ const Step4Items = () => {
                                         −
                                     </button>
                                     <span className="chip-qty">{qty}</span>
+                                    <button
+                                        type="button"
+                                        className="chip-minus chip-plus"
+                                        onClick={(e) => { e.stopPropagation(); changeQty(item, 1); }}
+                                        aria-label={`Add one more ${item.label}`}
+                                    >
+                                        +
+                                    </button>
                                 </span>
                             )}
                         </div>
@@ -96,7 +104,7 @@ const Step4Items = () => {
             </div>
 
             <div className="items-textarea-group">
-                <label htmlFor="items-notes" className="picker-section-label">ACCESS NOTES (OPTIONAL)</label>
+                <label htmlFor="items-notes" className="picker-section-label notes-label">Additional Items / Notes / Any information we should know</label>
                 <textarea
                     id="items-notes"
                     className="items-textarea"
@@ -113,6 +121,8 @@ const Step4Items = () => {
                 <Button onClick={handleContinue} disabled={totalCount === 0}>
                     {totalCount === 0 ? 'Add at least one item' : 'See recommended vehicle →'}
                 </Button>
+            </div>
+            <div className="step-notes">
                 <p className="trust-note">
                     {totalCount > 0
                         ? `${totalCount} item${totalCount > 1 ? 's' : ''} selected`

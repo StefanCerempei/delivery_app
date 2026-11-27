@@ -101,7 +101,7 @@ async function callTool(name, args = {}, base) {
                 serviceFee: usd(SERVICE_FEE_CENTS),
                 transportation: 'per mile from pickup to drop-off, by vehicle'
             },
-            billedAfterJob: 'labor per minute, from crew arrival at pickup to completion (breaks not billed)',
+            billedAfterJob: 'labor per minute, from crew arrival at pickup to completion (crew breaks not billed), billed in 5-minute increments (rounded up)',
             vehicles: Object.entries(VEHICLES).map(([id, v]) => ({
                 id,
                 name: v.name,

@@ -25,6 +25,11 @@ export const COMPANY = {
     fmcsaReadyToMove: 'https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/ReadytoMoveBrochure_2022Update.pdf',
     fmcsaRightsAndResponsibilities: 'https://www.fmcsa.dot.gov/protect-your-move/consumer-rights',
 
+    // Recenziile Google (Google Maps → RELOQ Moving Services). Actualizează manual din când în când.
+    googleRating: 5.0,
+    googleReviewCount: 352,
+    googleReviewsUrl: 'https://www.google.com/maps/search/?api=1&query=RELOQ+Moving+Services+98+Mountain+Gate+Rd+Ashland+MA+01721',
+
     // Politica de anulare din Terms (ajustează după tariful vostru)
     freeCancellationHours: 24,
     lateCancellationFeePercent: 25

@@ -4,6 +4,7 @@ import { api, jobPhotoUrl } from '../api/client';
 import PhotoGallery from '../components/PhotoGallery';
 import { PageLoader } from '../components/Spinner';
 import Logo from '../components/Logo';
+import SignaturePad from '../components/SignaturePad';
 import './DriverJob.css';
 
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null);
@@ -46,6 +47,74 @@ const CONFIRM = {
     arrived: 'Arrived at the pickup? The labor timer starts now.',
     completed: 'Job finished? The labor timer stops and can’t be restarted.',
     cash: 'Customer paid the labor in cash?'
+};
+
+const SIGN_KIND = { arrived: 'start', completed: 'end' };
+
+/**
+ * Ecranul pentru client, pe telefonul șoferului: semnătura la începutul jobului (cu acceptarea termenilor)
+ * și la final. Timpul pornește / se oprește doar după semnătură.
+ */
+const SignatureSheet = ({ action, job, busy, error, onSubmit, onCancel }) => {
+    const kind = SIGN_KIND[action];
+    const padRef = React.useRef(null);
+    const [name, setName] = useState(job.customer?.fullName || '');
+    const [terms, setTerms] = useState(false);
+    const [signed, setSigned] = useState(false);
+    const ready = name.trim().length >= 2 && signed && (kind === 'end' || terms);
+
+    const submit = () => {
+        const signature = padRef.current?.toDataURL();
+        if (!signature) return;
+        onSubmit({ signature, signerName: name.trim(), termsAccepted: kind === 'start' ? terms : undefined });
+    };
+
+    return (
+        <div className="job-card sig-sheet">
+            <span className="job-label">{kind === 'start' ? 'Customer — start of job' : 'Customer — job completed'}</span>
+            <h2 className="sig-title">{kind === 'start' ? 'Please sign to start the job' : 'Please sign to confirm the job is complete'}</h2>
+            {kind === 'start' ? (
+                <div className="sig-terms">
+                    <p>
+                        <strong>Labor{job.laborRate ? ` (${job.laborRate})` : ''}</strong> is billed from now — crew arrival at pickup — until the
+                        job is completed at the destination, in 5-minute increments (rounded up). Waiting time and access delays during this
+                        period are included; crew breaks are not billed.
+                    </p>
+                    <label className="sig-check">
+                        <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} />
+                        <span>
+                            I have read and agree to the{' '}
+                            <a href="/terms" target="_blank" rel="noopener noreferrer">
+                                RELOQ Terms of Service
+                            </a>{' '}
+                            and authorize the crew to start the job.
+                        </span>
+                    </label>
+                </div>
+            ) : (
+                <div className="sig-terms">
+                    <p>
+                        By signing, I confirm that the move{job.timeline?.arrivedAt ? ' that started at the pickup' : ''} is complete and the
+                        labor timer can be stopped now. The final labor charge is based on the recorded time, in 5-minute increments.
+                    </p>
+                </div>
+            )}
+            <label className="sig-name">
+                <span>Customer name</span>
+                <input name="signerName" value={name} maxLength={120} autoComplete="name" onChange={(e) => setName(e.target.value)} />
+            </label>
+            <SignaturePad ref={padRef} onChange={setSigned} />
+            {error && <p className="job-error">{error}</p>}
+            <div className="job-action-row">
+                <button className="job-btn primary" disabled={!ready || busy} onClick={submit}>
+                    {busy ? 'Saving…' : kind === 'start' ? 'Sign & start timer' : 'Sign & stop timer'}
+                </button>
+                <button className="job-btn" disabled={busy} onClick={onCancel}>
+                    Cancel
+                </button>
+            </div>
+        </div>
+    );
 };
 
 /** Pagina de job a șoferului: /job/<token> (fără cont; linkul vine prin email). */
@@ -97,11 +166,11 @@ const DriverJobPage = () => {
         return () => document.removeEventListener('visibilitychange', onVisible);
     }, [load]);
 
-    const act = async (action) => {
+    const act = async (action, body) => {
         setBusy(true);
         setError('');
         try {
-            const { job } = await api.jobAction(token, action);
+            const { job } = await api.jobAction(token, action, body);
             setJob(job);
             setNow(Date.now());
             setConfirming(null);
@@ -156,7 +225,19 @@ const DriverJobPage = () => {
                 {job.status === 'completed' && <p className="job-banner done">Job completed — thank you!</p>}
             </div>
 
-            {confirming ? (
+            {confirming && SIGN_KIND[confirming] && !job.signatures?.[SIGN_KIND[confirming]] ? (
+                <SignatureSheet
+                    action={confirming}
+                    job={job}
+                    busy={busy}
+                    error={error}
+                    onSubmit={(body) => act(confirming, body)}
+                    onCancel={() => {
+                        setConfirming(null);
+                        setError('');
+                    }}
+                />
+            ) : confirming ? (
                 <div className="job-card job-action">
                     <p className="job-confirm-q">{CONFIRM[confirming]}</p>
                     <div className="job-action-row">
@@ -298,9 +379,17 @@ const DriverJobPage = () => {
                         Completed <span>{fmtTime(job.timeline.completedAt) || '—'}</span>
                     </li>
                 </ul>
+                {(job.signatures?.start || job.signatures?.end) && (
+                    <p className="job-muted">
+                        {job.signatures.start && `✍ Start signed by ${job.signatures.start.signerName} · ${fmtTime(job.signatures.start.signedAt)}`}
+                        {job.signatures.start && job.signatures.end && <br />}
+                        {job.signatures.end && `✍ End signed by ${job.signatures.end.signerName} · ${fmtTime(job.signatures.end.signedAt)}`}
+                    </p>
+                )}
                 {job.laborActual && (
                     <p className="job-muted">
-                        Labor time: <strong>{job.laborActual.minutes} min</strong>
+                        Labor time: <strong>{job.laborActual.elapsedMinutes ?? job.laborActual.minutes} min</strong> → billed{' '}
+                        <strong>{job.laborActual.minutes} min</strong> (rounded up to 5 min)
                     </p>
                 )}
                 {job.laborRate && <p className="job-muted">Labor rate: {job.laborRate}</p>}

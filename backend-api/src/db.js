@@ -70,6 +70,22 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'labor_paid_at', 'DATETIME NULL AFTER labor_requested_at');
     await addColumnIfMissing('orders', 'labor_payment_method', 'VARCHAR(20) NULL AFTER labor_paid_at');
     await addColumnIfMissing('orders', 'labor_payment_intent_id', 'VARCHAR(255) NULL AFTER labor_payment_method');
+    // Cod de discount: total_cents e deja redus; discount_cents = cât s-a scăzut
+    await addColumnIfMissing('orders', 'discount_code', 'VARCHAR(40) NULL AFTER total_cents');
+    await addColumnIfMissing('orders', 'discount_percent', 'TINYINT UNSIGNED NULL AFTER discount_code');
+    await addColumnIfMissing('orders', 'discount_cents', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER discount_percent');
+    // De unde vine ruta folosită la preț (audit): 'osrm' sau 'estimate' (doar în teste)
+    await addColumnIfMissing('orders', 'route_source', 'VARCHAR(20) NULL AFTER duration_mins');
+    // Acceptarea termenilor la rezervare (specificația 11.2): când și ce versiune
+    await addColumnIfMissing('orders', 'terms_accepted_at', 'DATETIME NULL AFTER discount_cents');
+    await addColumnIfMissing('orders', 'terms_version', 'VARCHAR(20) NULL AFTER terms_accepted_at');
+    // Comenzi create de dispecer (telefon): cine a creat-o și linkul de plată Stripe trimis clientului
+    await addColumnIfMissing('orders', 'created_by', 'VARCHAR(120) NULL AFTER terms_version');
+    await addColumnIfMissing('orders', 'checkout_session_id', 'VARCHAR(255) NULL AFTER created_by');
+    await addColumnIfMissing('orders', 'payment_link_url', 'TEXT NULL AFTER checkout_session_id');
+    await addColumnIfMissing('orders', 'payment_link_expires_at', 'DATETIME NULL AFTER payment_link_url');
+    // Chitanța finală (client) + PDF-ul oficial (firmă) trimise o singură dată
+    await addColumnIfMissing('orders', 'receipt_sent_at', 'DATETIME NULL AFTER payment_link_expires_at');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

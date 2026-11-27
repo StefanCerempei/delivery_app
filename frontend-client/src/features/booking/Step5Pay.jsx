@@ -9,8 +9,10 @@ import { api, toLocation, uploadOrderPhoto } from '../../api/client';
 import Button from '../../components/Button';
 import EmailVerifyCard from '../../components/EmailVerifyCard';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
-import { describeDetails } from '../../components/LocationDetails';
+import { describeDetails, needsAccess } from '../../components/LocationDetails';
 import { useAuth } from '../../context/AuthContext';
+import GoogleRating from '../../components/GoogleRating';
+import { COMPANY } from '../../data/company';
 
 // Stripe și aspectul formularului: comune cu plata manoperei (utils/stripe.js)
 
@@ -20,7 +22,7 @@ function cleanDetails(d) {
     return {
         unit: (d.unit || '').trim(),
         floor: d.floor,
-        elevator: d.floor === 'ground' ? null : d.elevator,
+        elevator: needsAccess(d.floor) ? d.elevator : null,
         notes: (d.notes || '').trim()
     };
 }
@@ -56,6 +58,13 @@ const Step5Pay = () => {
     const [clientSecret, setClientSecret] = useState(null);
     const [orderError, setOrderError] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    // Cod de discount (verificat pe server; o dată per client)
+    const [discountInput, setDiscountInput] = useState('');
+    const [discount, setDiscount] = useState(null);
+    const [discountError, setDiscountError] = useState('');
+    const [discountBusy, setDiscountBusy] = useState(false);
+    // Acceptarea termenilor și a plății manoperei după job (salvată pe comandă)
+    const [acceptTerms, setAcceptTerms] = useState(false);
     // Încărcarea pozelor după crearea comenzii: { done, total } sau null
     const [photoUpload, setPhotoUpload] = useState(null);
     const [photoNotice, setPhotoNotice] = useState('');
@@ -72,7 +81,27 @@ const Step5Pay = () => {
     }, []);
 
     const selectedVehicle = VEHICLES.find((v) => v.id === bookingData.vehicle);
-    const totalAmount = order?.totalAmount ?? bookingData.priceEstimate?.total ?? null;
+    const baseTotal = bookingData.priceEstimate?.total ?? null;
+    // Același calcul ca pe server: reducerea rotunjită la cent
+    const discountAmount =
+        discount && baseTotal != null ? Math.round(Math.round(baseTotal * 100) * discount.percent / 100) / 100 : 0;
+    const totalAmount = order?.totalAmount ?? (baseTotal != null ? Math.round((baseTotal - discountAmount) * 100) / 100 : null);
+
+    const applyDiscount = async (e) => {
+        e?.preventDefault();
+        setDiscountError('');
+        if (!discountInput.trim()) return setDiscountError('Please enter a discount code.');
+        if (!user) return setDiscountError('Sign in or create your account below first, then apply the code.');
+        setDiscountBusy(true);
+        try {
+            setDiscount(await api.checkDiscount(discountInput.trim()));
+        } catch (err) {
+            setDiscount(null);
+            setDiscountError(err.message);
+        } finally {
+            setDiscountBusy(false);
+        }
+    };
 
     const scheduleText =
         bookingData.scheduledTime && typeof bookingData.scheduledTime === 'object'
@@ -113,6 +142,7 @@ const Step5Pay = () => {
         if (!verified) return setOrderError('Please verify your email first.');
         const schedule = schedulePayload(bookingData.scheduledTime);
         if (!schedule) return setOrderError('Please go back and pick a date and arrival window.');
+        if (!acceptTerms) return setOrderError('Please accept the booking terms to continue.');
         if (paymentsEnabled && !stripePromise)
             return setOrderError('Online payments are not fully configured yet. Please try again later.');
 
@@ -128,7 +158,9 @@ const Step5Pay = () => {
                 vehicle: bookingData.vehicle,
                 schedule,
                 itemsDescription: bookingData.itemsDescription,
-                photosCount: bookingData.photos?.length || 0
+                photosCount: bookingData.photos?.length || 0,
+                ...(discount ? { discountCode: discount.code } : {}),
+                acceptTerms: true
             });
             await uploadPhotos(res.order.id);
             setOrder(res.order);
@@ -140,6 +172,10 @@ const Step5Pay = () => {
         } catch (err) {
             if (err.data?.code === 'EMAIL_NOT_VERIFIED') refresh();
             if (err.data?.code === 'SLOT_TAKEN') setSlotTaken(true);
+            if (err.data?.code === 'DISCOUNT_INVALID') {
+                setDiscount(null);
+                setDiscountError(err.message);
+            }
             setOrderError(err.message);
         } finally {
             setIsCreating(false);
@@ -199,6 +235,50 @@ const Step5Pay = () => {
                         <small className="recap-price-note">due at booking</small>
                     </span>
                 </div>
+                {/* Cod de discount */}
+                {order ? (
+                    order.discount && (
+                        <div className="discount-applied">
+                            <span>
+                                <strong>{order.discount.code}</strong> · {order.discount.percent}% off
+                            </span>
+                            <span>−{formatPrice(order.discount.amount)}</span>
+                        </div>
+                    )
+                ) : discount ? (
+                    <div className="discount-applied">
+                        <span>
+                            <strong>{discount.code}</strong> · {discount.percent}% off
+                        </span>
+                        <span className="discount-applied-right">
+                            −{formatPrice(discountAmount)}
+                            <button type="button" className="discount-remove" onClick={() => setDiscount(null)} aria-label="Remove discount code">
+                                Remove
+                            </button>
+                        </span>
+                    </div>
+                ) : (
+                    <form className="discount-form" onSubmit={applyDiscount} noValidate>
+                        <input
+                            name="discount-code"
+                            value={discountInput}
+                            onChange={(e) => {
+                                setDiscountInput(e.target.value.toUpperCase());
+                                setDiscountError('');
+                            }}
+                            placeholder="Discount code"
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            maxLength={40}
+                            aria-label="Discount code"
+                        />
+                        <button type="submit" className="discount-apply" disabled={discountBusy}>
+                            {discountBusy ? 'Checking…' : 'Apply'}
+                        </button>
+                    </form>
+                )}
+                {discountError && !discount && <p className="discount-error">{discountError}</p>}
+
                 <div className="recap-addresses">
                     <div className="recap-addr-line">
                         <span className="mini-dot blue" />
@@ -388,11 +468,27 @@ const Step5Pay = () => {
                                 ← Pick another arrival window
                             </button>
                         )}
+                        <GoogleRating className="google-rating-pay" extra={`Free cancellation up to ${COMPANY.freeCancellationHours}h before`} />
+                        {user && verified && (
+                            <label className="terms-accept">
+                                <input type="checkbox" name="acceptTerms" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
+                                <span>
+                                    I agree to the{' '}
+                                    <Link to="/terms" target="_blank" rel="noopener">
+                                        Terms of Service
+                                    </Link>
+                                    . I understand that my labor charge is calculated after the service is completed, based on the actual time
+                                    from crew arrival at pickup until the job is completed at destination. Time is billed in 5-minute increments.
+                                    Waiting time and access delays during this period are included; crew breaks are not billed. My final labor charge may be lower or higher
+                                    depending on the actual time required.
+                                </span>
+                            </label>
+                        )}
                         <div className="step-footer">
                             <Button
                                 onClick={handleCreateOrder}
                                 loading={isCreating}
-                                disabled={!user || !verified || totalAmount == null}
+                                disabled={!user || !verified || totalAmount == null || !acceptTerms}
                             >
                                 {photoUpload
                                     ? `Uploading photos ${Math.min(photoUpload.done + 1, photoUpload.total)}/${photoUpload.total}…`
@@ -402,6 +498,8 @@ const Step5Pay = () => {
                                       ? `Continue to payment • ${formatPrice(totalAmount)}`
                                       : `Book RELOQ • ${formatPrice(totalAmount)}`}
                             </Button>
+                        </div>
+                        <div className="step-notes">
                             <p className="trust-note">
                                 {paymentsEnabled
                                     ? 'You pay the booking price now. '

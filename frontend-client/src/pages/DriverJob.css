@@ -161,3 +161,20 @@
 @media (display-mode: standalone) {
     .job-page { padding-top: env(safe-area-inset-top); padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
 }
+
+/* ===== Semnătura clientului ===== */
+.sig-sheet { gap: 12px; }
+.sig-title { margin: 2px 0 0; font-size: 20px; line-height: 1.25; }
+.sig-terms { display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.5; color: var(--text-2, #c3cbd6); }
+.sig-terms p { margin: 0; }
+.sig-check { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; cursor: pointer; }
+.sig-check input { width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px; accent-color: #ff3f34; }
+.sig-check a { color: inherit; text-decoration: underline; }
+.sig-name { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted, #8a949e); }
+.sig-name input { min-height: 46px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px; background: rgba(255, 255, 255, 0.04); color: inherit; font: inherit; font-size: 16px; }
+.sig-pad { position: relative; border-radius: 14px; background: #ffffff; overflow: hidden; touch-action: none; }
+.sig-pad canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; }
+.sig-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #9aa4b1; font-size: 15px; pointer-events: none; }
+.sig-line { position: absolute; left: 18px; right: 18px; bottom: 38px; border-bottom: 1.5px dashed #c4ccd6; pointer-events: none; }
+.sig-clear { position: absolute; top: 8px; right: 8px; padding: 6px 12px; border: 1px solid #d3d9e0; border-radius: 999px; background: #fff; color: #0b1f3b; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sig-clear:disabled { opacity: 0.4; cursor: default; }

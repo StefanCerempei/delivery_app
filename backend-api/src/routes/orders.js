@@ -5,7 +5,7 @@ import { pool } from '../db.js';
 import { requireAuth, requireVerifiedEmail } from '../auth.js';
 import { getTrip, allPrices, priceFor, priceLines, MAX_DISTANCE_MILES, VEHICLES } from '../pricing.js';
 import { estimateSchema, createOrderSchema, parseBody } from '../validation.js';
-import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL } from '../orders.js';
+import { newOrderCode, toOrderDto, ORDER_WITH_CUSTOMER_SQL, insertOrderRow } from '../orders.js';
 import { stripe, customerFields } from '../stripe.js';
 import { config } from '../config.js';
 import { businessTodayUTC, parseDateOnly } from '../time.js';
@@ -18,9 +18,14 @@ import { searchAddresses, reverseGeocode } from '../geocode.js';
 import { rawImageBody, savePhoto, sendPhoto } from '../photos.js';
 import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { laborPaymentIntent, syncLaborPayment } from '../labor.js';
+import { checkDiscount, discountCents } from '../discounts.js';
+import { completeCheckout } from '../paymentLinks.js';
+
+// Versiunea termenilor acceptați la rezervare; schimb-o când se modifică Terms of Service.
+export const TERMS_VERSION = '2026-11';
 
 /** Ambele adrese în zona deservită (Massachusetts, de la Worcester spre est)? Altfel răspunde 422. */
-function outsideArea(data, res) {
+export function outsideArea(data, res) {
     const bad = ['pickup', 'dropoff'].filter((k) => !inServiceArea(data[k].lat, data[k].lng));
     if (!bad.length) return false;
     res.status(422).json({ error: OUTSIDE_AREA_MESSAGE, code: 'OUTSIDE_SERVICE_AREA', fields: bad });
@@ -34,6 +39,8 @@ const router = Router();
 
 const estimateLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
 const createLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+// Verificarea codurilor de discount: limită separată, ca să nu se poată ghici coduri la nesfârșit
+const discountLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false });
 
 const toDollars = (p) => ({ vehicleId: p.vehicleId, ...priceLines(p) });
 
@@ -72,7 +79,7 @@ export function scheduleLabel(day, slot) {
 }
 
 /** Programarea e valabilă doar de mâine (ora din Massachusetts) până la MAX_DAYS_AHEAD zile. */
-function scheduleFrom(input) {
+export function scheduleFrom(input) {
     const day = parseDateOnly(input.date);
     if (!day) return null;
     const diffDays = Math.round((day.getTime() - businessTodayUTC().getTime()) / DAY_MS);
@@ -91,13 +98,14 @@ function scheduleFrom(input) {
 const PAYMENT_METHOD_TYPES = ['card', 'amazon_pay'];
 
 /** Creează PaymentIntent-ul; dacă Amazon Pay nu e activat în contul Stripe, merge doar cu card. */
-async function createPaymentIntent(params) {
+// idempotencyKey (o cheie per comandă): o cerere repetată nu poate crea a doua plată (specificația 11.3)
+async function createPaymentIntent(params, idempotencyKey) {
     try {
-        return await stripe.paymentIntents.create({ ...params, payment_method_types: PAYMENT_METHOD_TYPES });
+        return await stripe.paymentIntents.create({ ...params, payment_method_types: PAYMENT_METHOD_TYPES }, { idempotencyKey });
     } catch (err) {
         if (err.type !== 'StripeInvalidRequestError' || !/amazon_pay/.test(err.message || '')) throw err;
         console.warn(`[reloq] Amazon Pay indisponibil în contul Stripe (${err.message}); plata merge doar cu card / Apple Pay / Google Pay.`);
-        return stripe.paymentIntents.create({ ...params, payment_method_types: ['card'] });
+        return stripe.paymentIntents.create({ ...params, payment_method_types: ['card'] }, { idempotencyKey: `${idempotencyKey}-card` });
     }
 }
 
@@ -144,6 +152,21 @@ router.get('/availability', estimateLimiter, async (req, res) => {
     res.json({ taken });
 });
 
+/** GET /api/payment-link/complete?session_id= — întoarcerea de pe pagina de plată Stripe (link trimis de dispecer). */
+router.get('/payment-link/complete', geocodeLimiter, async (req, res) => {
+    const result = await completeCheckout(req.query.session_id);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+});
+
+/** POST /api/discounts/check — verifică un cod de discount pentru clientul logat. */
+router.post('/discounts/check', requireAuth, discountLimiter, async (req, res) => {
+    const result = await checkDiscount(req.body?.code, req.user.id);
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result);
+});
+
 /** POST /api/orders — creează comanda; prețul e recalculat aici. */
 router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => {
     const data = parseBody(createOrderSchema, req, res);
@@ -161,6 +184,15 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
     }
     const price = priceFor(data.vehicle, route);
 
+    // Cod de discount (o dată per client): reduce doar prețul plătit la rezervare
+    let discount = null;
+    if (data.discountCode) {
+        discount = await checkDiscount(data.discountCode, req.user.id);
+        if (discount.error) return res.status(400).json({ error: discount.error, code: 'DISCOUNT_INVALID' });
+        discount.cents = discountCents(price.totalCents, discount.percent);
+    }
+    const totalCents = price.totalCents - (discount?.cents || 0);
+
     const id = crypto.randomUUID();
     let code = newOrderCode();
 
@@ -174,44 +206,15 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
 
     // O singură comandă pe fereastră: verificarea și salvarea se fac cu ora blocată.
     const booked = await withSlot(schedule.scheduledFor, req.user.id, async (conn) => {
-        for (let attempt = 0; ; attempt++) {
-            try {
-                await conn.query(
-                    `INSERT INTO orders (
-                        id, code, user_id, status,
-                        pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng,
-                        distance_miles, duration_mins, vehicle, schedule_type, scheduled_for, schedule_label,
-                        items_description, photos_count,
-                        base_fare_cents, distance_cost_cents, time_cost_cents, total_cents, currency,
-                        pricing_version, outbound_mins, return_mins, labor_cents_per_min,
-                        pickup_details, dropoff_details
-                    ) VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?)`,
-                    [
-                        id, code, req.user.id,
-                        data.pickup.address, data.pickup.lat, data.pickup.lng,
-                        data.dropoff.address, data.dropoff.lat, data.dropoff.lng,
-                        route.distanceMiles, route.durationMins, data.vehicle,
-                        schedule.type, schedule.scheduledFor, schedule.label,
-                        // numărul real de poze se actualizează la încărcarea lor (/orders/:code/photos)
-                        data.itemsDescription, 0,
-                        // Model de preț v2: base_fare = Service fee, distance_cost = Transportation,
-                        // time_cost = Reservation fee (vezi pricing.js și toOrderDto).
-                        price.serviceFeeCents, price.transportationCents, price.reservationFeeCents, price.totalCents,
-                        config.currency,
-                        price.outboundMins, price.returnMins, price.laborCentsPerMin,
-                        data.pickupDetails ? JSON.stringify(data.pickupDetails) : null,
-                        data.dropoffDetails ? JSON.stringify(data.dropoffDetails) : null
-                    ]
-                );
-                break;
-            } catch (err) {
-                if (err.code === 'ER_DUP_ENTRY' && attempt < 3) {
-                    code = newOrderCode();
-                    continue;
-                }
-                throw err;
-            }
-        }
+        code = await insertOrderRow(conn, {
+            id, code, userId: req.user.id, status: 'pending_payment',
+            pickup: data.pickup, dropoff: data.dropoff,
+            pickupDetails: data.pickupDetails, dropoffDetails: data.dropoffDetails,
+            route, vehicle: data.vehicle, schedule,
+            itemsDescription: data.itemsDescription,
+            price, totalCents, currency: config.currency, discount,
+            termsVersion: TERMS_VERSION
+        });
     });
     if (!booked) {
         return res.status(409).json({
@@ -225,12 +228,12 @@ router.post('/orders', requireVerifiedEmail, createLimiter, async (req, res) => 
         const { customer, meta } = await customerFields(req.user.id, { name: req.user.fullName, email: req.user.email });
         const intent = await createPaymentIntent({
             ...(customer ? { customer } : {}),
-            amount: price.totalCents,
+            amount: totalCents,
             currency: config.currency,
             receipt_email: req.user.email,
             description: `RELOQ ${VEHICLES[data.vehicle].name} — ${code}`,
             metadata: { order_code: code, order_id: id, user_id: String(req.user.id), ...meta }
-        });
+        }, `order-${id}`);
         await pool.query('UPDATE orders SET stripe_payment_intent_id = ? WHERE id = ?', [intent.id, id]);
         clientSecret = intent.client_secret;
     }

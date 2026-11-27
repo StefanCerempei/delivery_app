@@ -161,3 +161,47 @@ CREATE TABLE IF NOT EXISTS blocked_slots (
     created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (day, slot)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Coduri de discount create de dispecer (procent din prețul plătit la rezervare; o dată per client)
+CREATE TABLE IF NOT EXISTS discount_codes (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(40)  NOT NULL,
+    percent     TINYINT UNSIGNED NOT NULL DEFAULT 10,
+    active      TINYINT(1)   NOT NULL DEFAULT 1,
+    note        VARCHAR(200) NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_discount_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Jurnalul modificărilor unei comenzi (specificația RELOQ, secțiunea 10): ce, valoarea veche / nouă, cine, de ce, când
+CREATE TABLE IF NOT EXISTS order_changes (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id    CHAR(36)     NOT NULL,
+    field       VARCHAR(40)  NOT NULL,
+    old_value   TEXT NULL,
+    new_value   TEXT NULL,
+    reason      VARCHAR(300) NULL,
+    actor_id    INT UNSIGNED NULL,
+    actor_name  VARCHAR(120) NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order_changes_order (order_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Semnăturile clientului pe telefonul șoferului: la începutul jobului (cu acceptarea termenilor) și la final
+CREATE TABLE IF NOT EXISTS order_signatures (
+    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id       CHAR(36)     NOT NULL,
+    kind           VARCHAR(10)  NOT NULL,
+    signer_name    VARCHAR(120) NOT NULL,
+    terms_accepted TINYINT(1)   NOT NULL DEFAULT 0,
+    terms_version  VARCHAR(20)  NULL,
+    image          MEDIUMBLOB   NOT NULL,
+    driver_name    VARCHAR(120) NULL,
+    ip             VARCHAR(64)  NULL,
+    user_agent     VARCHAR(300) NULL,
+    signed_at      DATETIME     NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_order_signature (order_id, kind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
