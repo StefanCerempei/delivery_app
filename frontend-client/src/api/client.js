@@ -97,6 +97,8 @@ export const api = {
     adminPaymentLink: (code) => request(`/admin/orders/${encodeURIComponent(code)}/payment-link`, { method: 'POST', body: {} }),
     paymentLinkComplete: (sessionId) => request(`/payment-link/complete?session_id=${encodeURIComponent(sessionId)}`),
     adminUpdateOrder: (code, changes) => request(`/admin/orders/${encodeURIComponent(code)}`, { method: 'PATCH', body: changes }),
+    adminSignatures: (code) => request(`/admin/orders/${encodeURIComponent(code)}/signatures`),
+    adminResendReceipt: (code) => request(`/admin/orders/${encodeURIComponent(code)}/receipt/resend`, { method: 'POST' }),
     adminOrderHistory: (code) => request(`/admin/orders/${encodeURIComponent(code)}/history`),
     adminLabor: (code, action, extra = {}) =>
         request(`/admin/orders/${encodeURIComponent(code)}/labor`, { method: 'POST', body: { action, ...extra } }),
@@ -153,6 +155,9 @@ async function uploadOrderPhotoRaw(code, blob) {
 }
 
 /** Linkul unei poze încărcate: pentru client și dispecer (cu sesiune) sau pentru șofer (cu tokenul jobului). */
+export const receiptPdfUrl = (code, download = false) =>
+    `${API_BASE}/api/admin/orders/${encodeURIComponent(code)}/receipt.pdf${download ? '?download=1' : ''}`;
+export const signatureUrl = (code, kind) => `${API_BASE}/api/admin/orders/${encodeURIComponent(code)}/signatures/${kind}.png`;
 export const orderPhotoUrl = (code, photoId) => `${API_BASE}/api/orders/${encodeURIComponent(code)}/photos/${photoId}`;
 export const jobPhotoUrl = (token, photoId) => `${API_BASE}/api/job/${encodeURIComponent(token)}/photos/${photoId}`;
 

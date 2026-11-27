@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatMoney } from '../utils/formatters';
-import { api, orderPhotoUrl } from '../api/client';
+import { api, orderPhotoUrl, receiptPdfUrl, signatureUrl } from '../api/client';
 import PhotoGallery from '../components/PhotoGallery';
 import AdminOrderEditor from './AdminOrderEditor';
 import { PageLoader } from '../components/Spinner';
@@ -47,6 +47,80 @@ const LABOR_STATUS = {
     paid: 'Paid online',
     paid_cash: 'Paid in cash',
     waived: 'Waived (no charge)'
+};
+
+/** Semnăturile clientului (start / final) și chitanța oficială PDF. */
+const SignaturesAndReceipt = ({ order }) => {
+    const [sigs, setSigs] = useState(null);
+    const [msg, setMsg] = useState('');
+    const [busy, setBusy] = useState(false);
+    useEffect(() => {
+        let alive = true;
+        api.adminSignatures(order.id)
+            .then(({ signatures }) => alive && setSigs(signatures))
+            .catch(() => alive && setSigs({ start: null, end: null }));
+        return () => {
+            alive = false;
+        };
+    }, [order.id, order.status, order.timeline?.arrivedAt, order.timeline?.completedAt]);
+
+    const resend = async () => {
+        setBusy(true);
+        setMsg('');
+        try {
+            await api.adminResendReceipt(order.id);
+            setMsg('Receipt emailed to the customer and the PDF to the company email.');
+        } catch (e) {
+            setMsg(e.message);
+        } finally {
+            setBusy(false);
+        }
+    };
+    const settled = ['paid', 'paid_cash', 'waived'].includes(order.laborBilling?.status);
+
+    return (
+        <div className="admin-card">
+            <h3>Signatures &amp; receipt</h3>
+            <div className="sig-grid">
+                {[
+                    ['start', 'Start of job + terms'],
+                    ['end', 'End of job']
+                ].map(([kind, label]) => {
+                    const s = sigs?.[kind];
+                    return (
+                        <div key={kind} className="sig-cell">
+                            <span className="crm-field-label">{label}</span>
+                            {s ? (
+                                <>
+                                    <img src={signatureUrl(order.id, kind)} alt={`${label} signature`} />
+                                    <small>
+                                        {s.signerName} · {fmtWhen(s.signedAt)}
+                                    </small>
+                                </>
+                            ) : (
+                                <small className="job-muted">{sigs ? 'Not signed yet' : 'Loading…'}</small>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="record-actions-row">
+                <a className="crm-primary-btn" href={receiptPdfUrl(order.id)} target="_blank" rel="noopener noreferrer">
+                    View receipt (PDF)
+                </a>
+                <a className="crm-ghost-btn" href={receiptPdfUrl(order.id, true)}>
+                    Download
+                </a>
+                {settled && (
+                    <button className="crm-ghost-btn" disabled={busy} onClick={resend}>
+                        {busy ? 'Sending…' : 'Email receipt again'}
+                    </button>
+                )}
+            </div>
+            {!settled && <small className="job-muted">The final receipt is emailed automatically once labor is paid (online, cash or no charge).</small>}
+            {msg && <p className="driver-msg">{msg}</p>}
+        </div>
+    );
 };
 
 const FIELD_LABELS = {
@@ -586,6 +660,8 @@ const AdminOrderDetail = () => {
                     )}
                     <LaborBilling order={order} onUpdated={(o) => applyOrder(o, { keepNotes: true })} />
                 </div>
+
+                <SignaturesAndReceipt order={order} />
 
                 <OrderHistory order={order} />
 

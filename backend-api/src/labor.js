@@ -8,6 +8,7 @@
 //   waived         — fără taxă de manoperă (decizia dispecerului)
 import { pool } from './db.js';
 import { logChanges } from './audit.js';
+import { sendFinalReceipts } from './receipts.js';
 import { stripe, customerFields } from './stripe.js';
 import { config } from './config.js';
 import { toOrderDto, ORDER_WITH_CUSTOMER_SQL, laborActual } from './orders.js';
@@ -84,6 +85,7 @@ export async function markLaborCash(code) {
         "UPDATE orders SET labor_status = 'paid_cash', labor_cents = COALESCE(?, labor_cents), labor_paid_at = UTC_TIMESTAMP(), labor_payment_method = 'cash' WHERE id = ?",
         [laborCents(row), row.id]
     );
+    await sendFinalReceipts(code);
     return { order: dto(await loadRow(code)) };
 }
 
@@ -93,6 +95,7 @@ export async function waiveLabor(code) {
     if (!['none', ...UNPAID_LABOR].includes(row.labor_status)) return { error: 'Labor for this job is already settled.', status: 409 };
     await cancelLaborIntent(row);
     await pool.query("UPDATE orders SET labor_status = 'waived', labor_cents = 0 WHERE id = ?", [row.id]);
+    if (row.status === 'completed') await sendFinalReceipts(code);
     return { order: dto(await loadRow(code)) };
 }
 
@@ -172,7 +175,7 @@ export async function syncLaborPayment(paymentIntentId) {
             [paymentIntentId]
         );
         const order = dto(await loadRow(found[0].code));
-        if (result.affectedRows === 1) await waitForMail(notifyLaborPaid(order));
+        if (result.affectedRows === 1) await sendFinalReceipts(found[0].code);
         return { order, paid: true, status: intent.status };
     }
     return { order: dto(await loadRow(found[0].code)), paid: false, status: intent.status };

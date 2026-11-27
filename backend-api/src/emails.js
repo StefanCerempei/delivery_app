@@ -502,3 +502,55 @@ export function notifyPaymentLink(order, url, expiresAt) {
         text: `Your RELOQ move is reserved. Pay ${money2(order.totalAmount)} to confirm it: ${url}\n\n${orderText(order, rows)}\n\n${laborNote(order)}`
     });
 }
+
+/** Clientul: chitanța finală după plata manoperei — rezervare + timp de lucru + total. */
+export function notifyFinalReceipt(order, { booking, labor, total, waived }) {
+    if (!order.customer?.email) return Promise.resolve(false);
+    const firstName = order.customer.fullName?.split(' ')[0] || 'there';
+    const l = order.laborActual;
+    const fmt = (iso) =>
+        iso
+            ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+            : null;
+    const rows = [
+        ['Order', `#${order.id}`],
+        ['Service', `${order.vehicle?.name}${order.vehicle?.crewLabel ? ` (${order.vehicle.crewLabel})` : ''}`],
+        ['Date', order.scheduleText],
+        ['Pickup', order.pickup?.address],
+        ['Drop-off', order.dropoff?.address],
+        ['Paid at booking', money2(booking)],
+        ['Crew arrived', fmt(order.timeline?.arrivedAt)],
+        ['Job completed', fmt(order.timeline?.completedAt)],
+        ['Time billed', l ? `${l.minutes} min (5-minute increments)` : null],
+        ['Paid for labor', waived ? '$0.00 (no charge)' : money2(labor)],
+        ['Total paid', money2(total)]
+    ];
+    return sendMailInBackground({
+        to: order.customer.email,
+        subject: `Your RELOQ receipt — total ${money2(total)} (#${order.id})`,
+        html: layout({
+            preheader: `Thank you for moving with RELOQ. Total paid: ${money2(total)}.`,
+            title: 'Your final receipt',
+            intro: `Hi ${esc(firstName)}, thank you for moving with RELOQ! Here is your final receipt with everything you paid for this move.`,
+            body: `${detailsTable(rows)}<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${BRAND.gray}">Questions about your receipt? Reply to this email or call ${BRAND.phone} with your order number.</p>`
+        }),
+        text: `Your RELOQ final receipt\n\n${orderText(order, rows)}\n\nQuestions: ${BRAND.phone} / ${BRAND.email}`
+    });
+}
+
+/** Firma: PDF-ul oficial al jobului (date client, plăți, ore, termeni, semnături). */
+export function notifyCompanyReceipt(order, pdf, to, total) {
+    return sendMailInBackground({
+        to,
+        replyTo: order.customer?.email,
+        subject: `Official receipt #${order.id} — ${order.customer?.fullName || 'customer'} — ${money2(total)}`,
+        html: layout({
+            preheader: `Official receipt and job record for #${order.id}.`,
+            title: 'Official receipt (PDF attached)',
+            intro: `The job #${esc(order.id)} for ${esc(order.customer?.fullName || 'the customer')} is settled. The official receipt with payments, job times, terms and the customer's signatures is attached as a PDF. It can also be downloaded from the order in dispatch.`,
+            body: ''
+        }),
+        text: `Official receipt for #${order.id} attached (PDF). Total paid: ${money2(total)}.`,
+        attachments: [{ filename: `RELOQ-receipt-${order.id}.pdf`, content: pdf, contentType: 'application/pdf' }]
+    });
+}

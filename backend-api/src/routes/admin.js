@@ -15,6 +15,7 @@ import { inServiceArea, OUTSIDE_AREA_MESSAGE } from '../serviceArea.js';
 import { listDiscounts } from '../discounts.js';
 import { logChanges, orderHistory } from '../audit.js';
 import { signaturesFor, signatureImage } from '../signatures.js';
+import { receiptData, buildReceiptPdf, sendFinalReceipts } from '../receipts.js';
 import { getTrip, priceFor, priceLines } from '../pricing.js';
 import { scheduleLabel } from './orders.js';
 import { businessTodayUTC } from '../time.js';
@@ -218,6 +219,26 @@ router.get('/orders/:code/signatures/:kind.png', async (req, res) => {
     const img = id ? await signatureImage(id, req.params.kind) : null;
     if (!img) return res.status(404).end();
     res.type('png').set('Cache-Control', 'private, max-age=3600').send(img);
+});
+
+/** GET /admin/orders/:code/receipt.pdf — chitanța oficială (PDF), oricând; înainte de plata manoperei arată „not settled”. */
+router.get('/orders/:code/receipt.pdf', async (req, res) => {
+    const d = await receiptData(req.params.code);
+    if (!d) return res.status(404).json({ error: 'Order not found.' });
+    const pdf = await buildReceiptPdf(d);
+    res.type('application/pdf')
+        .set('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="RELOQ-receipt-${d.order.id}.pdf"`)
+        .set('Cache-Control', 'no-store')
+        .send(pdf);
+});
+
+/** POST /admin/orders/:code/receipt/resend — retrimite chitanța clientului și PDF-ul firmei. */
+router.post('/orders/:code/receipt/resend', async (req, res) => {
+    const id = await orderIdByCode(req.params.code);
+    if (!id) return res.status(404).json({ error: 'Order not found.' });
+    await pool.query('UPDATE orders SET receipt_sent_at = NULL WHERE id = ?', [id]);
+    await sendFinalReceipts(req.params.code);
+    res.json({ ok: true });
 });
 
 /** GET /admin/orders/:code/history — jurnalul modificărilor. */

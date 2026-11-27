@@ -84,6 +84,8 @@ export async function migrate() {
     await addColumnIfMissing('orders', 'checkout_session_id', 'VARCHAR(255) NULL AFTER created_by');
     await addColumnIfMissing('orders', 'payment_link_url', 'TEXT NULL AFTER checkout_session_id');
     await addColumnIfMissing('orders', 'payment_link_expires_at', 'DATETIME NULL AFTER payment_link_url');
+    // Chitanța finală (client) + PDF-ul oficial (firmă) trimise o singură dată
+    await addColumnIfMissing('orders', 'receipt_sent_at', 'DATETIME NULL AFTER payment_link_expires_at');
     await addIndexIfMissing('orders', 'uq_orders_driver_token', 'UNIQUE KEY uq_orders_driver_token (driver_token)');
     await addIndexIfMissing('orders', 'idx_orders_scheduled', 'KEY idx_orders_scheduled (scheduled_for)');
     await ensureStatusEnum();

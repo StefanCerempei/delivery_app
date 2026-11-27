@@ -62,7 +62,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * a plecat, așa că emailurile trimise „în fundal” dau ETIMEDOUT. Rutele trebuie să facă
  * `await` (prin waitForMail) ÎNAINTE de res.json().
  */
-export async function sendMailSafe({ to, subject, html, text, replyTo }) {
+export async function sendMailSafe({ to, subject, html, text, replyTo, attachments }) {
     if (!transporter || !to) return false;
     for (let attempt = 1; attempt <= 2; attempt++) {
         try {
@@ -72,7 +72,8 @@ export async function sendMailSafe({ to, subject, html, text, replyTo }) {
                 subject,
                 html,
                 text,
-                replyTo: replyTo || mailSettings.replyTo || undefined
+                replyTo: replyTo || mailSettings.replyTo || undefined,
+                ...(attachments ? { attachments } : {})
             });
             console.log(`[reloq] Email trimis: „${subject}” → ${to} (${info.messageId})${attempt > 1 ? ' (a 2-a încercare)' : ''}`);
             return true;
